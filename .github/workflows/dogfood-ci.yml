@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   ci-suite:
-    uses: JacobPEvans/ai-workflows/.github/workflows/suite-ci.yml@v0.13
+    uses: JacobPEvans/ai-workflows/.github/workflows/suite-ci.yml@v0.14
     with:
       repo_context: "Reusable GitHub Actions workflows for AI-powered CI/CD automation (prompts, scripts, YAML workflows)"
       ci_structure: "test.yml (bun test for JavaScript scripts)"
