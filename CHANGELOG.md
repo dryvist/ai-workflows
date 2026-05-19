@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.0](https://github.com/JacobPEvans/ai-workflows/compare/v0.14.1...v0.15.0) (2026-05-19)
+
+
+### Features
+
+* **workflows:** add runner_label input to all reusable workflows ([#223](https://github.com/JacobPEvans/ai-workflows/issues/223)) ([3514f98](https://github.com/JacobPEvans/ai-workflows/commit/3514f98a6120ebfd75fb6e03c0261418e6142984))
+
 ## [0.14.1](https://github.com/JacobPEvans/ai-workflows/compare/v0.14.0...v0.14.1) (2026-05-18)
 
 
