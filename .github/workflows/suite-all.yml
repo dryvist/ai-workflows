@@ -22,6 +22,14 @@ name: "Suite: All"
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       caller_event:
         description: "Event that triggered the caller (pass github.event_name)"
         type: string
@@ -56,6 +64,7 @@ jobs:
       inputs.caller_event == 'check_suite'
     uses: ./.github/workflows/suite-pr.yml
     with:
+      runner_label: ${{ inputs.runner_label }}
       caller_event: ${{ inputs.caller_event }}
       allowed_bots: ${{ inputs.allowed_bots }}
     secrets: inherit
@@ -65,5 +74,6 @@ jobs:
     if: inputs.caller_event == 'workflow_dispatch'
     uses: ./.github/workflows/suite-post-merge.yml
     with:
+      runner_label: ${{ inputs.runner_label }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit

@@ -20,6 +20,14 @@ name: "Suite: CI Failures"
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       repo_context:
         description: "Brief description of the repository"
         type: string
@@ -55,6 +63,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository
     uses: ./.github/workflows/ci-fix.yml
     with:
+      runner_label: ${{ inputs.runner_label }}
       repo_context: ${{ inputs.repo_context }}
       ci_structure: ${{ inputs.ci_structure }}
       extra_tools: ${{ inputs.extra_tools }}
@@ -66,5 +75,6 @@ jobs:
       github.event.workflow_run.head_branch == 'main'
     uses: ./.github/workflows/ci-fail-issue.yml
     with:
+      runner_label: ${{ inputs.runner_label }}
       workflow_name: ${{ inputs.workflow_name }}
     secrets: inherit

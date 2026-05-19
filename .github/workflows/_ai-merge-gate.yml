@@ -10,6 +10,15 @@ name: _ai-merge-gate
 
 on:
   workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
   workflow_dispatch:
 
 permissions:
@@ -19,7 +28,7 @@ permissions:
 jobs:
   check:
     name: AI Merge Gate
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     env:
       GH_TOKEN: ${{ github.token }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

@@ -4,6 +4,14 @@ name: "Issue Triage"
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       issue_number:
         description: "Issue number to triage (dispatch pattern; 0 = from event payload)"
         type: string
@@ -22,7 +30,7 @@ concurrency:
 
 jobs:
   triage:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     permissions:
       contents: read
       id-token: write
