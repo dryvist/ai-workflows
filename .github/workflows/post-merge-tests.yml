@@ -43,7 +43,7 @@ concurrency:
 jobs:
   check-pr-ceiling:
     name: Check bot PR ceiling
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
     outputs:
@@ -66,7 +66,7 @@ jobs:
 
   check-test-infra:
     name: Check test infrastructure
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
     outputs:
@@ -91,7 +91,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       actions: read
     outputs:
@@ -119,7 +119,7 @@ jobs:
     name: Analyze and create tests
     needs: [check-pr-ceiling, check-test-infra, check-daily-limit]
     if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
       id-token: write

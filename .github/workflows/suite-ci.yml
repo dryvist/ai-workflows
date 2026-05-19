@@ -63,7 +63,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository
     uses: ./.github/workflows/ci-fix.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       repo_context: ${{ inputs.repo_context }}
       ci_structure: ${{ inputs.ci_structure }}
       extra_tools: ${{ inputs.extra_tools }}
@@ -75,6 +75,6 @@ jobs:
       github.event.workflow_run.head_branch == 'main'
     uses: ./.github/workflows/ci-fail-issue.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       workflow_name: ${{ inputs.workflow_name }}
     secrets: inherit

@@ -52,6 +52,6 @@ jobs:
       inputs.caller_event == 'check_suite'
     uses: ./.github/workflows/final-pr-review.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       allowed_bots: ${{ inputs.allowed_bots }}
     secrets: inherit

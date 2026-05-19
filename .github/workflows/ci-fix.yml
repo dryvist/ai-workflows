@@ -57,7 +57,7 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'copilot[bot]'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
       issues: read
@@ -94,7 +94,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       actions: read
     outputs:
@@ -125,7 +125,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: write
       issues: write
@@ -154,7 +154,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       actions: read
     outputs:
@@ -185,7 +185,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
       id-token: write

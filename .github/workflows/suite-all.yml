@@ -64,7 +64,7 @@ jobs:
       inputs.caller_event == 'check_suite'
     uses: ./.github/workflows/suite-pr.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       caller_event: ${{ inputs.caller_event }}
       allowed_bots: ${{ inputs.allowed_bots }}
     secrets: inherit
@@ -74,6 +74,6 @@ jobs:
     if: inputs.caller_event == 'workflow_dispatch'
     uses: ./.github/workflows/suite-post-merge.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit

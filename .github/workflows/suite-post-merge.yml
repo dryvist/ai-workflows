@@ -42,13 +42,13 @@ jobs:
   docs-review:
     uses: ./.github/workflows/post-merge-docs-review.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit
 
   tests-review:
     uses: ./.github/workflows/post-merge-tests.yml
     with:
-      runner_label: ${{ inputs.runner_label }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit

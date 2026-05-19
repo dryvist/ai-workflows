@@ -48,7 +48,7 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'claude[bot]'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
       issues: read
@@ -74,7 +74,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       actions: read
     outputs:
@@ -102,7 +102,7 @@ jobs:
     name: Claude Final Review
     needs: [gate-check, check-daily-limit]
     if: needs.gate-check.outputs.should_run == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       checks: read
       contents: read
@@ -155,7 +155,7 @@ jobs:
     name: Mark as reviewed
     needs: [gate-check, review]
     if: needs.gate-check.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: write
       issues: write

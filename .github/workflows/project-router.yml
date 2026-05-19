@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   route:
-    runs-on: ${{ inputs.runner_label }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
       id-token: write
