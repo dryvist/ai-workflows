@@ -9,6 +9,14 @@ name: Final PR Review
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       daily_run_limit:
         description: "Max workflow runs per day (0 to disable)"
         type: string
@@ -40,7 +48,7 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'claude[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
       issues: read
@@ -66,7 +74,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       actions: read
     outputs:
@@ -94,7 +102,7 @@ jobs:
     name: Claude Final Review
     needs: [gate-check, check-daily-limit]
     if: needs.gate-check.outputs.should_run == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       checks: read
       contents: read
@@ -147,7 +155,7 @@ jobs:
     name: Mark as reviewed
     needs: [gate-check, review]
     if: needs.gate-check.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: write
       issues: write

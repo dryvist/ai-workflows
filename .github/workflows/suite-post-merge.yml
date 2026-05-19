@@ -16,6 +16,14 @@ name: "Suite: Post-Merge Reviews"
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       commit_sha:
         description: "Commit SHA to review (pass inputs.commit_sha from workflow_dispatch)"
         type: string
@@ -34,11 +42,13 @@ jobs:
   docs-review:
     uses: ./.github/workflows/post-merge-docs-review.yml
     with:
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit
 
   tests-review:
     uses: ./.github/workflows/post-merge-tests.yml
     with:
+      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit

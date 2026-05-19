@@ -10,6 +10,14 @@ name: Issue Linker
 on:
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       model:
         description: "Claude model to use (overrides AI_MODEL_ISSUES and AI_MODEL vars)"
         type: string
@@ -39,7 +47,7 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'claude[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
       issues: read
@@ -68,7 +76,7 @@ jobs:
     name: Link or close issues
     needs: check-eligibility
     if: needs.check-eligibility.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
       id-token: write

@@ -18,6 +18,14 @@ on:
   # To fully remove: delete this file and all caller references.
   workflow_call:
     inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
       dummy:
         type: string
         description: "This workflow is deprecated and will not run"
@@ -39,7 +47,7 @@ jobs:
   check-daily-limit:
     if: false
     name: Check daily run limit
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     permissions:
       actions: read
     outputs:
@@ -74,7 +82,7 @@ jobs:
     #   !contains(github.event.pull_request.labels.*.name, 'ai:skip-review')
     name: Claude Code Review
     needs: check-daily-limit
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     permissions:
       actions: read
       contents: read
@@ -148,7 +156,7 @@ jobs:
     #   github.event.comment != null &&
     #   contains(github.event.comment.body, '@claude')
     name: Claude Interactive
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
     permissions:
       contents: read
       pull-requests: write
