@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.16.0](https://github.com/JacobPEvans/ai-workflows/compare/v0.15.1...v0.16.0) (2026-05-24)
+
+
+### Features
+
+* **attribution:** apply agentic-workflows label to declarative bot PRs/issues ([#232](https://github.com/JacobPEvans/ai-workflows/issues/232)) ([fc97d3f](https://github.com/JacobPEvans/ai-workflows/commit/fc97d3fbeaf59c1d7ca8583b5da88fcb7a05fc40))
+
 ## [0.15.1](https://github.com/JacobPEvans/ai-workflows/compare/v0.15.0...v0.15.1) (2026-05-21)
 
 
