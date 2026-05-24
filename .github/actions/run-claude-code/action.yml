@@ -40,27 +40,6 @@ inputs:
       commits.
     required: false
     default: "true"
-  source_slug:
-    description: >-
-      Workflow basename used for PR/issue attribution, e.g. `ci-fix`,
-      `post-merge-docs-review`. When non-empty, the composite prepends an
-      attribution preamble (compose-prompt.sh + attribution-preamble.md)
-      that instructs Claude to suffix every PR title with `[aw:<slug>]`,
-      every issue title with `[aw:<slug>] ...`, append the Provenance block
-      to every body, and apply the `agentic-workflows` label after
-      creation. Required for callers that create PRs or issues; leave
-      empty for review-only callers (claude-review, final-pr-review,
-      ai-merge-gate).
-
-      Callers that pass a non-empty `source_slug` and actually create PRs
-      or issues MUST include the relevant `gh` subcommands in
-      `allowed_tools` so Claude can apply the label after creation —
-      typically `Bash(gh pr edit:*)`, `Bash(gh issue edit:*)`,
-      `Bash(gh pr create:*)`, and `Bash(gh issue create:*)`. Without
-      these, the label-add step will fail and Slack will report the
-      attribution as incomplete.
-    required: false
-    default: ""
 
 runs:
   using: composite
@@ -74,18 +53,6 @@ runs:
         owner: ${{ github.repository_owner }}
         repositories: ${{ github.event.repository.name }}
 
-    - name: Compose prompt with attribution preamble
-      id: composed-prompt
-      shell: bash
-      env:
-        USER_PROMPT: ${{ inputs.prompt }}
-        SOURCE_SLUG: ${{ inputs.source_slug }}
-        WORKFLOW_REF: ${{ github.workflow_ref }}
-        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        EVENT_NAME: ${{ github.event_name }}
-        ACTION_PATH: ${{ github.action_path }}
-      run: "${{ github.action_path }}/compose-prompt.sh"
-
     - name: Run Claude Code
       uses: anthropics/claude-code-action@v1
       with:
@@ -93,7 +60,7 @@ runs:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}
-        prompt: ${{ steps.composed-prompt.outputs.content }}
+        prompt: ${{ inputs.prompt }}
         claude_args: >-
           --allowedTools "${{ inputs.allowed_tools }}"
           --model ${{ inputs.model }}
