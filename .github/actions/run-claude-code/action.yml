@@ -51,6 +51,14 @@ inputs:
       creation. Required for callers that create PRs or issues; leave
       empty for review-only callers (claude-review, final-pr-review,
       ai-merge-gate).
+
+      Callers that pass a non-empty `source_slug` and actually create PRs
+      or issues MUST include the relevant `gh` subcommands in
+      `allowed_tools` so Claude can apply the label after creation —
+      typically `Bash(gh pr edit:*)`, `Bash(gh issue edit:*)`,
+      `Bash(gh pr create:*)`, and `Bash(gh issue create:*)`. Without
+      these, the label-add step will fail and Slack will report the
+      attribution as incomplete.
     required: false
     default: ""
 

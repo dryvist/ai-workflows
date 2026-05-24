@@ -7,6 +7,15 @@
 # Reads: USER_PROMPT, SOURCE_SLUG, WORKFLOW_REF, RUN_URL, EVENT_NAME,
 #        ACTION_PATH, GITHUB_OUTPUT (all required env vars).
 # Writes: a `content` step output containing the composed prompt.
+#
+# Security:
+# - Template substitution uses bash parameter expansion (${var//pattern/repl})
+#   rather than `sed`. Parameter expansion does not interpret the
+#   replacement string, so a `|`, `/`, `&`, or other sed-special character
+#   in a value cannot escape the template.
+# - The heredoc delimiter is randomized per invocation via /dev/urandom so
+#   USER_PROMPT cannot escape the GITHUB_OUTPUT block by guessing the
+#   delimiter.
 set -euo pipefail
 
 : "${USER_PROMPT:?USER_PROMPT is required}"
@@ -15,15 +24,14 @@ set -euo pipefail
 
 preamble=""
 if [[ -n "${SOURCE_SLUG:-}" ]]; then
-  preamble=$(sed \
-    -e "s|{{SOURCE_SLUG}}|${SOURCE_SLUG}|g" \
-    -e "s|{{WORKFLOW_REF}}|${WORKFLOW_REF:-}|g" \
-    -e "s|{{RUN_URL}}|${RUN_URL:-}|g" \
-    -e "s|{{EVENT_NAME}}|${EVENT_NAME:-}|g" \
-    "${ACTION_PATH}/attribution-preamble.md")
+  preamble=$(< "${ACTION_PATH}/attribution-preamble.md")
+  preamble="${preamble//\{\{SOURCE_SLUG\}\}/${SOURCE_SLUG}}"
+  preamble="${preamble//\{\{WORKFLOW_REF\}\}/${WORKFLOW_REF:-}}"
+  preamble="${preamble//\{\{RUN_URL\}\}/${RUN_URL:-}}"
+  preamble="${preamble//\{\{EVENT_NAME\}\}/${EVENT_NAME:-}}"
 fi
 
-delim="EOF_COMPOSED_PROMPT_$$"
+delim="ghadelimiter_$(LC_ALL=C tr -dc 'a-f0-9' < /dev/urandom | head -c 32)"
 {
   printf 'content<<%s\n' "$delim"
   if [[ -n "$preamble" ]]; then
