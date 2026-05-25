@@ -12,5 +12,5 @@ permissions:
   pull-requests: read
 jobs:
   best-practices:
-    uses: JacobPEvans/ai-workflows/.github/workflows/best-practices.yml@v0.15.1
+    uses: JacobPEvans/ai-workflows/.github/workflows/best-practices.yml@v0.16.0
     secrets: inherit
