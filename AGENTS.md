@@ -96,7 +96,7 @@ Never mix programming languages inline within workflow files. Each file must con
 **Pattern for extracted scripts** (`actions/github-script`):
 
 ```yaml
-- uses: actions/github-script@v8
+- uses: actions/github-script@v9
   with:
     script: |
       const run = require('./.ai-workflows/.github/scripts/<dir>/<name>.js');
