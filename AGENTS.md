@@ -4,11 +4,13 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 ## Architecture
 
-This repo is the single source of truth for CI/CD automation workflows. Each workflow is a GitHub reusable workflow (`on: workflow_call`) that consumer repos invoke via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.1.0`.
+This repo is the single source of truth for CI/CD automation workflows.
+Each workflow is a GitHub reusable workflow (`on: workflow_call`) that consumer
+repos invoke via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.1.0`.
 
 ### Directory Structure
 
-```
+```text
 .github/
   prompts/
     *.md                            # Prompt files (one per workflow)
@@ -37,15 +39,31 @@ This repo is the single source of truth for CI/CD automation workflows. Each wor
 - Prompts rendered via `render-prompt.sh` + step output (envsubst)
 - Static prompts: most workflows
 - Dynamic prompts (ci-fix, post-merge-tests, post-merge-docs-review): `render-prompt.sh` with named env vars
-- Write workflows (code-simplifier, next-steps, post-merge-*, ci-fix, issue-resolver): add `use_commit_signing: "true"` and restrict git to read-only subcommands (see docs/PATTERNS.md Commit Signing Pattern)
+- Write workflows (code-simplifier, next-steps, post-merge-*, ci-fix,
+  issue-resolver): add `use_commit_signing: "true"` and restrict git to
+  read-only subcommands (see docs/PATTERNS.md Commit Signing Pattern)
 
-**Supported event types**: `issues`, `issue_comment`, `pull_request`, `pull_request_review`, `pull_request_review_comment`, `workflow_dispatch`, `repository_dispatch`, `schedule`, `workflow_run`. `push` is NOT supported — post-merge workflows use the dispatch pattern (see `docs/PATTERNS.md`).
+**Supported event types**: `issues`, `issue_comment`, `pull_request`,
+`pull_request_review`, `pull_request_review_comment`, `workflow_dispatch`,
+`repository_dispatch`, `schedule`, `workflow_run`. `push` is NOT supported —
+post-merge workflows use the dispatch pattern (see `docs/PATTERNS.md`).
 
-**Bot guard**: All `claude-code-action@v1` steps include `allowed_bots: "github-actions"` to allow dispatch-triggered runs (which set `github.actor` to `github-actions[bot]`). Cost control is handled by consumer-level daily dispatch limits, not by blocking bots at the workflow level. See `docs/PATTERNS.md` for the Bot Guard and AI Dispatch patterns.
+**Bot guard**: All `claude-code-action@v1` steps include
+`allowed_bots: "github-actions"` to allow dispatch-triggered runs (which set
+`github.actor` to `github-actions[bot]`). Cost control is handled by
+consumer-level daily dispatch limits, not by blocking bots at the workflow
+level. See `docs/PATTERNS.md` for the Bot Guard and AI Dispatch patterns.
 
-**AI Provenance**: All PR-creating workflows (`code-simplifier`, `next-steps`, `post-merge-docs-review`, `post-merge-tests`, `issue-resolver`) include a standardized provenance footer in every PR body. `ci-fix` appends provenance to the commit message. See `docs/PATTERNS.md` for the AI Provenance Pattern.
+**AI Provenance**: All PR-creating workflows (`code-simplifier`, `next-steps`,
+`post-merge-docs-review`, `post-merge-tests`, `issue-resolver`) include a
+standardized provenance footer in every PR body. `ci-fix` appends provenance
+to the commit message. See `docs/PATTERNS.md` for the AI Provenance Pattern.
 
-**Slack notifications**: `notify-ai-pr.yml` is a reusable workflow that consumer repos call on `pull_request: opened`. It filters for `claude[bot]`-authored PRs and posts to `#github-automation` via Slack Incoming Webhook. Requires `GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION` secret (synced via secrets-sync).
+**Slack notifications**: `notify-ai-pr.yml` is a reusable workflow that
+consumer repos call on `pull_request: opened`. It filters for `claude[bot]`-
+authored PRs and posts to `#github-automation` via Slack Incoming Webhook.
+Requires `GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION` secret (synced via
+secrets-sync).
 
 ### Consumer Repo Caller Pattern
 
@@ -91,7 +109,10 @@ Never mix programming languages inline within workflow files. Each file must con
 - `.md` files contain prompts (with `${VAR}` placeholders for dynamic values)
 - `.json.template` files contain JSON config templates
 
-**Inline threshold**: Scripts of 5 lines or fewer may be embedded directly in YAML workflow steps. Scripts exceeding 5 lines must be extracted to a dedicated file under `.github/scripts/` and referenced via the cross-repo checkout pattern.
+**Inline threshold**: Scripts of 5 lines or fewer may be embedded directly in
+YAML workflow steps. Scripts exceeding 5 lines must be extracted to a dedicated
+file under `.github/scripts/` and referenced via the cross-repo checkout
+pattern.
 
 **Pattern for extracted scripts** (`actions/github-script`):
 
@@ -110,15 +131,22 @@ module.exports = async ({ github, context, core }) => {
 };
 ```
 
-Pass GitHub Actions expression values (`${{ }}`) via `env:` on the step, then read them with `process.env` in the script. Never interpolate expressions inside `.js` files.
+Pass GitHub Actions expression values (`${{ }}`) via `env:` on the step, then
+read them with `process.env` in the script. Never interpolate expressions
+inside `.js` files.
 
 ### Concurrency
 
-Never use `cancel-in-progress: true` in AI workflows. Cancelling an in-progress run wastes tokens — always use `cancel-in-progress: false` to queue runs instead.
+Never use `cancel-in-progress: true` in AI workflows. Cancelling an
+in-progress run wastes tokens — always use `cancel-in-progress: false` to
+queue runs instead.
 
 ### Authentication
 
-Use `OPENROUTER_API_KEY` for all Claude Code workflows, routed via `OPENROUTER_BASE_URL` (repo secret). Do not create aliases or alternative secret names. See README.md for why OpenRouter is used instead of direct Anthropic or OAuth tokens.
+Use `OPENROUTER_API_KEY` for all Claude Code workflows, routed via
+`OPENROUTER_BASE_URL` (repo secret). Do not create aliases or alternative
+secret names. See README.md for why OpenRouter is used instead of direct
+Anthropic or OAuth tokens.
 
 ### Version Tags for Actions
 
