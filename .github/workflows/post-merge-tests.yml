@@ -162,7 +162,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/post-merge-tests.md MERGE_SHA REPO_FULL_NAME WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Run Claude Code with bot attribution
-        uses: JacobPEvans/ai-workflows/.github/actions/run-claude-code@main
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
