@@ -145,7 +145,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-resolver.md REPO_CONTEXT ISSUE_NUMBER ISSUE_TITLE ISSUE_BODY ISSUE_LABELS ATTEMPT MAX_ATTEMPTS WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Run Claude Code with bot attribution
-        uses: JacobPEvans/ai-workflows/.github/actions/run-claude-code@main
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ inputs.model || vars.AI_MODEL_PLAN || vars.AI_MODEL || 'openrouter/free' }}

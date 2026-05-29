@@ -224,7 +224,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE ATTEMPT_NUM WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Run Claude Code with bot attribution
-        uses: JacobPEvans/ai-workflows/.github/actions/run-claude-code@main
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL || 'openrouter/free' }}
