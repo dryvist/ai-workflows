@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.16.1](https://github.com/dryvist/ai-workflows/compare/v0.16.0...v0.16.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **ci:** repoint release-please caller to org-native reusable workflow ([#240](https://github.com/dryvist/ai-workflows/issues/240)) ([3d92946](https://github.com/dryvist/ai-workflows/commit/3d92946486d7bdf29aea886f8cafe6d1cde0e38c))
+* **ci:** retarget reusable-workflow uses: refs to current org homes ([#238](https://github.com/dryvist/ai-workflows/issues/238)) ([5b25275](https://github.com/dryvist/ai-workflows/commit/5b252758ed4edd6c46b32e1c9a586c9d5394bd9b))
+
 ## [0.16.0](https://github.com/JacobPEvans/ai-workflows/compare/v0.15.1...v0.16.0) (2026-05-24)
 
 
