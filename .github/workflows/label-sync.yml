@@ -59,4 +59,4 @@ jobs:
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: >-
             --allowedTools "Read,Glob,Grep,LS,Bash(gh label:*),Bash(gh search:*),Bash(gh api:*)"
-            --model ${{ vars.AI_MODEL_OPS || vars.AI_MODEL || 'openrouter/free' }}
+            --model ${{ vars.AI_MODEL }}

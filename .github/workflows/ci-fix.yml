@@ -227,7 +227,7 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL || 'openrouter/free' }}
+          model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}

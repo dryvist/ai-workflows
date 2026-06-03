@@ -148,7 +148,7 @@ jobs:
           track_progress: true
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
-            --model ${{ inputs.model || vars.AI_MODEL_REVIEW || vars.AI_MODEL || 'openrouter/free' }} --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --model ${{ inputs.model || vars.AI_MODEL }} --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 
   interactive:
     if: false
@@ -175,4 +175,4 @@ jobs:
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           allowed_bots: "github-actions"
           claude_args: |
-            --model ${{ vars.AI_MODEL_REVIEW || vars.AI_MODEL || 'openrouter/free' }} --allowedTools "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh issue comment:*)"
+            --model ${{ vars.AI_MODEL }} --allowedTools "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh issue comment:*)"

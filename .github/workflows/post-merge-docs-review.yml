@@ -130,10 +130,10 @@ jobs:
     steps:
       - name: Validate model configuration
         env:
-          AI_MODEL_VAR: ${{ vars.AI_MODEL_DOCS || vars.AI_MODEL }}
+          AI_MODEL_VAR: ${{ vars.AI_MODEL }}
         run: |
           if [ -z "$AI_MODEL_VAR" ]; then
-            echo "::error::AI_MODEL_DOCS or AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
+            echo "::error::AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
             exit 1
           fi
 
@@ -165,7 +165,7 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL_DOCS || vars.AI_MODEL }}
+          model: ${{ vars.AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
