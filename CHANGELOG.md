@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.17.0](https://github.com/dryvist/ai-workflows/compare/v0.16.1...v0.17.0) (2026-06-04)
+
+
+### Features
+
+* **project-router:** native routing + drop invalid openrouter/free fallback ([#244](https://github.com/dryvist/ai-workflows/issues/244)) ([2f28cd4](https://github.com/dryvist/ai-workflows/commit/2f28cd47cd24afae842629b44716cf1fdf81cb13))
+
 ## [0.16.1](https://github.com/dryvist/ai-workflows/compare/v0.16.0...v0.16.1) (2026-06-01)
 
 
