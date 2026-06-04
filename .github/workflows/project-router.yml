@@ -1,4 +1,10 @@
-# Auto-route issues and PRs to GitHub Projects with intelligent field assignment
+# Add issues and PRs that carry a type:* label to the org project board.
+#
+# Native, deterministic replacement for the former AI-driven router. The board
+# exposes only Status and Phase fields, so board membership is the meaningful
+# action — handled by actions/add-to-project with no model, prompt, or token
+# spend. Items are routed only once they are triaged (carry a type:* label),
+# preserving the original router's inclusion rule.
 name: "Project Router"
 
 on:
@@ -12,53 +18,45 @@ on:
         type: string
         required: false
         default: ubuntu-latest
-  workflow_dispatch:
+      project-url:
+        description: >-
+          URL of the GitHub Projects v2 board to add matching items to.
+          Defaults to the org's primary board; override to route a repo's
+          items elsewhere.
+        type: string
+        required: false
+        default: https://github.com/orgs/dryvist/projects/1
 
-# Workflow-level permissions set the maximum for all jobs.
-# permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: read
-  id-token: write
-  issues: write
-  pull-requests: read
 
 concurrency:
-  group: project-router-${{ github.repository }}
+  group: >-
+    project-router-${{ github.repository }}-${{
+    github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
   route:
+    # Route only triaged items — those carrying at least one type:* label. An
+    # item opened without one is added later, when the type:* label fires the
+    # caller's `issues: labeled` trigger.
+    if: >-
+      contains(join(github.event.issue.labels.*.name, ','), 'type:') ||
+      contains(join(github.event.pull_request.labels.*.name, ','), 'type:')
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      contents: read
-      id-token: write
-      issues: write
-      pull-requests: read
     timeout-minutes: 5
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Checkout ai-workflows
-        uses: actions/checkout@v6
+      - name: Mint app installation token
+        id: app-token
+        uses: actions/create-github-app-token@v3
         with:
-          repository: JacobPEvans/ai-workflows
-          sparse-checkout: |
-            .github/prompts
-            .github/scripts
-          path: .ai-workflows
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
 
-      - name: Render prompt
-        id: prompt
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/project-router.md
-
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
+      - name: Add item to project board
+        uses: actions/add-to-project@v1
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-          allowed_bots: "github-actions"
-          prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh pr:*)"
-            --model ${{ vars.AI_MODEL_OPS || vars.AI_MODEL || 'openrouter/free' }}
+          project-url: ${{ inputs.project-url }}
+          github-token: ${{ steps.app-token.outputs.token }}

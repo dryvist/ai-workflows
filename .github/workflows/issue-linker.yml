@@ -114,7 +114,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           allowed_bots: "github-actions"
-          model: ${{ inputs.model || vars.AI_MODEL_ISSUES || vars.AI_MODEL || 'openrouter/free' }}
+          model: ${{ inputs.model || vars.AI_MODEL_ISSUES || vars.AI_MODEL }}
           prompt: ${{ steps.render-prompt.outputs.content }}
           claude_args: >-
             --allowedTools "Read,Glob,Grep,LS,Bash(gh pr:*),Bash(gh issue:*),Bash(gh search:*),Bash(gh api:*)"
