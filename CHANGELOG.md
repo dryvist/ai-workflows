@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.17.1](https://github.com/dryvist/ai-workflows/compare/v0.17.0...v0.17.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **actions:** remove expression syntax from action input descriptions ([#246](https://github.com/dryvist/ai-workflows/issues/246)) ([456f7d9](https://github.com/dryvist/ai-workflows/commit/456f7d967b6cb7aabf11fb8c7c4859755ab1a9ab))
+
 ## [0.17.0](https://github.com/dryvist/ai-workflows/compare/v0.16.1...v0.17.0) (2026-06-04)
 
 
