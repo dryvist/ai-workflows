@@ -8,7 +8,11 @@ description: >-
 
 inputs:
   prompt:
-    description: Rendered prompt content sent to Claude (typically `${{ steps.prompt.outputs.content }}`).
+    # NOTE: descriptions must not contain `${{ ... }}` expression syntax — the
+    # runner evaluates expressions inside action metadata and fails the job at
+    # load time with "Unrecognized named-value" for contexts (steps/vars/
+    # secrets) that do not exist there.
+    description: Rendered prompt content sent to Claude (typically the caller's `steps.prompt.outputs.content`).
     required: true
   model:
     description: >-
@@ -24,10 +28,10 @@ inputs:
     description: API key for the LLM provider (e.g. OpenRouter). Pass-through; treat as secret at the caller.
     required: true
   app_id:
-    description: JacobPEvans-claude App ID, e.g. `${{ vars.GH_APP_CLAUDE_BOT_ID }}`.
+    description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
     required: true
   app_private_key:
-    description: JacobPEvans-claude App private key PEM, e.g. `${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}`.
+    description: JacobPEvans-claude App private key PEM, e.g. the caller's `secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY`.
     required: true
   allowed_bots:
     description: Comma-separated bot logins claude-code-action may process.
