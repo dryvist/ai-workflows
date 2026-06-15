@@ -110,8 +110,6 @@ jobs:
       issues: read
       pull-requests: write
     timeout-minutes: 10
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -144,9 +142,11 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL }}
+          model: ${{ vars.AI_MODEL_REVIEW || vars.AI_MODEL || 'sonnet' }}
           allowed_tools: "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+          ai_token: ${{ secrets.AI_TOKEN }}
+          ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           use_commit_signing: "false"

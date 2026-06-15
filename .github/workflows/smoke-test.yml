@@ -1,13 +1,12 @@
 # Smoke Test
 #
-# Lightweight workflow to validate API provider auth and model routing.
-# No PR or issue context needed — runs a trivial Claude prompt and verifies the response.
+# Lightweight workflow to validate AI provider auth and model routing.
+# No PR or issue context needed; runs a trivial prompt and verifies the action completes.
 #
 # Usage:
-#   gh workflow run smoke-test.yml -f provider=openrouter
-#   gh workflow run smoke-test.yml -f provider=openrouter -f model=openrouter/free
-#   gh workflow run smoke-test.yml -f provider=anthropic -f model=anthropic/claude-haiku-4
-#   gh workflow run smoke-test.yml -f provider=chutes
+#   gh workflow run smoke-test.yml
+#   gh workflow run smoke-test.yml -f provider=openrouter -f model=anthropic/claude-sonnet-4
+#   gh workflow run smoke-test.yml -f provider=anthropic_api -f model=claude-sonnet-4
 
 name: Smoke Test
 
@@ -15,19 +14,20 @@ on:
   workflow_dispatch:
     inputs:
       provider:
-        description: "API provider to test"
+        description: "AI provider to test"
         type: choice
         options:
+          - claude_oauth
+          - anthropic_api
           - openrouter
-          - anthropic
-          - chutes
-        default: openrouter
+          - anthropic_compatible
+        default: claude_oauth
       model:
-        description: "Model to use (empty = use AI_MODEL var fallback)"
+        description: "Model to use (empty = AI_MODEL or Claude default)"
         type: string
         default: ""
       prompt:
-        description: "Test prompt (default validates exact output)"
+        description: "Test prompt"
         type: string
         default: "Respond with exactly this text and nothing else: SMOKE_TEST_PASS"
 
@@ -40,23 +40,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  smoke-openrouter:
-    name: "openrouter / ${{ inputs.model || 'default' }}"
-    if: inputs.provider == 'openrouter'
+  smoke:
+    name: "${{ inputs.provider }} / ${{ inputs.model || 'default' }}"
     runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     timeout-minutes: 5
     steps:
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
+      - name: Run Claude Code
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          ai_provider: ${{ inputs.provider }}
+          ai_token: ${{ secrets.AI_TOKEN }}
+          ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
           allowed_bots: "github-actions"
+          use_commit_signing: "false"
           prompt: ${{ inputs.prompt }}
-          claude_args: >-
-            --model ${{ inputs.model || vars.AI_MODEL }}
-            --allowedTools "Bash(echo:*)"
+          allowed_tools: "Bash(echo:*)"
+          model: ${{ inputs.model || vars.AI_MODEL || 'sonnet' }}
 
       - name: Verify response
         env:
@@ -64,75 +63,11 @@ jobs:
           ACTUAL_PROMPT: ${{ inputs.prompt }}
         run: |
           echo "=== Smoke Test Results ==="
-          echo "Provider: openrouter"
-          echo "Model: ${{ inputs.model || vars.AI_MODEL }}"
-          echo "Status: Claude action completed successfully"
+          echo "Provider: ${{ inputs.provider }}"
+          echo "Model: ${{ inputs.model || vars.AI_MODEL || 'sonnet' }}"
+          echo "Status: Claude Code action completed successfully"
           if [[ "$ACTUAL_PROMPT" == "$DEFAULT_PROMPT" ]]; then
             echo "=== SMOKE_TEST_PASS ==="
           else
-            echo "=== Custom prompt used — manual output verification required ==="
-          fi
-
-  smoke-anthropic:
-    name: "anthropic / ${{ inputs.model || 'default' }}"
-    if: inputs.provider == 'anthropic'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_bots: "github-actions"
-          prompt: ${{ inputs.prompt }}
-          claude_args: >-
-            --model ${{ inputs.model || 'claude-haiku-4' }}
-            --allowedTools "Bash(echo:*)"
-
-      - name: Verify response
-        env:
-          DEFAULT_PROMPT: "Respond with exactly this text and nothing else: SMOKE_TEST_PASS"
-          ACTUAL_PROMPT: ${{ inputs.prompt }}
-        run: |
-          echo "=== Smoke Test Results ==="
-          echo "Provider: anthropic"
-          echo "Model: ${{ inputs.model || 'claude-haiku-4' }}"
-          echo "Status: Claude action completed successfully"
-          if [[ "$ACTUAL_PROMPT" == "$DEFAULT_PROMPT" ]]; then
-            echo "=== SMOKE_TEST_PASS ==="
-          else
-            echo "=== Custom prompt used — manual output verification required ==="
-          fi
-
-  smoke-chutes:
-    name: "chutes / ${{ inputs.model || 'default' }}"
-    if: inputs.provider == 'chutes'
-    runs-on: ubuntu-latest
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.CHUTES_BASE_URL }}
-    timeout-minutes: 5
-    steps:
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.CHUTES_API_KEY }}
-          allowed_bots: "github-actions"
-          prompt: ${{ inputs.prompt }}
-          claude_args: >-
-            --model ${{ inputs.model || vars.AI_MODEL }}
-            --allowedTools "Bash(echo:*)"
-
-      - name: Verify response
-        env:
-          DEFAULT_PROMPT: "Respond with exactly this text and nothing else: SMOKE_TEST_PASS"
-          ACTUAL_PROMPT: ${{ inputs.prompt }}
-        run: |
-          echo "=== Smoke Test Results ==="
-          echo "Provider: chutes"
-          echo "Model: ${{ inputs.model || vars.AI_MODEL }}"
-          echo "Status: Claude action completed successfully"
-          if [[ "$ACTUAL_PROMPT" == "$DEFAULT_PROMPT" ]]; then
-            echo "=== SMOKE_TEST_PASS ==="
-          else
-            echo "=== Custom prompt used — manual output verification required ==="
+            echo "=== Custom prompt used - manual output verification required ==="
           fi

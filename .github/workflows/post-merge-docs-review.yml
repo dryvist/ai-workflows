@@ -125,18 +125,7 @@ jobs:
       id-token: write
       pull-requests: write
     timeout-minutes: 15
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     steps:
-      - name: Validate model configuration
-        env:
-          AI_MODEL_VAR: ${{ vars.AI_MODEL }}
-        run: |
-          if [ -z "$AI_MODEL_VAR" ]; then
-            echo "::error::AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -165,8 +154,10 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL }}
+          model: ${{ vars.AI_MODEL_DOCS || vars.AI_MODEL || 'sonnet' }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+          ai_token: ${{ secrets.AI_TOKEN }}
+          ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

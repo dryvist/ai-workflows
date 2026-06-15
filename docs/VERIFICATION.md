@@ -1,13 +1,14 @@
 # Verification Runbook
 
-This document describes how to verify all 15 workflows are operational after deployment.
+This document describes how to verify the core workflow set after deployment.
 Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps below.
 
 ## Prerequisites
 
 - `gh` CLI authenticated with sufficient scopes
 - All consumer repos updated to `@v0.5.0`
-- Secrets configured: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `CHUTES_API_KEY` (depending on your provider)
+- Secret configured: `AI_TOKEN`
+- Optional provider variables: `AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`
 
 ## Consumer Repos
 
@@ -22,18 +23,19 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 The fastest way to verify auth and model routing. No PR or issue needed.
 
 ```bash
-# Test OpenRouter (default provider):
+# Test default Claude OAuth provider:
 gh workflow run smoke-test.yml
 gh run watch
 
 # Test with a specific model:
-gh workflow run smoke-test.yml -f provider=openrouter -f model=openrouter/free
+gh workflow run smoke-test.yml -f model=sonnet
 
-# Test Anthropic direct:
-gh workflow run smoke-test.yml -f provider=anthropic -f model=anthropic/claude-haiku-4
+# Test direct Anthropic API:
+gh workflow run smoke-test.yml -f provider=anthropic_api -f model=sonnet
 
-# Test Chutes.ai:
-gh workflow run smoke-test.yml -f provider=chutes
+# Test OpenRouter or another Anthropic-compatible router:
+gh workflow run smoke-test.yml -f provider=openrouter -f model=<model>
+gh workflow run smoke-test.yml -f provider=anthropic_compatible -f model=<model>
 ```
 
 **Pass condition**: Workflow completes with `conclusion: success`. The default prompt verifies the model can respond coherently.
@@ -225,7 +227,7 @@ done
 | D: CI Fix | ci-fix | Run triggered, fix attempted |
 | E: Scheduled (next run) | best-practices, code-simplifier, next-steps, issue-sweeper, issue-hygiene | conclusion != failure |
 
-**Total**: 12 of 15 workflows verified via real triggers. (claude-review and final-pr-review are indirectly covered via Tests A and B.)
+**Total**: 12 core workflows verified via real triggers. (claude-review and final-pr-review are indirectly covered via Tests A and B.)
 
 ---
 

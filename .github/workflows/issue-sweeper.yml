@@ -40,8 +40,6 @@ jobs:
       issues: write
       pull-requests: read
     timeout-minutes: 5
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -60,11 +58,13 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-sweeper.md
 
       - name: Execute Claude Code
-        uses: anthropics/claude-code-action@v1
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+          ai_token: ${{ secrets.AI_TOKEN }}
+          ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
           allowed_bots: "github-actions"
+          use_commit_signing: "false"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*),Bash(gh api:*)"
-            --model ${{ vars.AI_MODEL_ISSUES || vars.AI_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*),Bash(gh api:*)"
+          model: ${{ vars.AI_MODEL_ISSUES || vars.AI_MODEL || 'sonnet' }}

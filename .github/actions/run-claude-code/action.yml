@@ -24,15 +24,27 @@ inputs:
       Full --allowedTools value forwarded inside `claude_args`. Each caller
       owns its own tool scope so the policy stays visible in the workflow.
     required: true
-  anthropic_api_key:
-    description: API key for the LLM provider (e.g. OpenRouter). Pass-through; treat as secret at the caller.
+  ai_provider:
+    description: >-
+      AI provider routing mode. Supported values: claude_oauth, anthropic_api,
+      openrouter, anthropic_compatible.
+    required: false
+    default: claude_oauth
+  ai_token:
+    description: Provider credential passed from the caller's AI_TOKEN secret.
     required: true
+  ai_base_url:
+    description: Optional Anthropic-compatible base URL for routed providers.
+    required: false
+    default: ""
   app_id:
     description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
-    required: true
+    required: false
+    default: ""
   app_private_key:
     description: JacobPEvans-claude App private key PEM, e.g. the caller's `secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY`.
-    required: true
+    required: false
+    default: ""
   allowed_bots:
     description: Comma-separated bot logins claude-code-action may process.
     required: false
@@ -44,12 +56,44 @@ inputs:
       commits.
     required: false
     default: "true"
+  track_progress:
+    description: Forwarded to claude-code-action for review-style workflows.
+    required: false
+    default: "false"
 
 runs:
   using: composite
   steps:
+    - name: Validate AI provider configuration
+      shell: bash
+      env:
+        AI_PROVIDER: ${{ inputs.ai_provider }}
+        AI_TOKEN: ${{ inputs.ai_token }}
+        AI_BASE_URL: ${{ inputs.ai_base_url }}
+      run: |
+        case "$AI_PROVIDER" in
+          claude_oauth|anthropic_api)
+            ;;
+          openrouter|anthropic_compatible)
+            if [ -z "$AI_BASE_URL" ]; then
+              echo "::error::AI_BASE_URL is required when AI_PROVIDER is $AI_PROVIDER"
+              exit 1
+            fi
+            ;;
+          *)
+            echo "::error::Unsupported AI_PROVIDER: $AI_PROVIDER"
+            exit 1
+            ;;
+        esac
+
+        if [ -z "$AI_TOKEN" ]; then
+          echo "::error::AI_TOKEN secret is required"
+          exit 1
+        fi
+
     - name: Mint JacobPEvans-claude installation token
       id: app-token
+      if: inputs.app_id != '' && inputs.app_private_key != ''
       uses: actions/create-github-app-token@v3
       with:
         app-id: ${{ inputs.app_id }}
@@ -57,13 +101,45 @@ runs:
         owner: ${{ github.repository_owner }}
         repositories: ${{ github.event.repository.name }}
 
-    - name: Run Claude Code
+    - name: Run Claude Code with Claude OAuth
+      if: inputs.ai_provider == 'claude_oauth'
       uses: anthropics/claude-code-action@v1
       with:
-        github_token: ${{ steps.app-token.outputs.token }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        github_token: ${{ steps.app-token.outputs.token || github.token }}
+        claude_code_oauth_token: ${{ inputs.ai_token }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}
+        track_progress: ${{ inputs.track_progress }}
+        prompt: ${{ inputs.prompt }}
+        claude_args: >-
+          --allowedTools "${{ inputs.allowed_tools }}"
+          --model ${{ inputs.model }}
+
+    - name: Run Claude Code with Anthropic API
+      if: inputs.ai_provider == 'anthropic_api'
+      uses: anthropics/claude-code-action@v1
+      with:
+        github_token: ${{ steps.app-token.outputs.token || github.token }}
+        anthropic_api_key: ${{ inputs.ai_token }}
+        allowed_bots: ${{ inputs.allowed_bots }}
+        use_commit_signing: ${{ inputs.use_commit_signing }}
+        track_progress: ${{ inputs.track_progress }}
+        prompt: ${{ inputs.prompt }}
+        claude_args: >-
+          --allowedTools "${{ inputs.allowed_tools }}"
+          --model ${{ inputs.model }}
+
+    - name: Run Claude Code with routed Anthropic-compatible API
+      if: inputs.ai_provider == 'openrouter' || inputs.ai_provider == 'anthropic_compatible'
+      uses: anthropics/claude-code-action@v1
+      env:
+        ANTHROPIC_BASE_URL: ${{ inputs.ai_base_url }}
+      with:
+        github_token: ${{ steps.app-token.outputs.token || github.token }}
+        anthropic_api_key: ${{ inputs.ai_token }}
+        allowed_bots: ${{ inputs.allowed_bots }}
+        use_commit_signing: ${{ inputs.use_commit_signing }}
+        track_progress: ${{ inputs.track_progress }}
         prompt: ${{ inputs.prompt }}
         claude_args: >-
           --allowedTools "${{ inputs.allowed_tools }}"

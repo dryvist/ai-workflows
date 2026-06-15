@@ -1,7 +1,9 @@
 # Patterns Reference
 
-All workflows in this repository use `anthropics/claude-code-action@v1` with OIDC auth.
-The following patterns are used across the 15 reusable workflows.
+Reusable workflows in this repository call `anthropics/claude-code-action@v1`
+through `.github/actions/run-claude-code`. The shared action keeps provider
+routing behind `AI_TOKEN`, `AI_PROVIDER`, `AI_BASE_URL`, and model variables.
+The following patterns are used across the reusable workflows and GH-AW imports.
 
 ---
 
@@ -16,7 +18,9 @@ Used by most workflows. Static prompt, read-only tools.
 - `id-token: write` at both workflow-level and job-level permissions
 - Cross-repo checkout of `.github/prompts` and `.github/scripts`
 - `render-prompt.sh` to render the static prompt into a step output
-- `claude-code-action@v1` with `anthropic_api_key:`, `ANTHROPIC_BASE_URL` env (sourced from `secrets.OPENROUTER_BASE_URL`), `allowed_bots:`, and `prompt:`
+- `dryvist/ai-workflows/.github/actions/run-claude-code@main` with `AI_TOKEN`,
+  `AI_PROVIDER`, optional `AI_BASE_URL`, `allowed_bots`, `prompt`, `allowed_tools`,
+  and `model`
 
 ```yaml
 - name: Render prompt
@@ -24,16 +28,16 @@ Used by most workflows. Static prompt, read-only tools.
   run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/<name>.md
 
 - name: Run Claude
-  uses: anthropics/claude-code-action@v1
-  env:
-    ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+  uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
   with:
-    anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+    ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+    ai_token: ${{ secrets.AI_TOKEN }}
+    ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
     allowed_bots: "github-actions"
+    use_commit_signing: "false"
     prompt: ${{ steps.prompt.outputs.content }}
-    claude_args: >-
-      --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*)"
-      --model ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL }}
+    allowed_tools: "Read,Glob,Grep,LS,Bash(gh issue:*)"
+    model: ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL || 'sonnet' }}
 ```
 
 ---
@@ -50,25 +54,54 @@ Used by workflows that create commits or PRs. Adds `use_commit_signing: "true"` 
 
 ```yaml
 - name: Run Claude
-  uses: anthropics/claude-code-action@v1
-  env:
-    ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+  uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
   with:
-    anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+    ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+    ai_token: ${{ secrets.AI_TOKEN }}
+    ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
     allowed_bots: "github-actions"
     use_commit_signing: "true"
     prompt: ${{ steps.prompt.outputs.content }}
-    claude_args: >-
-      --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),
-      Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*)"
-      --model ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL }}
+    allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*)"
+    model: ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL || 'sonnet' }}
+    app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+    app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 ```
-
-The `--allowedTools` value above spans two lines for readability; in production workflow files, keep it on
-a single line within the `>-` block (or consult `.github/workflows/*.yml` for the canonical form).
 
 Uses GitHub API commit signing. Commits are automatically verified as the Claude GitHub App.
 `Bash(git:*)` is restricted to read-only subcommands to prevent unsigned CLI commits.
+
+## GitHub Agentic Workflow Import Pattern
+
+Used for GitHubNext Agentics workflows. These are authored as `.md` files and
+compiled to generated `.lock.yml` files.
+
+**Example**: public-docs-updater, installed in `dryvist/docs`
+
+```yaml
+---
+engine: copilot
+imports:
+  - githubnext/agentics/workflows/doc-updater.md@main
+on:
+  schedule: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+---
+```
+
+Run:
+
+```bash
+gh aw compile public-docs-updater --action-tag v0.68.3
+```
+
+Commit the `.md`, generated `.lock.yml`, and `.github/aw/imports/**` cache
+together in the repository where the workflow should run. Do not edit
+`.lock.yml` by hand.
 
 ---
 
@@ -224,7 +257,7 @@ Four layers of bot filtering apply, depending on workflow type.
 `claude-code-action@v1` internally rejects Bot-type `github.actor` values. All dispatch patterns
 (`gh workflow run` with `GITHUB_TOKEN`) set `github.actor` to `github-actions[bot]`, which would cause "Workflow initiated by non-human actor" failures.
 
-**Fix**: Every `claude-code-action@v1` step includes `allowed_bots: "github-actions"`. This allows the trusted internal dispatch actor while blocking external bots.
+**Fix**: Every shared `run-claude-code` call includes `allowed_bots: "github-actions"`. This allows the trusted internal dispatch actor while blocking external bots.
 
 **Exception**: ci-fix uses `allowed_bots: "github-actions,claude"` because `workflow_run` events propagate the original actor.
 When `claude[bot]` pushes a commit, `github.actor` is `claude[bot]` — the action strips `[bot]` and checks against `allowed_bots`.
@@ -233,7 +266,7 @@ Loop prevention is handled by the attempt counter (max 2), not by blocking the a
 ### Layer 2: PR author pre-check (`if:` on action steps)
 
 When a bot creates a PR (e.g., the `claude` GitHub App), `claude-code-action@v1`'s built-in bot guard hard-fails the step —
-producing a red CI failure. The fix: add an `if:` condition directly on the `claude-code-action` step
+producing a red CI failure. The fix: add an `if:` condition directly on the shared action step
 (and any steps that depend on its output) to check the PR author type *before* the action runs.
 
 ```yaml
@@ -245,7 +278,7 @@ producing a red CI failure. The fix: add an `if:` condition directly on the `cla
             contains(inputs.allowed_bots, github.event.pull_request.user.login) ||
             contains(inputs.allowed_bots, '*')
           )
-        uses: anthropics/claude-code-action@v1
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
 ```
 
 When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipped** (grey) — not failed (red). CI stays green.

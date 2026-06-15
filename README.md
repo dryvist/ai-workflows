@@ -37,7 +37,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
 2. One secret configured in each consumer repo:
-   - `OPENROUTER_API_KEY` — [OpenRouter](https://openrouter.ai) API key (required by all workflows)
+   - `AI_TOKEN` — provider credential for Claude Code Action workflows
 
 ### Add a Workflow to Your Repo
 
@@ -85,12 +85,14 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full list of work
 
 ## Authentication
 
-All workflows route through [OpenRouter](https://openrouter.ai) by default. Add two things to each consumer repo:
+Claude Code Action workflows default to Claude OAuth and use AI-agnostic configuration names:
 
-1. **Secret**: `OPENROUTER_API_KEY` — your OpenRouter API key (set a $/day spend limit)
-2. **Secret**: `OPENROUTER_BASE_URL` — set to `https://openrouter.ai/api/v1`
+- **Secret**: `AI_TOKEN` — provider credential
+- **Variable**: `AI_PROVIDER` — `claude_oauth` by default; set `openrouter`, `anthropic_api`, or `anthropic_compatible` to switch providers
+- **Variable or secret**: `AI_BASE_URL` — required only for routed Anthropic-compatible providers such as OpenRouter
+- **Variables**: `AI_MODEL`, or category-specific `AI_MODEL_DOCS`, `AI_MODEL_CODE`, `AI_MODEL_REVIEW`, `AI_MODEL_ISSUES`, `AI_MODEL_OPS`, `AI_MODEL_PLAN`
 
-Most workflows fall back to `openrouter/free` when no model variables are configured. Exceptions: `post-merge-docs-review` and `post-merge-tests` require `AI_MODEL_DOCS`/`AI_MODEL_CODE` or `AI_MODEL` to be set — they fail with a clear error when unconfigured. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for model configuration and alternative providers.
+Model defaults are Claude (`sonnet`) unless org variables choose a different model. OpenRouter remains supported by setting only secrets and variables; no workflow code changes are required. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for provider configuration and GH-AW-specific limits.
 
 ---
 
@@ -98,6 +100,7 @@ Most workflows fall back to `openrouter/free` when no model variables are config
 
 ```
 .github/
+  aw/                   # gh-aw import cache and action lock metadata
   prompts/              # Prompt files (one per workflow)
   scripts/
     render-prompt.sh    # Shared: envsubst + GITHUB_OUTPUT
@@ -114,10 +117,14 @@ Most workflows fall back to `openrouter/free` when no model variables are config
     shared/             # Shared scripts (check-daily-limit.js, constants.js)
     verification/       # E2E test script
   workflows/            # Reusable workflow YAML definitions
+    *.md                # GitHub Agentic Workflow source wrappers
+    *.lock.yml          # Generated gh-aw workflows
 docs/                   # Documentation and verification runbook
 ```
 
-All workflows use `claude-code-action@v1` with OIDC auth (`id-token: write`). Prompts are rendered at runtime via `render-prompt.sh` and the cross-repo checkout pattern:
+Reusable `.yml` workflows use `claude-code-action@v1` with OIDC auth
+(`id-token: write`) through the shared `run-claude-code` action. Prompts are
+rendered at runtime via `render-prompt.sh` and the cross-repo checkout pattern:
 
 ```yaml
 - uses: actions/checkout@v6

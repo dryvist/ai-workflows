@@ -97,8 +97,6 @@ jobs:
       issues: write
       pull-requests: write
     timeout-minutes: 15
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -123,12 +121,15 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/next-steps.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Execute Claude Code
-        uses: anthropics/claude-code-action@v1
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          ai_provider: ${{ vars.AI_PROVIDER || 'claude_oauth' }}
+          ai_token: ${{ secrets.AI_TOKEN }}
+          ai_base_url: ${{ vars.AI_BASE_URL || secrets.AI_BASE_URL || '' }}
           allowed_bots: "github-actions"
           use_commit_signing: "true"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(gh search:*)"
-            --model ${{ vars.AI_MODEL }}
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(gh search:*)"
+          model: ${{ vars.AI_MODEL_DOCS || vars.AI_MODEL || 'sonnet' }}
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

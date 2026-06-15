@@ -6,7 +6,11 @@ Add ai-workflows reusable workflows to your repository using thin caller files.
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
 2. One secret configured in your repository:
-   - `OPENROUTER_API_KEY` — OpenRouter API key (required by all workflows; see [README — Authentication](../README.md#authentication--api-providers))
+   - `AI_TOKEN` — provider credential for Claude Code Action workflows; see [README — Authentication](../README.md#authentication)
+3. Optional variables when you want to override defaults:
+   - `AI_PROVIDER` — defaults to `claude_oauth`
+   - `AI_BASE_URL` — required for `openrouter` or another Anthropic-compatible router
+   - `AI_MODEL` or category model variables such as `AI_MODEL_DOCS`
 
 ## How It Works
 
@@ -264,6 +268,27 @@ permissions:
   contents: read
   id-token: write
 ```
+
+#### Public docs updater
+The public docs updater is a GitHub Agentic Workflow wrapper importing
+GitHubNext Agentics `doc-updater.md`. GH-AW workflows are not `workflow_call`
+reusable workflows, so the executable `.md` source and compiled `.lock.yml` live
+in the target docs repository that should receive the PR, not in this reusable
+workflow catalog.
+
+```yaml
+on:
+  schedule: daily
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+```
+
+This workflow uses GH-AW engine authentication, not the Claude Code Action
+`AI_TOKEN` contract. With the current pinned GH-AW compiler, the wrapper uses
+the Copilot engine and its GH-AW-managed secrets.
 
 ---
 
