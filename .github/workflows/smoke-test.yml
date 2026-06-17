@@ -5,8 +5,8 @@
 #
 # Usage:
 #   gh workflow run smoke-test.yml
-#   gh workflow run smoke-test.yml -f provider=openrouter -f model=anthropic/claude-sonnet-4
-#   gh workflow run smoke-test.yml -f provider=anthropic_api -f model=claude-sonnet-4
+#   gh workflow run smoke-test.yml -f provider=anthropic_api -f model=sonnet
+#   gh workflow run smoke-test.yml -f provider=openrouter -f model=anthropic/claude-sonnet-4 (router-specific id)
 
 name: Smoke Test
 

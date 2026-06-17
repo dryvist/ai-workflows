@@ -1,10 +1,10 @@
 name: Run Claude Code with bot attribution
 description: >-
-  Mints a JacobPEvans-claude App installation token and invokes
-  anthropics/claude-code-action@v1 with that token, so every commit and PR
-  comment is attributed to JacobPEvans-claude[bot] via the Contents API
-  web-flow signing path. Centralizes the token-mint and action invocation
-  that previously had to be copy-pasted into every reusable workflow.
+  Mints an installation token for the configured Claude bot GitHub App and
+  invokes anthropics/claude-code-action@v1 with that token, so every commit and
+  PR comment is attributed to the App via the Contents API web-flow signing
+  path. Centralizes the token-mint and action invocation that previously had to
+  be copy-pasted into every reusable workflow.
 
 inputs:
   prompt:
@@ -38,11 +38,11 @@ inputs:
     required: false
     default: ""
   app_id:
-    description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
+    description: Claude bot GitHub App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
     required: false
     default: ""
   app_private_key:
-    description: JacobPEvans-claude App private key PEM, e.g. the caller's `secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY`.
+    description: Claude bot GitHub App private key PEM, e.g. the caller's `secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY`.
     required: false
     default: ""
   allowed_bots:
@@ -110,7 +110,7 @@ runs:
           exit 1
         fi
 
-    - name: Mint JacobPEvans-claude installation token
+    - name: Mint Claude bot GitHub App installation token
       id: app-token
       if: inputs.app_id != '' && inputs.app_private_key != ''
       uses: actions/create-github-app-token@v3

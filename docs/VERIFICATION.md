@@ -6,7 +6,7 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 ## Prerequisites
 
 - `gh` CLI authenticated with sufficient scopes
-- All consumer repos updated to `@v0.5.0`
+- All consumer repos updated to `@v0`
 - Secret configured: `AI_TOKEN`
 - Optional provider variables: `AI_PROVIDER`, `AI_BASE_URL`, `AI_MODEL`
 
