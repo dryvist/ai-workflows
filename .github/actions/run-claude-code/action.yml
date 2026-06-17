@@ -97,8 +97,7 @@ runs:
         # GitHub App credentials must be supplied together (both or neither).
         # A partial pair silently disables App-token minting and the run would
         # fall back to github.token — masking a misconfiguration.
-        if { [ -n "$APP_ID" ] && [ -z "$APP_PRIVATE_KEY" ]; } || \
-           { [ -z "$APP_ID" ] && [ -n "$APP_PRIVATE_KEY" ]; }; then
+        if { [ -n "$APP_ID" ] && [ -z "$APP_PRIVATE_KEY" ]; } || { [ -z "$APP_ID" ] && [ -n "$APP_PRIVATE_KEY" ]; }; then
           echo "::error::app_id and app_private_key must be provided together (both or neither)"
           exit 1
         fi
