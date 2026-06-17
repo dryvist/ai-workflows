@@ -13,7 +13,7 @@ describe('check-daily-limit', () => {
   });
 
   it('sets should_run=true when under the daily limit', async () => {
-    process.env.WORKFLOW_FILE = 'JacobPEvans/ai-workflows/.github/workflows/code-simplifier.yml@refs/heads/main';
+    process.env.WORKFLOW_FILE = 'dryvist/ai-workflows/.github/workflows/code-simplifier.yml@refs/heads/main';
     process.env.DAILY_RUN_LIMIT = '5';
 
     const now = new Date();
@@ -29,7 +29,7 @@ describe('check-daily-limit', () => {
   });
 
   it('calls setFailed when daily limit is reached', async () => {
-    process.env.WORKFLOW_FILE = 'JacobPEvans/ai-workflows/.github/workflows/code-simplifier.yml@refs/heads/main';
+    process.env.WORKFLOW_FILE = 'dryvist/ai-workflows/.github/workflows/code-simplifier.yml@refs/heads/main';
     process.env.DAILY_RUN_LIMIT = '3';
 
     const now = new Date();
@@ -73,7 +73,7 @@ describe('check-daily-limit', () => {
   });
 
   it('extracts workflow file name from workflow_ref', async () => {
-    process.env.WORKFLOW_FILE = 'JacobPEvans/ai-workflows/.github/workflows/best-practices.yml@refs/heads/main';
+    process.env.WORKFLOW_FILE = 'dryvist/ai-workflows/.github/workflows/best-practices.yml@refs/heads/main';
     process.env.DAILY_RUN_LIMIT = '5';
 
     github.rest.actions.listWorkflowRuns.mockResolvedValue({

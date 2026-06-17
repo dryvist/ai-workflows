@@ -30,7 +30,7 @@ permissions:
   issues: write            # add what this workflow needs
 jobs:
   run:
-    uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0
     secrets: inherit
 ```
 
@@ -102,12 +102,21 @@ permissions:
 ```
 
 #### `ci-fix.yml`
-Triggered by `workflow_run` with `conclusion: failure`. Analyzes CI failure logs and pushes fixes.
+Triggered by `workflow_run` when your CI workflow completes. When the run
+**failed** on a PR branch, Claude analyzes the failure logs and pushes a fix
+commit to that PR branch (max 2 attempts/PR) — it never merges. The reusable
+workflow itself gates on `conclusion == 'failure'`, so a successful CI run is a
+no-op; you do not need a conclusion guard in your caller.
+
+Complete copy-pasteable caller (also available at
+[`examples/ci-fix-caller.yml`](../examples/ci-fix-caller.yml)):
 
 ```yaml
+# .github/workflows/ci-fix.yml in your consumer repo
+name: CI Fix (Claude)
 on:
   workflow_run:
-    workflows: ["CI"]    # name of your CI workflow
+    workflows: ["CI"]    # exact name: of your CI workflow
     types: [completed]
 permissions:
   actions: read
@@ -115,9 +124,27 @@ permissions:
   id-token: write
   issues: write
   pull-requests: write
+jobs:
+  ci-fix:
+    uses: dryvist/ai-workflows/.github/workflows/ci-fix.yml@v0
+    secrets: inherit
+    with:
+      repo_context: "Node service; tests with bun, lint with eslint."
+      ci_structure: "CI runs lint + unit tests on every PR."
+      # extra_tools: "Bash(bun:*)"   # optional: extra allowed tools
 ```
 
-Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (optional)
+Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools`
+(optional), `daily_run_limit` (optional, default `5`), `runner_label`
+(optional).
+
+Required secrets/variables (set on the consumer repo or org):
+
+- `AI_TOKEN` (secret) — the Claude OAuth token (default `AI_PROVIDER=claude_oauth`).
+- `AI_MODEL_CODE` or `AI_MODEL` (variable) — e.g. `sonnet` or `haiku`.
+- `GH_APP_CLAUDE_BOT_ID` (variable) and `GH_APP_CLAUDE_BOT_PRIVATE_KEY` (secret) —
+  the GitHub App used to sign and attribute the fix commit. Required because
+  this workflow writes commits; see [AUTHENTICATION.md — GitHub App Attribution](AUTHENTICATION.md#github-app-attribution).
 
 #### `post-merge-docs-review.yml`
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.

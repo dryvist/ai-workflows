@@ -3,7 +3,7 @@
 Reusable AI agent workflows for GitHub Actions. Consumer repos call these with thin ~10-20 line callers.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/JacobPEvans/ai-workflows?style=social)](https://github.com/JacobPEvans/ai-workflows/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/dryvist/ai-workflows?style=social)](https://github.com/dryvist/ai-workflows/stargazers)
 
 ---
 
@@ -55,7 +55,7 @@ permissions:
   issues: write
 jobs:
   triage:
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-triage.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0
     secrets: inherit
 ```
 
@@ -75,7 +75,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-sweeper.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@v0
     secrets: inherit
 ```
 
@@ -129,7 +129,7 @@ rendered at runtime via `render-prompt.sh` and the cross-repo checkout pattern:
 ```yaml
 - uses: actions/checkout@v6
   with:
-    repository: JacobPEvans/ai-workflows
+    repository: dryvist/ai-workflows
     sparse-checkout: |
       .github/prompts
       .github/scripts

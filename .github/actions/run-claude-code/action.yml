@@ -70,6 +70,9 @@ runs:
         AI_PROVIDER: ${{ inputs.ai_provider }}
         AI_TOKEN: ${{ inputs.ai_token }}
         AI_BASE_URL: ${{ inputs.ai_base_url }}
+        APP_ID: ${{ inputs.app_id }}
+        APP_PRIVATE_KEY: ${{ inputs.app_private_key }}
+        USE_COMMIT_SIGNING: ${{ inputs.use_commit_signing }}
       run: |
         case "$AI_PROVIDER" in
           claude_oauth|anthropic_api)
@@ -88,6 +91,23 @@ runs:
 
         if [ -z "$AI_TOKEN" ]; then
           echo "::error::AI_TOKEN secret is required"
+          exit 1
+        fi
+
+        # GitHub App credentials must be supplied together (both or neither).
+        # A partial pair silently disables App-token minting and the run would
+        # fall back to github.token — masking a misconfiguration.
+        if { [ -n "$APP_ID" ] && [ -z "$APP_PRIVATE_KEY" ]; } || \
+           { [ -z "$APP_ID" ] && [ -n "$APP_PRIVATE_KEY" ]; }; then
+          echo "::error::app_id and app_private_key must be provided together (both or neither)"
+          exit 1
+        fi
+
+        # Commit-writing workflows require the GitHub App so commits are signed
+        # and attributed to the bot via the Contents API web-flow path. Without
+        # App credentials, commits would be attributed to github-actions[bot].
+        if [ "$USE_COMMIT_SIGNING" = "true" ] && [ -z "$APP_ID" ]; then
+          echo "::error::use_commit_signing is 'true' but no GitHub App credentials were provided (app_id/app_private_key). Provide them for verified, bot-attributed commits, or set use_commit_signing to 'false' for review-only workflows."
           exit 1
         fi
 

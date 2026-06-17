@@ -7,7 +7,7 @@
 # suite when called by a child repo (e.g., @v0.8.0 pins the whole chain).
 #
 # Usage:
-#   uses: JacobPEvans/ai-workflows/.github/workflows/suite-pr.yml@v0.8.0
+#   uses: dryvist/ai-workflows/.github/workflows/suite-pr.yml@v0.8.0
 #   with:
 #     caller_event: ${{ github.event_name }}
 

@@ -5,7 +5,7 @@
 # Branch protection requires only "AI Merge Gate" as the single AI check.
 #
 # Usage:
-#   uses: JacobPEvans/ai-workflows/.github/workflows/_ai-merge-gate.yml@main
+#   uses: dryvist/ai-workflows/.github/workflows/_ai-merge-gate.yml@main
 name: _ai-merge-gate
 
 on:

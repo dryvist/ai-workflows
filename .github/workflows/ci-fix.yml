@@ -53,7 +53,12 @@ concurrency:
 jobs:
   should-fix:
     name: Check if fix needed
+    # Only act on actual CI failures (workflow_run) or manual dispatch. This
+    # makes the reusable workflow no-op when the watched CI run succeeded, so
+    # consumer callers don't need their own conclusion guard.
     if: >-
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'failure') &&
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'copilot[bot]'
@@ -69,7 +74,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -103,7 +108,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -133,7 +138,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -163,7 +168,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -201,7 +206,7 @@ jobs:
       - name: Checkout ai-workflows prompts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/scripts
             .github/prompts

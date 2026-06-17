@@ -6,7 +6,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 This repo is the single source of truth for CI/CD automation workflows.
 Each workflow is a GitHub reusable workflow (`on: workflow_call`) that consumer
-repos invoke via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.1.0`.
+repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0`.
 
 ### Directory Structure
 
@@ -80,7 +80,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-sweeper.yml@v0.3.3
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@v0
     secrets: inherit
 ```
 
@@ -91,7 +91,7 @@ Workflows check out this repo at runtime for scripts and prompts:
 ```yaml
 - uses: actions/checkout@v6
   with:
-    repository: JacobPEvans/ai-workflows
+    repository: dryvist/ai-workflows
     sparse-checkout: |
       .github/scripts
       .github/prompts
@@ -143,10 +143,29 @@ queue runs instead.
 
 ### Authentication
 
-Use `OPENROUTER_API_KEY` for all Claude Code workflows, routed via
-`OPENROUTER_BASE_URL` (repo secret). Do not create aliases or alternative
-secret names. See README.md for why OpenRouter is used instead of direct
-Anthropic or OAuth tokens.
+Claude Code Action workflows use an **AI-agnostic** credential contract so the
+provider and model can be changed by editing org/repo secrets and variables
+only — never by editing workflow files. All Claude workflows route through the
+shared `.github/actions/run-claude-code` action with:
+
+- `AI_TOKEN` (secret, required) — the provider credential.
+- `AI_PROVIDER` (variable, default `claude_oauth`) — one of `claude_oauth`,
+  `anthropic_api`, `openrouter`, or `anthropic_compatible`.
+- `AI_BASE_URL` (variable/secret) — required only for `openrouter` and
+  `anthropic_compatible`.
+- `AI_MODEL` (variable, default `sonnet`) plus optional category overrides
+  (`AI_MODEL_CODE`, `AI_MODEL_REVIEW`, `AI_MODEL_PLAN`, `AI_MODEL_DOCS`, …).
+
+The default path is **Claude OAuth** (`claude_code_oauth_token`). OpenRouter and
+direct Anthropic remain fully supported via `AI_PROVIDER`. Do not introduce
+provider-specific secret names (`OPENROUTER_API_KEY`, etc.) in workflow files —
+everything flows through the `AI_TOKEN` / `AI_PROVIDER` contract. See
+`docs/AUTHENTICATION.md` for the full provider matrix.
+
+Commit attribution and signing are a **separate** concern from LLM auth: the
+action mints a GitHub App installation token (`GH_APP_CLAUDE_BOT_ID` /
+`GH_APP_CLAUDE_BOT_PRIVATE_KEY`) and passes it with `use_commit_signing: "true"`
+so commits are verified and attributed to the bot regardless of the AI provider.
 
 ### Version Tags for Actions
 
