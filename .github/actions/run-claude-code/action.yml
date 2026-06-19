@@ -91,6 +91,18 @@ runs:
           exit 1
         fi
 
+    - name: Require GitHub App credentials to be set together
+      # Guard against a silent misconfiguration: if only one of app_id /
+      # app_private_key is provided, the mint step below is skipped and the
+      # action falls back to github.token — losing the App attribution/signing
+      # the caller expected, with no error. Both-set (App auth) and both-empty
+      # (intentional github.token) are valid; exactly one set is not.
+      if: (inputs.app_id != '') != (inputs.app_private_key != '')
+      shell: bash
+      run: |
+        echo "::error::app_id and app_private_key must be provided together (both for GitHub App auth, or neither to use github.token). Exactly one was set, which would silently fall back to github.token."
+        exit 1
+
     - name: Mint JacobPEvans-claude installation token
       id: app-token
       if: inputs.app_id != '' && inputs.app_private_key != ''
