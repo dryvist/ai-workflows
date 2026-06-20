@@ -1,6 +1,7 @@
 # ai-workflows
 
-Reusable AI agent workflows for GitHub Actions. Consumer repos call these with thin ~10-20 line callers.
+Reusable AI agent workflows for GitHub Actions. Each workflow is a
+`workflow_call` reusable that your repository invokes with a thin caller file.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/JacobPEvans/ai-workflows?style=social)](https://github.com/JacobPEvans/ai-workflows/stargazers)
@@ -20,7 +21,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 | `issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
 | `issue-sweeper.yml` | `workflow_call` | Mon 6am UTC | Scans open issues, comments on progress, closes resolved |
 | `issue-triage.yml` | `issues: [opened]` | On issue open | Categorizes, deduplicates, and labels new issues |
-| `label-sync.yml` | `workflow_call` | On-demand | Syncs canonical labels from `.github` repo to all targets |
+| `label-sync.yml` | `workflow_call` | On-demand | Syncs a canonical label set into target repositories |
 | `next-steps.yml` | `workflow_call` | Daily 5am UTC | Analyzes merge momentum, suggests next logical action |
 | `notify-ai-pr.yml` | `pull_request` | On bot PR open | Posts Slack notification to a configured channel when an AI agent opens a PR |
 | `post-merge-docs-review.yml` | `workflow_call` (dispatch pattern) | On merge | Reviews documentation after merges, creates fix PRs |
@@ -31,17 +32,41 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 ---
 
-## Quick Start
+## Installation
 
 ### Prerequisites
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
-2. One secret configured in each consumer repo:
+2. One secret configured in the repository that calls a workflow:
    - `OPENROUTER_API_KEY` — [OpenRouter](https://openrouter.ai) API key (required by all workflows)
 
-### Add a Workflow to Your Repo
+### Authentication
 
-Create a thin caller file in your repo. Example for issue triage:
+All workflows route through [OpenRouter](https://openrouter.ai) by default.
+Add these secrets to the repository that calls a workflow:
+
+1. **Secret**: `OPENROUTER_API_KEY` — your OpenRouter API key (set a $/day spend limit)
+2. **Secret**: `OPENROUTER_BASE_URL` — set to `https://openrouter.ai/api/v1`
+
+Set both with the GitHub CLI from inside the repository that calls a workflow:
+
+```bash
+gh secret set OPENROUTER_API_KEY --body "sk-or-..."
+gh secret set OPENROUTER_BASE_URL --body "https://openrouter.ai/api/v1"
+```
+
+Most workflows fall back to `openrouter/free` when no model variables are
+configured. Exceptions: `post-merge-docs-review` and `post-merge-tests` require
+`AI_MODEL_DOCS`/`AI_MODEL_CODE` or `AI_MODEL` to be set — they fail with a clear
+error when unconfigured. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for
+model configuration and alternative providers.
+
+---
+
+## Usage
+
+Add a thin caller file to your repository that points at the reusable workflow
+you want. Example for issue triage:
 
 ```yaml
 # .github/workflows/issue-triage.yml
@@ -79,24 +104,16 @@ jobs:
     secrets: inherit
 ```
 
-See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full list of workflows with required permissions.
-
----
-
-## Authentication
-
-All workflows route through [OpenRouter](https://openrouter.ai) by default. Add two things to each consumer repo:
-
-1. **Secret**: `OPENROUTER_API_KEY` — your OpenRouter API key (set a $/day spend limit)
-2. **Secret**: `OPENROUTER_BASE_URL` — set to `https://openrouter.ai/api/v1`
-
-Most workflows fall back to `openrouter/free` when no model variables are configured. Exceptions: `post-merge-docs-review` and `post-merge-tests` require `AI_MODEL_DOCS`/`AI_MODEL_CODE` or `AI_MODEL` to be set — they fail with a clear error when unconfigured. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for model configuration and alternative providers.
+Each caller declares only the `permissions` the workflow needs and passes
+secrets through with `secrets: inherit`. See
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full list of workflows
+with their required permissions.
 
 ---
 
 ## Architecture
 
-```
+```text
 .github/
   prompts/              # Prompt files (one per workflow)
   scripts/
@@ -117,7 +134,9 @@ Most workflows fall back to `openrouter/free` when no model variables are config
 docs/                   # Documentation and verification runbook
 ```
 
-All workflows use `claude-code-action@v1` with OIDC auth (`id-token: write`). Prompts are rendered at runtime via `render-prompt.sh` and the cross-repo checkout pattern:
+All workflows use `anthropics/claude-code-action@v1` with OIDC auth (`id-token: write`).
+Prompts are rendered at runtime via `render-prompt.sh` and a sparse checkout of
+this repository's prompts and scripts:
 
 ```yaml
 - uses: actions/checkout@v6
@@ -142,3 +161,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 ## License
 
 [MIT](LICENSE)
+
+---
+
+> Part of a [larger ecosystem of ~40 repos](https://docs.jacobpevans.com) — see how it all fits together.
