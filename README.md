@@ -1,6 +1,7 @@
 # ai-workflows
 
-Reusable AI agent workflows for GitHub Actions. Consumer repos call these with thin ~10-20 line callers.
+Reusable AI agent workflows for GitHub Actions. Each workflow is a
+`workflow_call` reusable that your repository invokes with a thin caller file.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/JacobPEvans/ai-workflows?style=social)](https://github.com/JacobPEvans/ai-workflows/stargazers)
@@ -20,7 +21,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
 | `issue-sweeper.yml` | `workflow_call` | Mon 6am UTC | Scans open issues, comments on progress, closes resolved |
 | `issue-triage.yml` | `issues: [opened]` | On issue open | Categorizes, deduplicates, and labels new issues |
-| `label-sync.yml` | `workflow_call` | On-demand | Syncs canonical labels from `.github` repo to all targets |
+| `label-sync.yml` | `workflow_call` | On-demand | Syncs a canonical label set into target repositories |
 | `cc-next-steps.yml` | `workflow_call` | Daily 5am UTC | Analyzes merge momentum, suggests next logical action |
 | `notify-ai-pr.yml` | `pull_request` | On bot PR open | Posts Slack notification to a configured channel when an AI agent opens a PR |
 | `cc-post-merge-docs-review.yml` | `workflow_call` (dispatch pattern) | On merge | Reviews documentation after merges, creates fix PRs |
@@ -31,7 +32,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 ---
 
-## Quick Start
+## Installation
 
 ### Prerequisites
 
@@ -40,9 +41,36 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
    - Secret `GH_ACTION_AI_API_KEY` — your AI provider's API key (required by all workflows)
    - Variable `GH_ACTION_AI_BASE_URL` — provider base URL (leave empty for direct Anthropic)
 
-### Add a Workflow to Your Repo
+### Authentication
 
-Create a thin caller file in your repo. Example for issue triage:
+All workflows reference a single **provider-agnostic** namespace, so you can
+switch providers at the org level without touching any workflow. Configure these
+org (or repo) variables and secret:
+
+1. **Secret**: `GH_ACTION_AI_API_KEY` — your AI provider's API key (set a spend limit at the provider)
+2. **Variable**: `GH_ACTION_AI_BASE_URL` — provider base URL; leave empty for direct Anthropic (`https://api.anthropic.com`)
+3. **Variable**: `GH_ACTION_AI_MODEL` — default model name for your provider
+
+Set them with the GitHub CLI (org-level shown; drop `--org dryvist` for repo-level):
+
+```bash
+gh secret   set GH_ACTION_AI_API_KEY   --org dryvist   # paste your key
+gh variable set GH_ACTION_AI_BASE_URL  --org dryvist -b ""                       # empty = direct Anthropic
+gh variable set GH_ACTION_AI_MODEL     --org dryvist -b "claude-sonnet-4-6"
+```
+
+Set per-category vars (`GH_ACTION_AI_MODEL_CODE`, `_ISSUES`, `_PLAN`) to tier
+models by task; each falls back to `GH_ACTION_AI_MODEL`. `cc-post-merge-docs-review`
+and `cc-post-merge-tests` require at least `GH_ACTION_AI_MODEL` and fail with a
+clear error when unset. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for
+provider mapping examples and model configuration.
+
+---
+
+## Usage
+
+Add a thin caller file to your repository that points at the reusable workflow
+you want. Example for issue triage:
 
 ```yaml
 # .github/workflows/issue-triage.yml
@@ -80,25 +108,16 @@ jobs:
     secrets: inherit
 ```
 
-See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full list of workflows with required permissions.
-
----
-
-## Authentication
-
-All workflows reference a single **provider-agnostic** namespace, so you can switch providers at the org level without touching any workflow. Configure these org/repo vars and secret:
-
-1. **Secret**: `GH_ACTION_AI_API_KEY` — your AI provider's API key (set a spend limit at the provider)
-2. **Variable**: `GH_ACTION_AI_BASE_URL` — provider base URL; leave empty for direct Anthropic (`https://api.anthropic.com`)
-3. **Variable**: `GH_ACTION_AI_MODEL` — default model name for your provider
-
-Set per-category vars (`GH_ACTION_AI_MODEL_CODE`, `_ISSUES`, `_PLAN`) to tier models by task; each falls back to `GH_ACTION_AI_MODEL`. `cc-post-merge-docs-review` and `cc-post-merge-tests` require at least `GH_ACTION_AI_MODEL` and fail with a clear error when unset. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for provider mapping examples and model configuration.
+Each caller declares only the `permissions` the workflow needs and passes
+secrets through with `secrets: inherit`. See
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for the full list of workflows
+with their required permissions.
 
 ---
 
 ## Architecture
 
-```
+```text
 .github/
   prompts/              # Prompt files (one per workflow)
   scripts/
@@ -119,7 +138,9 @@ Set per-category vars (`GH_ACTION_AI_MODEL_CODE`, `_ISSUES`, `_PLAN`) to tier mo
 docs/                   # Documentation and verification runbook
 ```
 
-All workflows use `claude-code-action@v1` with OIDC auth (`id-token: write`). Prompts are rendered at runtime via `render-prompt.sh` and the cross-repo checkout pattern:
+All workflows use `anthropics/claude-code-action@v1` with OIDC auth (`id-token: write`).
+Prompts are rendered at runtime via `render-prompt.sh` and a sparse checkout of
+this repository's prompts and scripts:
 
 ```yaml
 - uses: actions/checkout@v6
@@ -144,3 +165,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 ## License
 
 [MIT](LICENSE)
+
+---
+
+> Part of a [larger ecosystem of ~40 repos](https://docs.jacobpevans.com) — see how it all fits together.
