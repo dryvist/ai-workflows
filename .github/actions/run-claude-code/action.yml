@@ -24,10 +24,10 @@ inputs:
       Full --allowedTools value forwarded inside `claude_args`. Each caller
       owns its own tool scope so the policy stays visible in the workflow.
     required: true
-  anthropic_api_key:
+  claude_code_oauth_token:
     description: >-
-      API key for the LLM provider, sourced from the caller's
-      `secrets.GH_ACTION_AI_API_KEY`. Pass-through; treat as secret at the caller.
+      Claude Code OAuth token, sourced from the caller's
+      `secrets.GH_ACTION_AI_OAUTH_TOKEN`. Pass-through; treat as secret at the caller.
     required: true
   app_id:
     description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
@@ -55,13 +55,13 @@ runs:
     - name: Validate configuration
       shell: bash
       env:
-        API_KEY: ${{ inputs.anthropic_api_key }}
+        OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
         APP_ID: ${{ inputs.app_id }}
         APP_PRIVATE_KEY: ${{ inputs.app_private_key }}
         USE_COMMIT_SIGNING: ${{ inputs.use_commit_signing }}
       run: |
-        if [ -z "$API_KEY" ]; then
-          echo "::error::anthropic_api_key is required (map the caller's secrets.GH_ACTION_AI_API_KEY)"
+        if [ -z "$OAUTH_TOKEN" ]; then
+          echo "::error::claude_code_oauth_token is required (map the caller's secrets.GH_ACTION_AI_OAUTH_TOKEN)"
           exit 1
         fi
 
@@ -95,7 +95,7 @@ runs:
       uses: anthropics/claude-code-action@v1
       with:
         github_token: ${{ steps.app-token.outputs.token || github.token }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}
         prompt: ${{ inputs.prompt }}

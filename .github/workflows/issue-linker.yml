@@ -112,7 +112,7 @@ jobs:
           contains(inputs.allowed_bots, '*')
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
           allowed_bots: "github-actions"
           model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
           prompt: ${{ steps.render-prompt.outputs.content }}

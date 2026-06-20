@@ -146,7 +146,7 @@ jobs:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           use_commit_signing: "false"
