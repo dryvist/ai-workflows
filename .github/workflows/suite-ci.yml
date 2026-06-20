@@ -61,7 +61,7 @@ jobs:
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.head_branch != 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository
-    uses: ./.github/workflows/ci-fix.yml
+    uses: ./.github/workflows/cc-ci-fix.yml
     with:
       runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       repo_context: ${{ inputs.repo_context }}

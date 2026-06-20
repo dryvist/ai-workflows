@@ -16,8 +16,6 @@ ${FAILURE_LOGS}
 3. Commit all changed files to the PR branch with message:
    ```
    fix: resolve CI failure (auto-fix attempt ${ATTEMPT_NUM})
-
-   AI-Provenance: workflow=${WORKFLOW_NAME} run=${RUN_URL} event=${EVENT_NAME} actor=${TRIGGER_ACTOR}
    ```
 
 Only fix what the CI is complaining about. Do not refactor or improve unrelated code.

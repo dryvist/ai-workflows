@@ -4,7 +4,7 @@
 # Runs eligibility gates, then uses Claude to create a PR fixing the issue.
 # Claude handles its own issue comments (start marker, PR link, abort notice).
 
-name: Issue Resolver (Claude)
+name: cc-Issue Resolver
 
 on:
   workflow_call:
@@ -26,7 +26,7 @@ on:
         type: string
         default: ""
       model:
-        description: "Claude model to use (overrides AI_MODEL_PLAN and AI_MODEL vars)"
+        description: "Claude model to use (overrides GH_ACTION_AI_MODEL_PLAN and GH_ACTION_AI_MODEL vars)"
         type: string
         default: ""
       excluded_labels:
@@ -111,7 +111,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -148,9 +148,9 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ inputs.model || vars.AI_MODEL_PLAN || vars.AI_MODEL }}
+          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr create:*),Bash(gh issue comment:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 

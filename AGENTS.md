@@ -56,8 +56,8 @@ level. See `docs/PATTERNS.md` for the Bot Guard and AI Dispatch patterns.
 
 **AI Provenance**: All PR-creating workflows (`code-simplifier`, `next-steps`,
 `post-merge-docs-review`, `post-merge-tests`, `issue-resolver`) include a
-standardized provenance footer in every PR body. `ci-fix` appends provenance
-to the commit message. See `docs/PATTERNS.md` for the AI Provenance Pattern.
+standardized provenance footer in every PR body. See `docs/PATTERNS.md` for the
+AI Provenance Pattern.
 
 **Slack notifications**: `notify-ai-pr.yml` is a reusable workflow that
 consumer repos call on `pull_request: opened`. It filters for `claude[bot]`-
@@ -143,10 +143,19 @@ queue runs instead.
 
 ### Authentication
 
-Use `OPENROUTER_API_KEY` for all Claude Code workflows, routed via
-`OPENROUTER_BASE_URL` (repo secret). Do not create aliases or alternative
-secret names. See README.md for why OpenRouter is used instead of direct
-Anthropic or OAuth tokens.
+All Claude Code workflows reference a single **provider-agnostic** namespace so
+the provider can be swapped at the GitHub org level with zero workflow edits:
+
+- Secret `GH_ACTION_AI_API_KEY` → action input `anthropic_api_key:`
+- Var `GH_ACTION_AI_BASE_URL` → `ANTHROPIC_BASE_URL` env (empty → the action
+  defaults to `https://api.anthropic.com`)
+- Vars `GH_ACTION_AI_MODEL` / `_CODE` / `_ISSUES` / `_PLAN` → `--model`
+  (category precedence: a category var falls back to `GH_ACTION_AI_MODEL`)
+
+Point these org-level vars/secrets at any provider's real key, URL, and model
+names. Never reference a provider-specific secret name in a workflow. See
+`docs/AUTHENTICATION.md` for provider mapping examples and why OAuth tokens are
+not used.
 
 ### Version Tags for Actions
 

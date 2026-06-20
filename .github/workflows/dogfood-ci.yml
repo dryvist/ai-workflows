@@ -2,11 +2,9 @@ name: AI CI
 
 on:
   workflow_dispatch:
-  # --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
-  # workflow_run:
-  #   workflows: ["Tests"]
-  #   types: [completed]
-  # --- END DISABLED ---
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
 
 permissions:
   actions: read
@@ -15,11 +13,9 @@ permissions:
   issues: write
   pull-requests: write
 
-# --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
-# concurrency:
-#   group: ai-ci-${{ github.event.workflow_run.head_branch }}
-#   cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
-# --- END DISABLED ---
+concurrency:
+  group: ai-ci-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
 
 jobs:
   ci-suite:

@@ -17,7 +17,7 @@ inputs:
   model:
     description: >-
       Model name forwarded as `--model`. The caller resolves the appropriate
-      `vars.AI_MODEL_*` chain; this action does not pick a default.
+      `vars.GH_ACTION_AI_MODEL_*` chain; this action does not pick a default.
     required: true
   allowed_tools:
     description: >-

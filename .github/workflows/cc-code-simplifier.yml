@@ -1,12 +1,11 @@
-# Post-Merge Tests
+# Code Simplifier
 #
-# Reusable workflow: analyzes merged code and creates PRs with targeted tests.
-# Gated by a pre-check for test infrastructure.
+# Nightly DRY enforcer. Finds duplication, dead code, and simplification opportunities.
+# Creates focused PRs.
 #
-# Security: Uses github.sha and github.repository (both safe, immutable system values)
-# passed via env vars to prevent any shell injection risks.
+# This is a reusable workflow that can be called from other repositories.
 
-name: Post-Merge Tests
+name: cc-Code Simplifier
 
 on:
   workflow_call:
@@ -23,10 +22,6 @@ on:
         description: "Max workflow runs per day (0 to disable)"
         type: string
         default: "5"
-      commit_sha:
-        description: 'Override commit SHA for workflow_dispatch callers'
-        required: false
-        type: string
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -38,7 +33,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: post-merge-tests-${{ github.repository }}
+  group: code-simplifier-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   check-pr-ceiling:
@@ -62,31 +58,6 @@ jobs:
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
-            await run({ github, context, core });
-
-  check-test-infra:
-    name: Check test infrastructure
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      contents: read
-    outputs:
-      has_tests: ${{ steps.check.outputs.has_tests }}
-    steps:
-      - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
-        with:
-          repository: JacobPEvans/ai-workflows
-          sparse-checkout: .github/scripts
-          path: .ai-workflows
-
-      - name: Check for test infrastructure
-        id: check
-        uses: actions/github-script@v9
-        env:
-          OVERRIDE_SHA: ${{ inputs.commit_sha }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/post-merge-tests/check-test-infra.js');
             await run({ github, context, core });
 
   check-daily-limit:
@@ -115,10 +86,9 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
             await run({ github, context, core });
 
-  post-merge-tests:
-    name: Analyze and create tests
-    needs: [check-pr-ceiling, check-test-infra, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+  simplify:
+    needs: [check-pr-ceiling, check-daily-limit]
+    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
@@ -126,17 +96,8 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
-      - name: Validate model configuration
-        env:
-          AI_MODEL_VAR: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
-        run: |
-          if [ -z "$AI_MODEL_VAR" ]; then
-            echo "::error::AI_MODEL_CODE or AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -152,21 +113,19 @@ jobs:
       - name: Render prompt
         id: prompt
         env:
-          MERGE_SHA: ${{ inputs.commit_sha || github.sha }}
-          REPO_FULL_NAME: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/post-merge-tests.md MERGE_SHA REPO_FULL_NAME WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/code-simplifier.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Run Claude Code with bot attribution
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
-          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*)"
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

@@ -1,12 +1,11 @@
-# Post-Merge Docs Review
+# Next Steps
 #
-# Reusable workflow: reviews documentation after merges for issues.
-# Gated by a pre-check for doc-relevant changes.
+# Daily momentum analyzer. Detects development direction from recent merges and suggests
+# the logical next action.
 #
-# Security: Uses github.sha and github.repository (both safe, immutable system values)
-# passed via env vars to prevent any shell injection risks.
+# This is a reusable workflow that can be called from other repositories.
 
-name: Post-Merge Docs Review
+name: cc-Next Steps
 
 on:
   workflow_call:
@@ -23,10 +22,6 @@ on:
         description: "Max workflow runs per day (0 to disable)"
         type: string
         default: "5"
-      commit_sha:
-        description: 'Override commit SHA for workflow_dispatch callers'
-        required: false
-        type: string
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -35,10 +30,12 @@ permissions:
   actions: read
   contents: write
   id-token: write
+  issues: write
   pull-requests: write
 
 concurrency:
-  group: post-merge-docs-${{ github.repository }}
+  group: next-steps-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   check-pr-ceiling:
@@ -62,31 +59,6 @@ jobs:
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
-            await run({ github, context, core });
-
-  check-relevance:
-    name: Check doc relevance
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      contents: read
-    outputs:
-      is_relevant: ${{ steps.check.outputs.is_relevant }}
-    steps:
-      - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
-        with:
-          repository: JacobPEvans/ai-workflows
-          sparse-checkout: .github/scripts
-          path: .ai-workflows
-
-      - name: Check if changes are doc-relevant
-        id: check
-        uses: actions/github-script@v9
-        env:
-          OVERRIDE_SHA: ${{ inputs.commit_sha || '' }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/post-merge-docs-review/check-docs-relevance.js');
             await run({ github, context, core });
 
   check-daily-limit:
@@ -115,28 +87,19 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
             await run({ github, context, core });
 
-  post-merge-docs-review:
-    name: Review and fix docs
-    needs: [check-pr-ceiling, check-relevance, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-relevance.outputs.is_relevant == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+  analyze:
+    needs: [check-pr-ceiling, check-daily-limit]
+    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
       id-token: write
+      issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
-      - name: Validate model configuration
-        env:
-          AI_MODEL_VAR: ${{ vars.AI_MODEL }}
-        run: |
-          if [ -z "$AI_MODEL_VAR" ]; then
-            echo "::error::AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -152,21 +115,20 @@ jobs:
       - name: Render prompt
         id: prompt
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
-          REPO_NAME: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/post-merge-docs-review.md COMMIT_SHA REPO_NAME WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/next-steps.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
-      - name: Run Claude Code with bot attribution
-        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+      - name: Execute Claude Code
+        uses: anthropics/claude-code-action@v1
         with:
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          allowed_bots: "github-actions"
+          use_commit_signing: "true"
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL }}
-          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          claude_args: >-
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(gh search:*)"
+            --model ${{ vars.GH_ACTION_AI_MODEL }}

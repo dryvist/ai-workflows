@@ -6,7 +6,7 @@
 # Security: The fix job includes a fork guard to prevent untrusted code checkout
 # in the privileged workflow_run context (CodeQL actions/untrusted-checkout/high).
 
-name: CI Fix (Claude)
+name: cc-CI Fix
 
 on:
   workflow_call:
@@ -192,7 +192,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v6
@@ -216,20 +216,15 @@ jobs:
           CI_STRUCTURE: ${{ inputs.ci_structure }}
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
           ATTEMPT_NUM: ${{ needs.should-fix.outputs.attempt }}
-          WORKFLOW_NAME: ${{ github.workflow }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVENT_NAME: ${{ github.event_name }}
-          TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE ATTEMPT_NUM WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE ATTEMPT_NUM
 
       - name: Run Claude Code with bot attribution
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
+          model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           allowed_bots: "github-actions,claude"
