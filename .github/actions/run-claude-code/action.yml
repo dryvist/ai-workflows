@@ -27,7 +27,7 @@ inputs:
   claude_code_oauth_token:
     description: >-
       Claude Code OAuth token, sourced from the caller's
-      `secrets.GH_ACTION_AI_OAUTH_TOKEN`. Pass-through; treat as secret at the caller.
+      `secrets.GH_ACTION_AI_API_KEY`. Pass-through; treat as secret at the caller.
     required: true
   app_id:
     description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
@@ -61,7 +61,7 @@ runs:
         USE_COMMIT_SIGNING: ${{ inputs.use_commit_signing }}
       run: |
         if [ -z "$OAUTH_TOKEN" ]; then
-          echo "::error::claude_code_oauth_token is required (map the caller's secrets.GH_ACTION_AI_OAUTH_TOKEN)"
+          echo "::error::claude_code_oauth_token is required (map the caller's secrets.GH_ACTION_AI_API_KEY)"
           exit 1
         fi
 

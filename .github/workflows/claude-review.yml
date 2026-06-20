@@ -143,7 +143,7 @@ jobs:
           )
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           track_progress: true
           prompt: ${{ steps.prompt.outputs.content }}
@@ -172,7 +172,7 @@ jobs:
       - name: Run Claude Interactive
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           claude_args: |
             --model ${{ vars.GH_ACTION_AI_MODEL }} --allowedTools "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh issue comment:*)"
