@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.18.0](https://github.com/dryvist/ai-workflows/compare/v0.17.1...v0.18.0) (2026-06-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* reusable workflow paths gain a cc- prefix and auth/model secret+var names move to GH_ACTION_AI_*. Consumers must update uses: paths and provision GH_ACTION_AI_API_KEY (secret) + GH_ACTION_AI_BASE_URL/_MODEL* (vars).
+
+### Features
+
+* generic GH_ACTION_AI_* auth namespace + cc- prefix on Claude write-workflows ([#251](https://github.com/dryvist/ai-workflows/issues/251)) ([9385ceb](https://github.com/dryvist/ai-workflows/commit/9385ceb71371bc3a6c80f359ee76dea43b625222))
+
 ## [0.17.1](https://github.com/dryvist/ai-workflows/compare/v0.17.0...v0.17.1) (2026-06-12)
 
 
