@@ -1,6 +1,6 @@
 required_sections:
-  - Quick Start
-  - Architecture
+  - Installation
+  - Usage
 optional_sections:
   - Contributing
   - License
