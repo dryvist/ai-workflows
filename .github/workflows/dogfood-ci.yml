@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   ci-suite:
-    uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@v0.16.0
+    uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@main
     with:
       repo_context: "Reusable GitHub Actions workflows for AI-powered CI/CD automation (prompts, scripts, YAML workflows)"
       ci_structure: "test.yml (bun test for JavaScript scripts)"
