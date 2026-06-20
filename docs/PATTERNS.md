@@ -205,7 +205,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   review:
     if: github.event_name == 'workflow_dispatch'
-    uses: JacobPEvans/ai-workflows/.github/workflows/cc-post-merge-tests.yml@v0.3.3
+    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@v0.3.3
     with:
       commit_sha: ${{ inputs.commit_sha || github.sha }}
     secrets: inherit
@@ -262,7 +262,7 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 ```yaml
 jobs:
   sweep:
-    uses: JacobPEvans/ai-workflows/.github/workflows/suite-all.yml@v0.9.0
+    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@v0.9.0
     with:
       caller_event: ${{ github.event_name }}
       allowed_bots: "claude"  # Allow Claude App PRs to be reviewed
@@ -393,7 +393,7 @@ jobs:
             -f issue_number="$ISSUE_NUM"
   run-triage:
     if: github.event_name == 'workflow_dispatch'
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-triage.yml@<version>
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@<version>
     secrets: inherit
     with:
       issue_number: ${{ inputs.issue_number }}
@@ -403,7 +403,7 @@ jobs:
       always() &&
       github.event_name == 'workflow_dispatch' &&
       (needs.run-triage.result == 'success' || needs.run-triage.result == 'skipped')
-    uses: JacobPEvans/ai-workflows/.github/workflows/cc-issue-resolver.yml@<version>
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@<version>
     secrets: inherit
     with:
       repo_context: "<repo-specific>"
@@ -444,7 +444,7 @@ jobs:
         (github.event.action == 'opened' && !github.event.pull_request.draft) ||
         (github.event.action == 'closed' && github.event.pull_request.merged == true)
       )
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-linker.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@v0.4.0
     secrets: inherit
 ```
 
@@ -569,7 +569,7 @@ permissions:
   pull-requests: read
 jobs:
   notify:
-    uses: JacobPEvans/ai-workflows/.github/workflows/notify-ai-pr.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/notify-ai-pr.yml@v0.4.0
     secrets: inherit
 ```
 

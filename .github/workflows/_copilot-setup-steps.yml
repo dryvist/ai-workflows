@@ -9,7 +9,7 @@
 # Non-Nix repos: define your own copilot-setup-steps.yml with repo-specific tooling.
 #
 # Usage:
-#   uses: JacobPEvans/ai-workflows/.github/workflows/_copilot-setup-steps.yml@main
+#   uses: dryvist/ai-workflows/.github/workflows/_copilot-setup-steps.yml@main
 name: _copilot-setup-steps
 
 on:

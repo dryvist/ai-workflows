@@ -81,4 +81,4 @@ Use version tags (`@v7`, `@v4`, `@v1`) for first-party actions (`actions/*`, `an
 ## Reusable Workflow Pattern
 
 All reusable workflows use `on: workflow_call` with `workflow_dispatch` fallback.
-Consumer repos call via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@<version>`.
+Consumer repos call via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<version>`.

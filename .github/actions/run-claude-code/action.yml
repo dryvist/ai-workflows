@@ -25,14 +25,18 @@ inputs:
       owns its own tool scope so the policy stays visible in the workflow.
     required: true
   anthropic_api_key:
-    description: API key for the LLM provider (e.g. OpenRouter). Pass-through; treat as secret at the caller.
+    description: >-
+      API key for the LLM provider, sourced from the caller's
+      `secrets.GH_ACTION_AI_API_KEY`. Pass-through; treat as secret at the caller.
     required: true
   app_id:
     description: JacobPEvans-claude App ID, e.g. the caller's `vars.GH_APP_CLAUDE_BOT_ID`.
-    required: true
+    required: false
+    default: ""
   app_private_key:
     description: JacobPEvans-claude App private key PEM, e.g. the caller's `secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY`.
-    required: true
+    required: false
+    default: ""
   allowed_bots:
     description: Comma-separated bot logins claude-code-action may process.
     required: false
@@ -48,8 +52,38 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Validate configuration
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.anthropic_api_key }}
+        APP_ID: ${{ inputs.app_id }}
+        APP_PRIVATE_KEY: ${{ inputs.app_private_key }}
+        USE_COMMIT_SIGNING: ${{ inputs.use_commit_signing }}
+      run: |
+        if [ -z "$API_KEY" ]; then
+          echo "::error::anthropic_api_key is required (map the caller's secrets.GH_ACTION_AI_API_KEY)"
+          exit 1
+        fi
+
+        # GitHub App credentials must be supplied together (both or neither).
+        # A partial pair silently disables App-token minting and the run would
+        # fall back to github.token — masking a misconfiguration.
+        if { [ -n "$APP_ID" ] && [ -z "$APP_PRIVATE_KEY" ]; } || { [ -z "$APP_ID" ] && [ -n "$APP_PRIVATE_KEY" ]; }; then
+          echo "::error::app_id and app_private_key must be provided together (both or neither)"
+          exit 1
+        fi
+
+        # Commit-writing workflows require the GitHub App so commits are signed
+        # and attributed to the bot via the Contents API web-flow path. Without
+        # App credentials, commits would be attributed to github-actions[bot].
+        if [ "$USE_COMMIT_SIGNING" = "true" ] && [ -z "$APP_ID" ]; then
+          echo "::error::use_commit_signing is 'true' but no GitHub App credentials were provided (app_id/app_private_key). Provide them for verified, bot-attributed commits, or set use_commit_signing to 'false' for review-only workflows."
+          exit 1
+        fi
+
     - name: Mint JacobPEvans-claude installation token
       id: app-token
+      if: inputs.app_id != '' && inputs.app_private_key != ''
       uses: actions/create-github-app-token@v3
       with:
         app-id: ${{ inputs.app_id }}
@@ -60,7 +94,7 @@ runs:
     - name: Run Claude Code
       uses: anthropics/claude-code-action@v1
       with:
-        github_token: ${{ steps.app-token.outputs.token }}
+        github_token: ${{ steps.app-token.outputs.token || github.token }}
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}

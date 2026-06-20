@@ -6,7 +6,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 This repo is the single source of truth for CI/CD automation workflows.
 Each workflow is a GitHub reusable workflow (`on: workflow_call`) that consumer
-repos invoke via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.1.0`.
+repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0.1.0`.
 
 ### Directory Structure
 
@@ -80,7 +80,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-sweeper.yml@v0.3.3
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@v0.3.3
     secrets: inherit
 ```
 
@@ -91,7 +91,7 @@ Workflows check out this repo at runtime for scripts and prompts:
 ```yaml
 - uses: actions/checkout@v6
   with:
-    repository: JacobPEvans/ai-workflows
+    repository: dryvist/ai-workflows
     sparse-checkout: |
       .github/scripts
       .github/prompts

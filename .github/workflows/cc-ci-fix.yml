@@ -53,7 +53,11 @@ concurrency:
 jobs:
   should-fix:
     name: Check if fix needed
+    # Gate on CI failure (or manual dispatch) so direct importers no-op on green
+    # builds. suite-ci applies the same conclusion gate one level up.
     if: >-
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'failure') &&
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'copilot[bot]'
@@ -69,7 +73,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -103,7 +107,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -133,7 +137,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -163,7 +167,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -203,7 +207,7 @@ jobs:
       - name: Checkout ai-workflows prompts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/scripts
             .github/prompts

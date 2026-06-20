@@ -101,7 +101,7 @@ After creating the `GH_ACTION_AI_*` org vars/secret, verify auth end-to-end with
 
 ```bash
 # Dispatch the dogfood CI suite (exercises a real claude-code-action run):
-gh workflow run dogfood-ci.yml --repo JacobPEvans/ai-workflows
+gh workflow run dogfood-ci.yml --repo dryvist/ai-workflows
 gh run watch
 ```
 

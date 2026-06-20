@@ -47,7 +47,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -70,7 +70,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -105,7 +105,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts

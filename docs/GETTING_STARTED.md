@@ -27,7 +27,7 @@ permissions:
   issues: write            # add what this workflow needs
 jobs:
   run:
-    uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0.3.0
     secrets: inherit
 ```
 
