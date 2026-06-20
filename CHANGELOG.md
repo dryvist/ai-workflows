@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.19.1](https://github.com/dryvist/ai-workflows/compare/v0.19.0...v0.19.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* **auth:** keep generic GH_ACTION_AI_API_KEY name for the OAuth credential ([#257](https://github.com/dryvist/ai-workflows/issues/257)) ([2ab1098](https://github.com/dryvist/ai-workflows/commit/2ab10980fe591c77e7ab6d3ccfb94414b89d8c57))
+
 ## [0.19.0](https://github.com/dryvist/ai-workflows/compare/v0.18.0...v0.19.0) (2026-06-20)
 
 
