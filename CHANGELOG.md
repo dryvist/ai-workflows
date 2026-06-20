@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.19.0](https://github.com/dryvist/ai-workflows/compare/v0.18.0...v0.19.0) (2026-06-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** workflows now read secrets.GH_ACTION_AI_OAUTH_TOKEN (a Claude Code OAuth token, sk-ant-oat-...) instead of secrets.GH_ACTION_AI_API_KEY. Create the GH_ACTION_AI_OAUTH_TOKEN org secret before running.
+
+### Bug Fixes
+
+* **auth:** authenticate via Claude Code OAuth token, not API key ([#255](https://github.com/dryvist/ai-workflows/issues/255)) ([25c4fdc](https://github.com/dryvist/ai-workflows/commit/25c4fdcc09af0d21ab94bb2c91fadfce03efeeb0))
+
 ## [0.18.0](https://github.com/dryvist/ai-workflows/compare/v0.17.1...v0.18.0) (2026-06-20)
 
 
