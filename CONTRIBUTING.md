@@ -59,7 +59,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts
@@ -72,23 +72,23 @@ jobs:
       - name: Run Claude
         uses: anthropics/claude-code-action@v1
         env:
-          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: >-
             --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*)"
-            --model ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL }}
+            --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
 ```
 
 For workflows that create commits or PRs, add API commit signing:
 
 ```yaml
         env:
-          ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+          ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           use_commit_signing: "true"
 ```
 
@@ -139,7 +139,7 @@ Pass `${{ }}` expression values via `env:` on the step, then read via `process.e
 
 ## Authentication
 
-- `OPENROUTER_API_KEY` — used by all Claude Code workflows (routed via `OPENROUTER_BASE_URL` secret), no aliases
+- `GH_ACTION_AI_API_KEY` (secret) + `GH_ACTION_AI_BASE_URL` (var) — provider-agnostic; all Claude Code workflows reference these generic names, mapped to a real provider at the org level (never reference a provider-specific secret in a workflow)
 - Write workflows use `use_commit_signing: "true"` (API mode); no SSH key needed
 
 ## Permissions

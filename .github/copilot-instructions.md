@@ -64,7 +64,7 @@ Rendered via `.github/scripts/render-prompt.sh` + `envsubst` in workflow steps.
 
 ## Authentication
 
-Use `OPENROUTER_API_KEY` for all Claude Code workflows, routed via `OPENROUTER_BASE_URL` (repo secret). Do not create aliases.
+All Claude Code workflows reference a provider-agnostic namespace: secret `GH_ACTION_AI_API_KEY`, vars `GH_ACTION_AI_BASE_URL` and `GH_ACTION_AI_MODEL[_CODE|_ISSUES|_PLAN]`. Map these org-level vars/secrets to any provider's key/URL/model — never reference a provider-specific secret name in a workflow.
 
 ## Version Tags
 
@@ -81,4 +81,4 @@ Use version tags (`@v7`, `@v4`, `@v1`) for first-party actions (`actions/*`, `an
 ## Reusable Workflow Pattern
 
 All reusable workflows use `on: workflow_call` with `workflow_dispatch` fallback.
-Consumer repos call via `uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@<version>`.
+Consumer repos call via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<version>`.

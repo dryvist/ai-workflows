@@ -1,0 +1,41 @@
+# Example consumer caller for dryvist/ai-workflows cc-ci-fix.yml
+#
+# Drop this in your repo at .github/workflows/ci-fix.yml. When your CI workflow
+# fails on a PR branch, Claude analyzes the failure logs and pushes a fix commit
+# to that PR branch (max 2 attempts/PR). It stops before merge — a human merges.
+#
+# Required configuration on the consumer repo (or org):
+#   - secret  GH_ACTION_AI_API_KEY            AI provider API key (e.g. sk-ant-...)
+#   - var     GH_ACTION_AI_MODEL_CODE (or GH_ACTION_AI_MODEL)   e.g. "claude-sonnet-4-6"
+#   - var     GH_APP_CLAUDE_BOT_ID            GitHub App id (commit signing/attribution)
+#   - secret  GH_APP_CLAUDE_BOT_PRIVATE_KEY   GitHub App private key (PEM)
+#
+# Optional:
+#   - var     GH_ACTION_AI_BASE_URL   provider base URL; leave empty/unset for
+#             direct Anthropic (https://api.anthropic.com). Set to a router
+#             endpoint (e.g. https://openrouter.ai/api/v1) to switch providers.
+
+name: CI Fix (Claude)
+
+on:
+  workflow_run:
+    workflows: ["CI"] # exact name: of the CI workflow you want auto-fixed
+    types: [completed]
+
+# Consumer callers must declare permissions explicitly.
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  ci-fix:
+    uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@v0
+    secrets: inherit
+    with:
+      repo_context: "Describe your repo: language, frameworks, how it builds."
+      ci_structure: "Describe what CI checks (lint, unit tests, typecheck, ...)."
+      # extra_tools: "Bash(bun:*)"   # optional extra allowed tools for the fix
+      # daily_run_limit: "5"          # optional, default 5 (0 disables the cap)

@@ -20,9 +20,9 @@ jobs:
       - name: Trigger post-merge docs review
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run post-merge-docs-review.yml --repo "$GITHUB_REPOSITORY" --ref main
+        run: gh workflow run cc-post-merge-docs-review.yml --repo "$GITHUB_REPOSITORY" --ref main
       - name: Trigger post-merge tests review
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run post-merge-tests.yml --repo "$GITHUB_REPOSITORY" --ref main
+        run: gh workflow run cc-post-merge-tests.yml --repo "$GITHUB_REPOSITORY" --ref main

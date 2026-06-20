@@ -26,7 +26,7 @@ module.exports = async ({ github, context, core }) => {
   }
   const truncatedLogs = logs.length > 30000 ? logs.slice(-30000) : logs;
 
-  const sourceUrl = 'https://github.com/JacobPEvans/ai-workflows/blob/main/.github/workflows/ci-fail-issue.yml';
+  const sourceUrl = 'https://github.com/dryvist/ai-workflows/blob/main/.github/workflows/ci-fail-issue.yml';
 
   const body = [
     marker,

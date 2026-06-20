@@ -33,7 +33,7 @@ jobs:
       issues: write
     timeout-minutes: 5
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -41,7 +41,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts
@@ -54,9 +54,9 @@ jobs:
       - name: Run Claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: >-
             --allowedTools "Read,Glob,Grep,LS,Bash(gh label:*),Bash(gh search:*),Bash(gh api:*)"
-            --model ${{ vars.AI_MODEL }}
+            --model ${{ vars.GH_ACTION_AI_MODEL }}

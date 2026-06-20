@@ -5,8 +5,9 @@ Add ai-workflows reusable workflows to your repository using thin caller files.
 ## Prerequisites
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
-2. One secret configured in your repository:
-   - `OPENROUTER_API_KEY` — OpenRouter API key (required by all workflows; see [README — Authentication](../README.md#authentication--api-providers))
+2. One secret + base-URL variable configured at the org (or repo) level:
+   - Secret `GH_ACTION_AI_API_KEY` — your AI provider's API key (required by all workflows; see [README — Authentication](../README.md#authentication))
+   - Variable `GH_ACTION_AI_BASE_URL` — provider base URL (leave empty for direct Anthropic)
 
 ## How It Works
 
@@ -26,7 +27,7 @@ permissions:
   issues: write            # add what this workflow needs
 jobs:
   run:
-    uses: JacobPEvans/ai-workflows/.github/workflows/<name>.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0.3.0
     secrets: inherit
 ```
 
@@ -51,7 +52,7 @@ permissions:
   issues: write
 ```
 
-#### `issue-resolver.yml`
+#### `cc-issue-resolver.yml`
 Triggered by `issues: [opened]`. Creates draft PRs for simple, well-scoped issues.
 
 ```yaml
@@ -97,7 +98,7 @@ permissions:
   pull-requests: write
 ```
 
-#### `ci-fix.yml`
+#### `cc-ci-fix.yml`
 Triggered by `workflow_run` with `conclusion: failure`. Analyzes CI failure logs and pushes fixes.
 
 ```yaml
@@ -115,7 +116,7 @@ permissions:
 
 Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (optional)
 
-#### `post-merge-docs-review.yml`
+#### `cc-post-merge-docs-review.yml`
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
@@ -129,7 +130,7 @@ permissions:
 
 See [docs/PATTERNS.md — Post-Merge Dispatch Pattern](PATTERNS.md#post-merge-dispatch-pattern) for the full two-job consumer caller template.
 
-#### `post-merge-tests.yml`
+#### `cc-post-merge-tests.yml`
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
@@ -180,7 +181,7 @@ permissions:
   pull-requests: read
 ```
 
-#### `code-simplifier.yml`
+#### `cc-code-simplifier.yml`
 Nightly DRY enforcement, creates draft PRs.
 
 ```yaml
@@ -238,7 +239,7 @@ permissions:
   issues: write
 ```
 
-#### `next-steps.yml`
+#### `cc-next-steps.yml`
 Daily momentum analyzer, creates issues or PRs with suggested next actions.
 
 ```yaml

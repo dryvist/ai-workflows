@@ -7,7 +7,7 @@
 # suite when called by a child repo (e.g., @v0.8.0 pins the whole chain).
 #
 # Usage:
-#   uses: JacobPEvans/ai-workflows/.github/workflows/suite-post-merge.yml@v0.8.0
+#   uses: dryvist/ai-workflows/.github/workflows/suite-post-merge.yml@v0.8.0
 #   with:
 #     commit_sha: ${{ inputs.commit_sha || github.sha }}
 
@@ -40,14 +40,14 @@ permissions:
 
 jobs:
   docs-review:
-    uses: ./.github/workflows/post-merge-docs-review.yml
+    uses: ./.github/workflows/cc-post-merge-docs-review.yml
     with:
       runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit
 
   tests-review:
-    uses: ./.github/workflows/post-merge-tests.yml
+    uses: ./.github/workflows/cc-post-merge-tests.yml
     with:
       runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       commit_sha: ${{ inputs.commit_sha }}

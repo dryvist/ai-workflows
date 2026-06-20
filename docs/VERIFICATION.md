@@ -7,7 +7,7 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 
 - `gh` CLI authenticated with sufficient scopes
 - All consumer repos updated to `@v0.5.0`
-- Secrets configured: `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, or `CHUTES_API_KEY` (depending on your provider)
+- Configured: secret `GH_ACTION_AI_API_KEY` + variable `GH_ACTION_AI_BASE_URL` (empty for direct Anthropic), mapped to your provider
 
 ## Consumer Repos
 
@@ -17,26 +17,17 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 
 ---
 
-## Quick Smoke Test
+## Quick Auth Check
 
-The fastest way to verify auth and model routing. No PR or issue needed.
+The fastest way to verify the `GH_ACTION_AI_*` namespace authenticates. No PR or issue needed.
 
 ```bash
-# Test OpenRouter (default provider):
-gh workflow run smoke-test.yml
+# Dispatch the dogfood CI suite (runs a real claude-code-action step):
+gh workflow run dogfood-ci.yml
 gh run watch
-
-# Test with a specific model:
-gh workflow run smoke-test.yml -f provider=openrouter -f model=openrouter/free
-
-# Test Anthropic direct:
-gh workflow run smoke-test.yml -f provider=anthropic -f model=anthropic/claude-haiku-4
-
-# Test Chutes.ai:
-gh workflow run smoke-test.yml -f provider=chutes
 ```
 
-**Pass condition**: Workflow completes with `conclusion: success`. The default prompt verifies the model can respond coherently.
+**Pass condition**: Workflow completes with `conclusion: success`. To verify a provider swap, re-map the `GH_ACTION_AI_*` org values and re-run — no workflow edits needed.
 
 ---
 
@@ -130,8 +121,8 @@ gh pr merge $PR --repo JacobPEvans/ansible-proxmox-apps --squash
 
 ```bash
 # Check dispatch runs (event_name=push) — should show "dispatch" job succeeded:
-gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Post-Merge Docs Review" --limit 2 --json status,conclusion,event,url
-gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Post-Merge Tests" --limit 2 --json status,conclusion,event,url
+gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "cc-Post-Merge Docs Review" --limit 2 --json status,conclusion,event,url
+gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "cc-Post-Merge Tests" --limit 2 --json status,conclusion,event,url
 ```
 
 **Pass condition**: Two runs each — a `push`-triggered dispatch run (success) and a `workflow_dispatch` review run.
@@ -171,7 +162,7 @@ gh pr create \
 
 ```bash
 # Wait ~3 minutes for CI to fail, then ci-fix to trigger:
-gh run list --repo JacobPEvans/terraform-proxmox --workflow "CI Fix (Claude)" --limit 1 --json status,conclusion,url
+gh run list --repo JacobPEvans/terraform-proxmox --workflow "cc-CI Fix" --limit 1 --json status,conclusion,url
 ```
 
 **Pass condition**: ci-fix run triggered, attempts fix (pushes commit or posts comment).
@@ -193,8 +184,8 @@ These fire on cron — verify by checking the most recent run after deployment.
 | Workflow | Schedule | Check Command |
 |----------|----------|---------------|
 | Best Practices Recommender | Wed 3am UTC | `gh run list --workflow "Best Practices Recommender"` |
-| Code Simplifier | Daily 4am UTC | `gh run list --workflow "Code Simplifier"` |
-| Next Steps | Daily 5am UTC | `gh run list --workflow "Next Steps"` |
+| cc-Code Simplifier | Daily 4am UTC | `gh run list --workflow "cc-Code Simplifier"` |
+| cc-Next Steps | Daily 5am UTC | `gh run list --workflow "cc-Next Steps"` |
 | Issue Sweeper | Mon 6am UTC | `gh run list --workflow "Issue Sweeper"` |
 | Issue Hygiene | Mon 7am UTC | `gh run list --workflow "Issue Hygiene"` |
 
@@ -202,7 +193,7 @@ Run across each consumer repo:
 
 ```bash
 for REPO in JacobPEvans/nix JacobPEvans/terraform-proxmox JacobPEvans/ansible-proxmox-apps; do
-  for WF in "Best Practices Recommender" "Code Simplifier" "Next Steps" "Issue Sweeper" "Issue Hygiene"; do
+  for WF in "Best Practices Recommender" "cc-Code Simplifier" "cc-Next Steps" "Issue Sweeper" "Issue Hygiene"; do
     echo "=== $REPO / $WF ==="
     gh run list --repo "$REPO" --workflow "$WF" --limit 1 \
       --json status,conclusion,createdAt,url 2>/dev/null || echo "Not found"

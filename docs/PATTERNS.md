@@ -16,7 +16,7 @@ Used by most workflows. Static prompt, read-only tools.
 - `id-token: write` at both workflow-level and job-level permissions
 - Cross-repo checkout of `.github/prompts` and `.github/scripts`
 - `render-prompt.sh` to render the static prompt into a step output
-- `claude-code-action@v1` with `anthropic_api_key:`, `ANTHROPIC_BASE_URL` env (sourced from `secrets.OPENROUTER_BASE_URL`), `allowed_bots:`, and `prompt:`
+- `claude-code-action@v1` with `anthropic_api_key:`, `ANTHROPIC_BASE_URL` env (sourced from `vars.GH_ACTION_AI_BASE_URL`), `allowed_bots:`, and `prompt:`
 
 ```yaml
 - name: Render prompt
@@ -26,14 +26,14 @@ Used by most workflows. Static prompt, read-only tools.
 - name: Run Claude
   uses: anthropics/claude-code-action@v1
   env:
-    ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+    ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
   with:
-    anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+    anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
     allowed_bots: "github-actions"
     prompt: ${{ steps.prompt.outputs.content }}
     claude_args: >-
       --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*)"
-      --model ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL }}
+      --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
 ```
 
 ---
@@ -52,16 +52,16 @@ Used by workflows that create commits or PRs. Adds `use_commit_signing: "true"` 
 - name: Run Claude
   uses: anthropics/claude-code-action@v1
   env:
-    ANTHROPIC_BASE_URL: ${{ secrets.OPENROUTER_BASE_URL }}
+    ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
   with:
-    anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+    anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
     allowed_bots: "github-actions"
     use_commit_signing: "true"
     prompt: ${{ steps.prompt.outputs.content }}
     claude_args: >-
       --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),
       Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*)"
-      --model ${{ vars.AI_MODEL_EXAMPLE || vars.AI_MODEL }}
+      --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
 ```
 
 The `--allowedTools` value above spans two lines for readability; in production workflow files, keep it on
@@ -205,7 +205,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   review:
     if: github.event_name == 'workflow_dispatch'
-    uses: JacobPEvans/ai-workflows/.github/workflows/post-merge-tests.yml@v0.3.3
+    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@v0.3.3
     with:
       commit_sha: ${{ inputs.commit_sha || github.sha }}
     secrets: inherit
@@ -262,7 +262,7 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 ```yaml
 jobs:
   sweep:
-    uses: JacobPEvans/ai-workflows/.github/workflows/suite-all.yml@v0.9.0
+    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@v0.9.0
     with:
       caller_event: ${{ github.event_name }}
       allowed_bots: "claude"  # Allow Claude App PRs to be reviewed
@@ -393,7 +393,7 @@ jobs:
             -f issue_number="$ISSUE_NUM"
   run-triage:
     if: github.event_name == 'workflow_dispatch'
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-triage.yml@<version>
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@<version>
     secrets: inherit
     with:
       issue_number: ${{ inputs.issue_number }}
@@ -403,7 +403,7 @@ jobs:
       always() &&
       github.event_name == 'workflow_dispatch' &&
       (needs.run-triage.result == 'success' || needs.run-triage.result == 'skipped')
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-resolver.yml@<version>
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@<version>
     secrets: inherit
     with:
       repo_context: "<repo-specific>"
@@ -444,7 +444,7 @@ jobs:
         (github.event.action == 'opened' && !github.event.pull_request.draft) ||
         (github.event.action == 'closed' && github.event.pull_request.merged == true)
       )
-    uses: JacobPEvans/ai-workflows/.github/workflows/issue-linker.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@v0.4.0
     secrets: inherit
 ```
 
@@ -462,7 +462,6 @@ The gate script (`check-eligibility.js`) additionally skips runs when no open is
 All PR-creating workflows attach a standardized provenance footer to every PR body so AI-created PRs are fully self-documenting.
 
 **Workflows**: code-simplifier, next-steps, post-merge-docs-review, post-merge-tests, issue-resolver
-**Variant**: ci-fix appends provenance to the commit message instead of PR body
 
 **How it works**: Five env vars are passed to `render-prompt.sh` on the render step.
 The prompt template includes a footer instruction using `${VAR}` placeholders, which `envsubst` expands at render time.
@@ -570,7 +569,7 @@ permissions:
   pull-requests: read
 jobs:
   notify:
-    uses: JacobPEvans/ai-workflows/.github/workflows/notify-ai-pr.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/notify-ai-pr.yml@v0.4.0
     secrets: inherit
 ```
 

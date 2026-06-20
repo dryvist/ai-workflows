@@ -1,12 +1,12 @@
-# Post-Merge Tests
+# Post-Merge Docs Review
 #
-# Reusable workflow: analyzes merged code and creates PRs with targeted tests.
-# Gated by a pre-check for test infrastructure.
+# Reusable workflow: reviews documentation after merges for issues.
+# Gated by a pre-check for doc-relevant changes.
 #
 # Security: Uses github.sha and github.repository (both safe, immutable system values)
 # passed via env vars to prevent any shell injection risks.
 
-name: Post-Merge Tests
+name: cc-Post-Merge Docs Review
 
 on:
   workflow_call:
@@ -38,7 +38,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: post-merge-tests-${{ github.repository }}
+  group: post-merge-docs-${{ github.repository }}
 
 jobs:
   check-pr-ceiling:
@@ -52,7 +52,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -64,29 +64,29 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
             await run({ github, context, core });
 
-  check-test-infra:
-    name: Check test infrastructure
+  check-relevance:
+    name: Check doc relevance
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
     outputs:
-      has_tests: ${{ steps.check.outputs.has_tests }}
+      is_relevant: ${{ steps.check.outputs.is_relevant }}
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
-      - name: Check for test infrastructure
+      - name: Check if changes are doc-relevant
         id: check
         uses: actions/github-script@v9
         env:
-          OVERRIDE_SHA: ${{ inputs.commit_sha }}
+          OVERRIDE_SHA: ${{ inputs.commit_sha || '' }}
         with:
           script: |
-            const run = require('./.ai-workflows/.github/scripts/post-merge-tests/check-test-infra.js');
+            const run = require('./.ai-workflows/.github/scripts/post-merge-docs-review/check-docs-relevance.js');
             await run({ github, context, core });
 
   check-daily-limit:
@@ -100,7 +100,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -115,10 +115,10 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
             await run({ github, context, core });
 
-  post-merge-tests:
-    name: Analyze and create tests
-    needs: [check-pr-ceiling, check-test-infra, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+  post-merge-docs-review:
+    name: Review and fix docs
+    needs: [check-pr-ceiling, check-relevance, check-daily-limit]
+    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-relevance.outputs.is_relevant == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
@@ -126,14 +126,14 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Validate model configuration
         env:
-          AI_MODEL_VAR: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
+          MODEL_VAR: ${{ vars.GH_ACTION_AI_MODEL }}
         run: |
-          if [ -z "$AI_MODEL_VAR" ]; then
-            echo "::error::AI_MODEL_CODE or AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
+          if [ -z "$MODEL_VAR" ]; then
+            echo "::error::GH_ACTION_AI_MODEL must be set as an org/repo variable. See docs/AUTHENTICATION.md for configuration."
             exit 1
           fi
 
@@ -143,7 +143,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts
@@ -152,21 +152,21 @@ jobs:
       - name: Render prompt
         id: prompt
         env:
-          MERGE_SHA: ${{ inputs.commit_sha || github.sha }}
-          REPO_FULL_NAME: ${{ github.repository }}
+          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+          REPO_NAME: ${{ github.repository }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/post-merge-tests.md MERGE_SHA REPO_FULL_NAME WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/post-merge-docs-review.md COMMIT_SHA REPO_NAME WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
       - name: Run Claude Code with bot attribution
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.AI_MODEL_CODE || vars.AI_MODEL }}
+          model: ${{ vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

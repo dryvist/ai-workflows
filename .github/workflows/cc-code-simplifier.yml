@@ -1,11 +1,11 @@
-# Next Steps
+# Code Simplifier
 #
-# Daily momentum analyzer. Detects development direction from recent merges and suggests
-# the logical next action.
+# Nightly DRY enforcer. Finds duplication, dead code, and simplification opportunities.
+# Creates focused PRs.
 #
 # This is a reusable workflow that can be called from other repositories.
 
-name: Next Steps
+name: cc-Code Simplifier
 
 on:
   workflow_call:
@@ -30,11 +30,10 @@ permissions:
   actions: read
   contents: write
   id-token: write
-  issues: write
   pull-requests: write
 
 concurrency:
-  group: next-steps-${{ github.repository }}
+  group: code-simplifier-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -49,7 +48,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -72,7 +71,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -87,18 +86,17 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
             await run({ github, context, core });
 
-  analyze:
+  simplify:
     needs: [check-pr-ceiling, check-daily-limit]
     if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
       id-token: write
-      issues: write
       pull-requests: write
     timeout-minutes: 15
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -106,7 +104,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts
@@ -120,15 +118,14 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/next-steps.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/code-simplifier.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
-      - name: Execute Claude Code
-        uses: anthropics/claude-code-action@v1
+      - name: Run Claude Code with bot attribution
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-          allowed_bots: "github-actions"
-          use_commit_signing: "true"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh issue:*),Bash(gh api:*),Bash(gh search:*)"
-            --model ${{ vars.AI_MODEL }}
+          model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*)"
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

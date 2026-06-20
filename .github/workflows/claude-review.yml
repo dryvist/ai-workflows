@@ -56,7 +56,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -91,7 +91,7 @@ jobs:
       id-token: write
     timeout-minutes: 10
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -101,7 +101,7 @@ jobs:
       - name: Checkout ai-workflows prompts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/scripts
             .github/prompts
@@ -143,12 +143,12 @@ jobs:
           )
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           track_progress: true
           prompt: ${{ steps.prompt.outputs.content }}
           claude_args: |
-            --model ${{ inputs.model || vars.AI_MODEL }} --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --model ${{ inputs.model || vars.GH_ACTION_AI_MODEL }} --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
 
   interactive:
     if: false
@@ -164,7 +164,7 @@ jobs:
       id-token: write
     timeout-minutes: 10
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -172,7 +172,7 @@ jobs:
       - name: Run Claude Interactive
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           claude_args: |
-            --model ${{ vars.AI_MODEL }} --allowedTools "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh issue comment:*)"
+            --model ${{ vars.GH_ACTION_AI_MODEL }} --allowedTools "Read,Glob,Grep,LS,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh issue comment:*)"

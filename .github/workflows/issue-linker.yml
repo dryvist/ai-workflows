@@ -19,7 +19,7 @@ on:
         required: false
         default: ubuntu-latest
       model:
-        description: "Claude model to use (overrides AI_MODEL_ISSUES and AI_MODEL vars)"
+        description: "Claude model to use (overrides GH_ACTION_AI_MODEL_ISSUES and GH_ACTION_AI_MODEL vars)"
         type: string
         default: ""
       allowed_bots:
@@ -60,7 +60,7 @@ jobs:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -84,7 +84,7 @@ jobs:
       pull-requests: write
     timeout-minutes: 10
     env:
-      ANTHROPIC_BASE_URL: ${{ vars.OPENROUTER_BASE_URL || secrets.OPENROUTER_BASE_URL }}
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -92,7 +92,7 @@ jobs:
       - name: Checkout ai-workflows
         uses: actions/checkout@v6
         with:
-          repository: JacobPEvans/ai-workflows
+          repository: dryvist/ai-workflows
           sparse-checkout: |
             .github/prompts
             .github/scripts
@@ -112,9 +112,9 @@ jobs:
           contains(inputs.allowed_bots, '*')
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
-          model: ${{ inputs.model || vars.AI_MODEL_ISSUES || vars.AI_MODEL }}
+          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
           prompt: ${{ steps.render-prompt.outputs.content }}
           claude_args: >-
             --allowedTools "Read,Glob,Grep,LS,Bash(gh pr:*),Bash(gh issue:*),Bash(gh search:*),Bash(gh api:*)"
