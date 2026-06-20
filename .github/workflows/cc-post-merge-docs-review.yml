@@ -167,6 +167,6 @@ jobs:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*),Bash(gh api:*),Bash(gh search:*)"
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

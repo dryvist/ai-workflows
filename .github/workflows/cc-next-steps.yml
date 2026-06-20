@@ -125,7 +125,7 @@ jobs:
       - name: Execute Claude Code
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
           use_commit_signing: "true"
           prompt: ${{ steps.prompt.outputs.content }}
