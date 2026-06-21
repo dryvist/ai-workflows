@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.1](https://github.com/dryvist/ai-workflows/compare/v0.20.0...v0.20.1) (2026-06-21)
+
+
+### Bug Fixes
+
+* **cc-ci-fix:** commit all working-tree changes (capture formatter fixes) ([#261](https://github.com/dryvist/ai-workflows/issues/261)) ([774c3aa](https://github.com/dryvist/ai-workflows/commit/774c3aa1a329000f8cbbed0f5b3d9bebaa5e91c7))
+
 ## [0.20.0](https://github.com/dryvist/ai-workflows/compare/v0.19.1...v0.20.0) (2026-06-21)
 
 
