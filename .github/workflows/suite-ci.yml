@@ -44,6 +44,10 @@ on:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
         default: ""
+      daily_run_limit:
+        description: "Max ci-fix runs per day (0 to disable)"
+        type: string
+        default: "5"
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -67,6 +71,7 @@ jobs:
       repo_context: ${{ inputs.repo_context }}
       ci_structure: ${{ inputs.ci_structure }}
       extra_tools: ${{ inputs.extra_tools }}
+      daily_run_limit: ${{ inputs.daily_run_limit }}
     secrets: inherit
 
   ci-fail-issue:
