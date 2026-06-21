@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.2](https://github.com/dryvist/ai-workflows/compare/v0.20.1...v0.20.2) (2026-06-21)
+
+
+### Bug Fixes
+
+* **cc-ci-fix:** revert to web-flow commit signing ([#261](https://github.com/dryvist/ai-workflows/issues/261) broke signed-commit repos) ([#263](https://github.com/dryvist/ai-workflows/issues/263)) ([9349890](https://github.com/dryvist/ai-workflows/commit/9349890dd7468a153265c27a8cc74cf2cfd86990))
+
 ## [0.20.1](https://github.com/dryvist/ai-workflows/compare/v0.20.0...v0.20.1) (2026-06-21)
 
 
