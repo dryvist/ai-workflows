@@ -221,22 +221,40 @@ jobs:
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE
 
-      # The PR branch is checked out above as a real branch, so claude-code-action's
-      # native use_commit_signing path commits Claude's Edit/Write changes to it via
-      # GitHub's web-flow API — GitHub-VERIFIED (satisfies required_signatures),
-      # attributed to JacobPEvans-claude[bot], and re-triggers CI. No custom commit
-      # step or signing key needed.
-      - name: Run Claude Code with bot attribution
+      # Claude only EDITS files (use_commit_signing: false) — claude-code-action's
+      # own commit path can't target a PR branch from a workflow_run trigger (no
+      # PR context in the event payload), so the edits stay in the working tree
+      # and the "Commit fix" step below commits them to the known PR branch.
+      - name: Run Claude Code
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
-          use_commit_signing: "true"
+          use_commit_signing: "false"
           allowed_bots: "github-actions,claude"
+
+      # Mint an App token so the commit is authored by JacobPEvans-claude[bot] and
+      # GitHub-VERIFIED (createCommitOnBranch web-flow), satisfying
+      # required_signatures rulesets and re-triggering CI on the PR.
+      - name: Mint commit token
+        id: commit-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      - name: Commit fix to PR branch
+        uses: actions/github-script@v9
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          COMMIT_MESSAGE: "fix: resolve CI failure (auto-fix attempt ${{ needs.should-fix.outputs.attempt }})"
+        with:
+          github-token: ${{ steps.commit-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/ci-fix/commit-fix.js');
+            await run({ github, context, core });
 
       - name: Comment on failure
         if: failure()
