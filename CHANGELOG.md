@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.0](https://github.com/dryvist/ai-workflows/compare/v0.19.1...v0.20.0) (2026-06-21)
+
+
+### Features
+
+* **suite-ci:** forward daily_run_limit to cc-ci-fix ([#259](https://github.com/dryvist/ai-workflows/issues/259)) ([c641354](https://github.com/dryvist/ai-workflows/commit/c641354cfb6461dd4ecce8964e808b2be6b0d388))
+
 ## [0.19.1](https://github.com/dryvist/ai-workflows/compare/v0.19.0...v0.19.1) (2026-06-20)
 
 
