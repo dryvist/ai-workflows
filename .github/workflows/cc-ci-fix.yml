@@ -219,39 +219,23 @@ jobs:
           REPO_CONTEXT: ${{ inputs.repo_context }}
           CI_STRUCTURE: ${{ inputs.ci_structure }}
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE
+          ATTEMPT_NUM: ${{ needs.should-fix.outputs.attempt }}
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE ATTEMPT_NUM
 
-      # Claude applies the fix to the working tree but commits nothing
-      # (use_commit_signing=false). The commit step below captures ALL changes —
-      # including formatter/shell fixes that the commit-signing path would miss.
-      - name: Run Claude Code
+      # use_commit_signing routes commits through the App via GitHub's web-flow,
+      # which produces GitHub-VERIFIED commits (satisfies required_signatures
+      # rulesets) and re-triggers CI. Note: this commits Claude's Edit/Write tool
+      # changes — fixes must be applied via those tools, not shell formatters.
+      - name: Run Claude Code with bot attribution
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          use_commit_signing: "false"
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           allowed_bots: "github-actions,claude"
-
-      - name: Mint bot token for commit
-        id: commit-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-
-      - name: Commit and push fix
-        env:
-          APP_TOKEN: ${{ steps.commit-token.outputs.token }}
-          BOT_SLUG: ${{ steps.commit-token.outputs.app-slug }}
-          ATTEMPT_NUM: ${{ needs.should-fix.outputs.attempt }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
-        run: bash .ai-workflows/.github/scripts/ci-fix/commit-fix.sh
 
       - name: Comment on failure
         if: failure()
