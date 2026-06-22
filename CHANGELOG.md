@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.21.1](https://github.com/dryvist/ai-workflows/compare/v0.21.0...v0.21.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **issue-resolver:** open PR via createCommitOnBranch instead of Claude git/gh ([#272](https://github.com/dryvist/ai-workflows/issues/272)) ([75adb53](https://github.com/dryvist/ai-workflows/commit/75adb53a38c5f374012ca820d64946393bb86d3f))
+
 ## [0.21.0](https://github.com/dryvist/ai-workflows/compare/v0.20.3...v0.21.0) (2026-06-22)
 
 
