@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.21.0](https://github.com/dryvist/ai-workflows/compare/v0.20.3...v0.21.0) (2026-06-22)
+
+
+### Features
+
+* **issue-resolver:** ai:ready label trigger, no size cap, autonomous triage→resolve chain ([#270](https://github.com/dryvist/ai-workflows/issues/270)) ([52a6b75](https://github.com/dryvist/ai-workflows/commit/52a6b75a073625fa05d42d5415dfbdf1c2d9dc0d))
+
 ## [0.20.3](https://github.com/dryvist/ai-workflows/compare/v0.20.2...v0.20.3) (2026-06-21)
 
 
