@@ -32,7 +32,7 @@ on:
       excluded_labels:
         description: "Comma-separated labels that block auto-resolution"
         type: string
-        default: "type:security,type:feature,type:breaking,size:l,size:xl"
+        default: "type:security,type:feature,type:breaking"
       max_attempts:
         description: "Max resolution attempts per issue"
         type: string

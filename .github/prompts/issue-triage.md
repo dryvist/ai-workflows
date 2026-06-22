@@ -46,8 +46,19 @@ Otherwise, the issue details are available from the triggering event.
 6. **Respect form selections**: If the issue was created from a form template and already
    has type/size/priority labels set, do not override them.
 
-7. **Comment with triage summary**: Post a brief comment with:
+7. **Mark auto-resolvable** with the `ai:ready` label. Apply `ai:ready` when ALL of these hold:
+   - the `type:*` is one of `bug`, `chore`, `docs`, `ci`, `test`, `refactor`, `perf`
+     (NEVER for `type:security`, `type:feature`, or `type:breaking` — those need human design);
+   - none of `duplicate`, `invalid`, `wontfix`, `question` apply;
+   - the issue describes a concrete, self-contained change (not a vague discussion).
+
+   `ai:ready` is the trigger for autonomous resolution — apply it independently of `size:*`
+   (there is no size cap). If the issue is real but not safe to auto-resolve, label it fully
+   but withhold `ai:ready` and say why in the comment.
+
+8. **Comment with triage summary**: Post a brief comment with:
    - Applied labels and reasoning
+   - Whether `ai:ready` was applied (and, if withheld, why)
    - Duplicate reference if found
 
 ## Rules
@@ -55,5 +66,6 @@ Otherwise, the issue details are available from the triggering event.
 - Apply exactly one `type:*` label per issue.
 - Apply exactly one `size:*` label per issue (unless one already exists).
 - Apply exactly one `priority:*` label per issue (unless one already exists).
+- Apply `ai:ready` only when the step-7 criteria all hold.
 - Never remove existing labels.
 - Keep triage comments concise (under 200 words).
