@@ -144,15 +144,42 @@ jobs:
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-resolver.md REPO_CONTEXT ISSUE_NUMBER ISSUE_TITLE ISSUE_BODY ISSUE_LABELS ATTEMPT MAX_ATTEMPTS WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
 
-      - name: Run Claude Code with bot attribution
+      # Claude only EDITS files (use_commit_signing: false). An `issues` event gives
+      # claude-code-action no reliable, signature-satisfying way to land a branch + PR
+      # itself, so the "Open PR" step below creates the branch + verified commit + PR.
+      - name: Run Claude Code
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
-          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr create:*),Bash(gh issue comment:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          use_commit_signing: "false"
+
+      # Mint an App token so the branch commit is GitHub-VERIFIED (createCommitOnBranch
+      # web-flow) and the PR/commit are attributed to JacobPEvans-claude[bot].
+      - name: Mint PR token
+        id: pr-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      - name: Open PR
+        uses: actions/github-script@v9
+        env:
+          ISSUE_NUMBER: ${{ needs.eligibility-check.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.eligibility-check.outputs.issue_title }}
+          ISSUE_LABELS: ${{ needs.eligibility-check.outputs.issue_labels }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          github-token: ${{ steps.pr-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/issue-resolver/open-pr.js');
+            await run({ github, context, core });
 
       - name: Comment on failure
         if: failure()
