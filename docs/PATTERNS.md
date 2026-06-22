@@ -38,37 +38,99 @@ Used by most workflows. Static prompt, read-only tools.
 
 ---
 
-## Commit Signing Pattern
+## Verified Commit & PR Pattern
 
-Used by workflows that create commits or PRs. Adds `use_commit_signing: "true"` for commits verified as the Claude GitHub App.
+**This is the ONE way every write-workflow lands commits and PRs. Do not invent another.**
 
-**Workflows**: code-simplifier, next-steps (creates PRs), post-merge-docs-review, post-merge-tests, ci-fix, issue-resolver
+### The problem (read this before adding a write-workflow)
 
-**Additional permissions**: `contents: write`, `pull-requests: write`
+A write-workflow must land a **GitHub-verified** commit, because the dryvist org enforces a
+`required_signatures` ruleset that rejects unsigned pushes (`GH013`). There are two tempting
+ways to do this that **do not work** in our workflows:
 
-**Additional input**:
+1. **`use_commit_signing: "true"`** (claude-code-action's native web-flow). The action derives
+   the commit's target branch from the **trigger event's PR context**. Per its own docs: *open
+   PR → pushes to the PR branch; issue → new branch; otherwise → it cannot resolve a branch.*
+   Our write-workflows fire on **`workflow_run`, `issues`, `schedule`, and `workflow_dispatch`**
+   — none give it a usable branch, so it commits **nothing** (observed: `base_branch: ""`, no
+   commit, no branch). Proven dead under `workflow_run` (ai-workflows #267, reverted by #268)
+   and under `issues` (nix-ai #998: Claude produced the fix but every write channel was denied).
+2. **Claude running `git commit && git push` or `gh pr create` itself.** A CLI push is
+   **unsigned** → rejected by `required_signatures` (`GH013`). This is what #261 hit.
+
+### The solution
+
+Claude **only edits files** (`use_commit_signing: "false"`, and NO git-write / `gh pr` /
+`gh api` write tools in `--allowedTools`). A workflow step then commits the working-tree diff
+through the GitHub **`createCommitOnBranch` GraphQL mutation** using a freshly minted
+**JacobPEvans-claude App installation token**. Those commits are **GitHub-VERIFIED** (satisfy
+`required_signatures`), attributed to the bot, and re-trigger CI.
+
+All of this lives in one shared helper — **`.github/scripts/shared/verified-commit.js`** — with
+two shapes:
+
+| Shape | Helper fn | When | Used by |
+| --- | --- | --- | --- |
+| Commit to an **existing** branch | `commitToBranch` | fixing a PR in place | `cc-ci-fix` (via `ci-fix/commit-fix.js`) |
+| Create a **new** branch + open a PR | `openPr` | turning work into a new PR | `cc-issue-resolver` (`issue-resolver/open-pr.js`), `code-simplifier`, `next-steps`, `post-merge-*` (via `shared/pr-from-file.js`) |
+
+**Workflows**: ci-fix, issue-resolver, code-simplifier, next-steps, post-merge-docs-review, post-merge-tests.
+
+### Workflow shape (new-branch + PR)
 
 ```yaml
-- name: Run Claude
-  uses: anthropics/claude-code-action@v1
-  env:
-    ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
-  with:
-    anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-    allowed_bots: "github-actions"
-    use_commit_signing: "true"
-    prompt: ${{ steps.prompt.outputs.content }}
-    claude_args: >-
-      --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),
-      Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr:*)"
-      --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
+permissions:               # job-level
+  contents: write
+  id-token: write
+  pull-requests: write
+
+steps:
+  # 1. Claude EDITS ONLY — no git-write, no gh pr/gh api writes. For non-issue
+  #    workflows it also writes its PR title (first line) + body to `.claude-pr.md`.
+  - name: Run Claude Code
+    uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+    with:
+      prompt: ${{ steps.prompt.outputs.content }}
+      model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
+      allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)"
+      claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      use_commit_signing: "false"
+
+  # 2. Mint the App token so the commit is VERIFIED + bot-attributed.
+  - name: Mint PR token
+    id: pr-token
+    uses: actions/create-github-app-token@v3
+    with:
+      app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+      private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+  # 3. Open the PR from Claude's edits via the shared helper.
+  - name: Open PR
+    uses: actions/github-script@v9
+    env:
+      PR_BRANCH: claude/<workflow>-${{ github.run_id }}
+      WORKFLOW_NAME: ${{ github.workflow }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      EVENT_NAME: ${{ github.event_name }}
+      TRIGGER_ACTOR: ${{ github.triggering_actor }}
+    with:
+      github-token: ${{ steps.pr-token.outputs.token }}
+      script: |
+        const run = require('./.ai-workflows/.github/scripts/shared/pr-from-file.js');
+        await run({ github, context, core });
 ```
 
-The `--allowedTools` value above spans two lines for readability; in production workflow files, keep it on
-a single line within the `>-` block (or consult `.github/workflows/*.yml` for the canonical form).
+`pr-from-file.js` reads `.claude-pr.md` (title = first line, body = rest), appends the AI
+Provenance footer, and excludes that file from the commit. **No `.claude-pr.md` written →
+Claude declined → no PR** (clean no-op). Issue-driven resolution (`open-pr.js`) composes the
+title/branch from the issue instead of a file; CI-fix (`commit-fix.js`) calls `commitToBranch`.
 
-Uses GitHub API commit signing. Commits are automatically verified as the Claude GitHub App.
-`Bash(git:*)` is restricted to read-only subcommands to prevent unsigned CLI commits.
+### Prompt rules for a write-workflow
+
+- Tell Claude to make the change with `Edit`/`Write`/`MultiEdit` only.
+- Tell Claude **NOT** to run git, NOT to `gh pr create`, NOT to push — the workflow commits.
+- For non-issue workflows: tell Claude to write the PR title (first line) + body to
+  `.claude-pr.md`, or to write nothing if it has no change to propose.
 
 ---
 

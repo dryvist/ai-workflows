@@ -52,15 +52,16 @@ If an open PR already covers the same changes, exit without action.
 
 ## Output
 
-Pick up to 3 high-impact improvements from different categories. Create one PR addressing the selected improvements that:
+Pick up to 3 high-impact improvements from different categories and apply them by editing
+files (Edit/Write/MultiEdit). Keep the change minimal — change the fewest files needed and do
+not introduce new functionality or change behavior.
 
-- Changes the minimum number of files needed
-- Has a clear title describing the improvement
-- Includes a body explaining what was found and why the change helps
-- Does not introduce new functionality or change behavior
-- Includes this provenance footer at the bottom of the PR body:
+Then write your PR description to a file named `.claude-pr.md` in the repo root:
 
-  ```text
-  ---
-  > **AI Provenance** | Workflow: `${WORKFLOW_NAME}` | [Run ${RUN_ID}](${RUN_URL}) | Event: `${EVENT_NAME}` | Actor: `${TRIGGER_ACTOR}`
-  ```
+- **First line**: a clear conventional-commit PR title, e.g. `refactor: extract duplicated X helper`.
+- **Remaining lines**: a body explaining what was found and why the change helps.
+
+Do **not** run git, do **not** `gh pr create`, do **not** push — the workflow commits your edits
+and opens a verified PR from `.claude-pr.md` automatically (and appends the AI Provenance footer).
+If you find nothing worth changing, make no edits and write no `.claude-pr.md` — the workflow then
+opens no PR.

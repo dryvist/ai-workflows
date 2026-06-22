@@ -58,18 +58,15 @@ If an open PR already addresses the same documentation problems, exit without ac
 
 If threshold is met:
 
-1. Create a new branch from main with name `docs/fix-{short-description}`
-2. Fix the identified issues directly in the documentation files
-3. Create a PR with:
-   - Title: `docs: fix {brief description of issues}`
-   - Body listing each issue found, its category (critical/non-critical), and what was fixed
-   - Include a "Detection Trigger" section explaining which merge prompted this review
-4. Include this provenance footer at the bottom of the PR body:
+1. Fix the identified issues directly in the documentation files (Edit/Write/MultiEdit).
+2. Write your PR description to a file named `.claude-pr.md` in the repo root:
+   - **First line**: `docs: fix {brief description of issues}`
+   - **Remaining lines**: list each issue found, its category (critical/non-critical), what was
+     fixed, and a "Detection Trigger" line naming the merge that prompted this review.
 
-   ```text
-   ---
-   > **AI Provenance** | Workflow: `${WORKFLOW_NAME}` | [Run ${RUN_ID}](${RUN_URL}) | Event: `${EVENT_NAME}` | Actor: `${TRIGGER_ACTOR}`
-   ```
+Do **not** run git, do **not** `gh pr create`, do **not** push — the workflow commits your edits
+and opens a verified PR from `.claude-pr.md` automatically (and appends the AI Provenance footer).
+If the threshold is NOT met, make no edits and write no `.claude-pr.md` — the workflow opens no PR.
 
 ## Rules
 

@@ -36,21 +36,20 @@ If an open PR already adds tests for the same files or functions, exit without a
 
 If you find uncovered testable code:
 
-1. Create a new branch from `main` with name `chore/add-tests-<short-description>`
-2. Write 1-4 targeted test files following the EXACT patterns found in existing tests:
+1. Write 1-4 targeted test files (Edit/Write) following the EXACT patterns found in existing tests:
    - Same test framework and assertion style
    - Same file naming convention
    - Same directory structure
    - Same import patterns and test utilities
-3. Create a PR with:
-   - Title: `test: add coverage for <what was merged>`
-   - Body explaining: what merge triggered this, what's being tested, what existing patterns were followed
-4. Include this provenance footer at the bottom of the PR body:
+2. Write your PR description to a file named `.claude-pr.md` in the repo root:
+   - **First line**: `test: add coverage for <what was merged>`
+   - **Remaining lines**: what merge triggered this, what's being tested, what existing patterns
+     were followed.
 
-   ```text
-   ---
-   > **AI Provenance** | Workflow: `${WORKFLOW_NAME}` | [Run ${RUN_ID}](${RUN_URL}) | Event: `${EVENT_NAME}` | Actor: `${TRIGGER_ACTOR}`
-   ```
+Do **not** run git, do **not** `gh pr create`, do **not** push — the workflow commits your edits
+and opens a verified PR from `.claude-pr.md` automatically (and appends the AI Provenance footer).
+If existing coverage is already comprehensive, make no edits and write no `.claude-pr.md` — the
+workflow opens no PR.
 
 ## Rules
 
