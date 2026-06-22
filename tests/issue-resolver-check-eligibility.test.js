@@ -10,7 +10,7 @@ describe('check-eligibility', () => {
       title: 'Test issue',
       body: 'Test body',
       author_association: 'OWNER',
-      labels: [{ name: 'type:bug' }, { name: 'size:xs' }],
+      labels: [{ name: 'type:bug' }, { name: 'size:xs' }, { name: 'ai:ready' }],
       ...overrides,
     };
   }
@@ -72,10 +72,18 @@ describe('check-eligibility', () => {
     expect(core.getOutput('should_run')).toBe('false');
   });
 
+  it('sets should_run=false when ai:ready is missing (gate 3b)', async () => {
+    github.rest.issues.get.mockResolvedValue({
+      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xs' }] }),
+    });
+    await run({ github, context, core });
+    expect(core.getOutput('should_run')).toBe('false');
+  });
+
   it('sets should_run=false when excluded label present (gate 4)', async () => {
     process.env.EXCLUDED_LABELS = 'blocked';
     github.rest.issues.get.mockResolvedValue({
-      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xs' }, { name: 'blocked' }] }),
+      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xs' }, { name: 'ai:ready' }, { name: 'blocked' }] }),
     });
     await run({ github, context, core });
     expect(core.getOutput('should_run')).toBe('false');
@@ -83,7 +91,7 @@ describe('check-eligibility', () => {
 
   it('sets should_run=false for triage skip labels (gate 5)', async () => {
     github.rest.issues.get.mockResolvedValue({
-      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xs' }, { name: 'duplicate' }] }),
+      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xs' }, { name: 'ai:ready' }, { name: 'duplicate' }] }),
     });
     await run({ github, context, core });
     expect(core.getOutput('should_run')).toBe('false');
@@ -91,18 +99,18 @@ describe('check-eligibility', () => {
 
   it('sets should_run=false for disallowed type (gate 6)', async () => {
     github.rest.issues.get.mockResolvedValue({
-      data: buildIssue({ labels: [{ name: 'type:feature' }, { name: 'size:xs' }] }),
+      data: buildIssue({ labels: [{ name: 'type:feature' }, { name: 'size:xs' }, { name: 'ai:ready' }] }),
     });
     await run({ github, context, core });
     expect(core.getOutput('should_run')).toBe('false');
   });
 
-  it('sets should_run=false for disallowed size (gate 7)', async () => {
+  it('resolves an ai:ready issue of ANY size — no size cap (gate 7 removed)', async () => {
     github.rest.issues.get.mockResolvedValue({
-      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xl' }] }),
+      data: buildIssue({ labels: [{ name: 'type:bug' }, { name: 'size:xl' }, { name: 'ai:ready' }] }),
     });
     await run({ github, context, core });
-    expect(core.getOutput('should_run')).toBe('false');
+    expect(core.getOutput('should_run')).toBe('true');
   });
 
   it('sets should_run=false when PR already references issue (gate 8)', async () => {
@@ -285,7 +293,7 @@ describe('check-eligibility', () => {
       expect(core.getOutput('issue_number')).toBe('5');
       expect(core.getOutput('issue_title')).toBe('Test issue');
       expect(core.getOutput('issue_body')).toBe('Test body');
-      expect(core.getOutput('issue_labels')).toBe('type:bug, size:xs');
+      expect(core.getOutput('issue_labels')).toBe('type:bug, size:xs, ai:ready');
       expect(core.getOutput('attempt')).toBe('1');
     });
   });

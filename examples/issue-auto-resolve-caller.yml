@@ -1,0 +1,71 @@
+# Example consumer caller for autonomous issue resolution.
+#
+# Drop this in your repo at .github/workflows/issue-auto-resolve.yml.
+#
+# Flow:
+#   - New/reopened issue  -> Claude triage labels it (type/size/priority, and ai:ready
+#     when auto-resolvable) -> if ai:ready, Claude (Opus) opens a PR that fully resolves it.
+#   - A human adding the `ai:ready` label re-triggers resolution directly.
+#   - workflow_dispatch with an issue_number resolves that issue manually (bypasses gates).
+#
+# Why triage and resolve chain in ONE run: a label added by GITHUB_TOKEN does NOT fire a
+# downstream `issues: labeled` workflow (GitHub loop-prevention), so we cannot rely on
+# triage's ai:ready label to start a separate resolver run. Chaining triage -> resolve
+# here is what makes the new-issue path autonomous.
+#
+# Required org/repo config (already set org-wide on dryvist):
+#   - secret  GH_ACTION_AI_API_KEY            Claude Code OAuth token
+#   - var     GH_ACTION_AI_MODEL_PLAN         e.g. "claude-opus-4-8" (resolver model)
+#   - var     GH_APP_CLAUDE_BOT_ID            GitHub App id (bot attribution)
+#   - secret  GH_APP_CLAUDE_BOT_PRIVATE_KEY   GitHub App private key (PEM)
+#   - label   ai:ready + type:*/size:*/priority:* present in the repo (see label-sync)
+
+name: Issue Auto-Resolve (Claude)
+
+on:
+  issues:
+    types: [opened, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to resolve"
+        required: true
+        type: string
+
+# Consumer callers must declare permissions explicitly.
+permissions:
+  contents: write
+  id-token: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: issue-auto-resolve-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false # Never cancel — queue instead to avoid wasting AI tokens
+
+jobs:
+  # Triage only new/reopened issues. On a manual ai:ready label or workflow_dispatch the
+  # issue was already judged, so triage is skipped and resolve runs directly.
+  triage:
+    if: >-
+      github.event_name == 'issues' &&
+      (github.event.action == 'opened' || github.event.action == 'reopened')
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0
+    secrets: inherit
+
+  resolve:
+    needs: [triage]
+    # Run after triage (new-issue path), when a human adds ai:ready, or on manual dispatch.
+    # Skip when a label OTHER than ai:ready was the trigger.
+    if: >-
+      always() &&
+      (needs.triage.result == 'success' || needs.triage.result == 'skipped') &&
+      !(github.event_name == 'issues' &&
+        github.event.action == 'labeled' &&
+        github.event.label.name != 'ai:ready')
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@v0
+    secrets: inherit
+    with:
+      # Describe your repo so Claude has context (language, frameworks, how it builds).
+      repo_context: "<DESCRIBE THIS REPO: language, frameworks, how it builds and tests>"
+      issue_number: ${{ github.event.issue.number || inputs.issue_number || '0' }}

@@ -60,7 +60,7 @@ module.exports = async ({ github, context, core }) => {
     }
   }
 
-  // Gates 3-7: Label checks — skip for manual triggers (human judged the issue appropriate)
+  // Gates 3-6: Label checks — skip for manual triggers (human judged the issue appropriate)
   if (!isManualTrigger) {
     // Gate 3: Required labels present — triage must have run
     const hasTypeLabel = labels.some(l => l.startsWith('type:'));
@@ -68,6 +68,15 @@ module.exports = async ({ github, context, core }) => {
     if (!hasTypeLabel || !hasSizeLabel) {
       core.setOutput('should_run', 'false');
       core.info(`Issue #${issueNumber} missing type: or size: labels — triage may not have run`);
+      return;
+    }
+
+    // Gate 3b: ai:ready present — the explicit trigger for autonomous resolution.
+    // Triage applies it to auto-resolvable issues; a human may apply it manually.
+    // No size cap: ai:ready resolves issues of any size.
+    if (!labels.includes('ai:ready')) {
+      core.setOutput('should_run', 'false');
+      core.info(`Issue #${issueNumber} not labeled ai:ready — skipping autonomous resolution`);
       return;
     }
 
@@ -103,15 +112,7 @@ module.exports = async ({ github, context, core }) => {
       core.info(`Issue #${issueNumber} type "${issueType}" not in allowed types`);
       return;
     }
-
-    // Gate 7: Allowed sizes — only xs and s are safe for auto-resolution
-    const allowedSizes = ['size:xs', 'size:s'];
-    const issueSize = labels.find(l => l.startsWith('size:'));
-    if (!allowedSizes.includes(issueSize)) {
-      core.setOutput('should_run', 'false');
-      core.info(`Issue #${issueNumber} size "${issueSize}" not in allowed sizes`);
-      return;
-    }
+    // No size gate: ai:ready (Gate 3b) authorizes resolution regardless of size:* label.
   }
 
   // Gate 8: No existing open PR already referencing this issue (always runs)
