@@ -1,7 +1,7 @@
 # Code Simplifier
 #
-# Nightly DRY enforcer. Finds duplication, dead code, and simplification opportunities.
-# Creates focused PRs.
+# Simplifies recently modified code for clarity, consistency, and maintainability while
+# preserving exact functionality. Opens a focused PR with the refinements.
 #
 # This is a reusable workflow that can be called from other repositories.
 
