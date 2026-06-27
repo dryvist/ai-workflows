@@ -112,13 +112,7 @@ jobs:
 
       - name: Render prompt
         id: prompt
-        env:
-          WORKFLOW_NAME: ${{ github.workflow }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EVENT_NAME: ${{ github.event_name }}
-          TRIGGER_ACTOR: ${{ github.triggering_actor }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/code-simplifier.md WORKFLOW_NAME RUN_ID RUN_URL EVENT_NAME TRIGGER_ACTOR
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/code-simplifier.md
 
       # Verified Commit & PR Pattern (docs/PATTERNS.md): Claude only edits + writes its
       # PR description to .claude-pr.md; the steps below open a VERIFIED PR from it.
