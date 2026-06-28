@@ -267,7 +267,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   review:
     if: github.event_name == 'workflow_dispatch'
-    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@v0.3.3
+    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@main
     with:
       commit_sha: ${{ inputs.commit_sha || github.sha }}
     secrets: inherit
@@ -324,7 +324,7 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 ```yaml
 jobs:
   sweep:
-    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@v0.9.0
+    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@main
     with:
       caller_event: ${{ github.event_name }}
       allowed_bots: "claude"  # Allow Claude App PRs to be reviewed
@@ -506,7 +506,7 @@ jobs:
         (github.event.action == 'opened' && !github.event.pull_request.draft) ||
         (github.event.action == 'closed' && github.event.pull_request.merged == true)
       )
-    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@main
     secrets: inherit
 ```
 
@@ -631,7 +631,7 @@ permissions:
   pull-requests: read
 jobs:
   notify:
-    uses: dryvist/ai-workflows/.github/workflows/notify-ai-pr.yml@v0.4.0
+    uses: dryvist/ai-workflows/.github/workflows/notify-ai-pr.yml@main
     secrets: inherit
 ```
 

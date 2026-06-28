@@ -27,11 +27,13 @@ permissions:
   issues: write            # add what this workflow needs
 jobs:
   run:
-    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main
     secrets: inherit
 ```
 
 **Important**: Consumer callers must declare `permissions:` explicitly. CodeQL and branch protection rules may block merges if permissions are missing.
+
+**Versioning**: Always pin `@main`, never a SemVer tag or SHA. `ai-workflows` is a first-party `dryvist/*` reusable workflow, so consumers ride `@main` and pick up fixes the moment they land — no per-repo Renovate PR. SemVer tags still exist (release-please keeps bumping them for the changelog and the per-run resolved-SHA audit trail), but callers do not pin them. The org scanners are configured to allow `@main`; see [CI/CD policy → scanner posture](https://docs.jacobpevans.com/infrastructure/cicd/policy#scanner-posture-for-self-references).
 
 ---
 

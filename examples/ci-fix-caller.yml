@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   ci-fix:
-    uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@v0
+    uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@main
     secrets: inherit
     with:
       repo_context: "Describe your repo: language, frameworks, how it builds."

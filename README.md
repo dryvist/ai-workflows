@@ -84,7 +84,7 @@ permissions:
   issues: write
 jobs:
   triage:
-    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@main
     secrets: inherit
 ```
 
@@ -104,7 +104,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@v0.3.0
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@main
     secrets: inherit
 ```
 
