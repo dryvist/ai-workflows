@@ -22,7 +22,6 @@ const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
 // Stage all working-tree changes except the ai-workflows checkout (and any extra
 // excludes, e.g. a Claude-authored PR-body file) and return GraphQL fileChanges,
 // or null when there is nothing to commit.
-// ponytail: --name-status quotes paths with spaces; tab-split assumes plain paths.
 function stageChanges(extraExcludes = []) {
   const excludes = ['.ai-workflows', ...extraExcludes].map((p) => `:(exclude)${p}`);
   git(['add', '-A', '--', ...excludes]);
@@ -31,13 +30,19 @@ function stageChanges(extraExcludes = []) {
 
   const additions = [];
   const deletions = [];
-  const stage = (p) => additions.push({ path: p, contents: fs.readFileSync(p).toString('base64') });
   for (const line of status.split('\n')) {
     const parts = line.split('\t');
     const code = parts[0][0];
-    if (code === 'D') deletions.push({ path: parts[1] });
-    else if (code === 'R' || code === 'C') { if (code === 'R') deletions.push({ path: parts[1] }); stage(parts[2]); }
-    else stage(parts[1]); // A or M
+    if (code === 'D') {
+      deletions.push({ path: parts[1] });
+    } else if (code === 'R') {
+      deletions.push({ path: parts[1] });
+      additions.push({ path: parts[2], contents: fs.readFileSync(parts[2]).toString('base64') });
+    } else if (code === 'C') {
+      additions.push({ path: parts[2], contents: fs.readFileSync(parts[2]).toString('base64') });
+    } else {
+      additions.push({ path: parts[1], contents: fs.readFileSync(parts[1]).toString('base64') });
+    }
   }
   return { additions, deletions };
 }
@@ -47,16 +52,30 @@ async function createCommitOnBranch(github, repoWithOwner, branch, headline, exp
     `mutation ($input: CreateCommitOnBranchInput!) {
        createCommitOnBranch(input: $input) { commit { oid url } }
      }`,
-    { input: { branch: { repositoryNameWithOwner: repoWithOwner, branchName: branch }, message: { headline }, expectedHeadOid, fileChanges } },
+    {
+      input: {
+        branch: { repositoryNameWithOwner: repoWithOwner, branchName: branch },
+        message: { headline },
+        expectedHeadOid,
+        fileChanges,
+      },
+    },
   );
   return res.createCommitOnBranch.commit;
 }
 
 // Shape 1: commit the working-tree diff onto an existing branch.
 async function commitToBranch({ github, context, core, branch, message, extraExcludes }) {
-  if (!branch) { core.setFailed('commitToBranch: branch is required'); return { committed: false }; }
+  if (!branch) {
+    core.setFailed('commitToBranch: branch is required');
+    return { committed: false };
+  }
   const changes = stageChanges(extraExcludes);
-  if (!changes) { core.info('No file changes — nothing to commit.'); core.setOutput('committed', 'false'); return { committed: false }; }
+  if (!changes) {
+    core.info('No file changes — nothing to commit.');
+    core.setOutput('committed', 'false');
+    return { committed: false };
+  }
   const { owner, repo } = context.repo;
   const commit = await createCommitOnBranch(github, `${owner}/${repo}`, branch, message, git(['rev-parse', 'HEAD']).trim(), changes);
   core.info(`Committed ${changes.additions.length} change(s), ${changes.deletions.length} deletion(s) to ${branch}: ${commit.url}`);
@@ -68,11 +87,18 @@ async function commitToBranch({ github, context, core, branch, message, extraExc
 // Shape 2: create a new branch off the checked-out HEAD, verified-commit the diff,
 // and open a PR. Returns { opened, pr } (opened: false when there were no changes).
 async function openPr({ github, context, core, branch, title, body, baseBranch, extraExcludes }) {
-  if (!branch || !title) { core.setFailed('openPr: branch and title are required'); return { opened: false }; }
+  if (!branch || !title) {
+    core.setFailed('openPr: branch and title are required');
+    return { opened: false };
+  }
   const { owner, repo } = context.repo;
   const base = baseBranch || context.payload.repository?.default_branch || 'main';
   const changes = stageChanges(extraExcludes);
-  if (!changes) { core.info('No file changes — no PR to open.'); core.setOutput('opened', 'false'); return { opened: false }; }
+  if (!changes) {
+    core.info('No file changes — no PR to open.');
+    core.setOutput('opened', 'false');
+    return { opened: false };
+  }
 
   const baseOid = git(['rev-parse', 'HEAD']).trim();
   try {
