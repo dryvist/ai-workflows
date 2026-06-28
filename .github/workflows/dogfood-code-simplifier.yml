@@ -1,0 +1,16 @@
+name: Dogfood Code Simplifier
+on:
+  workflow_dispatch:
+  # --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
+  # schedule:
+  #   - cron: "0 4 * * *"
+  # --- END DISABLED ---
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+  pull-requests: write
+jobs:
+  simplify:
+    uses: dryvist/ai-workflows/.github/workflows/cc-code-simplifier.yml@main
+    secrets: inherit

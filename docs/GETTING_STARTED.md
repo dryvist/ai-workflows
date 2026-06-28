@@ -182,7 +182,7 @@ permissions:
 ```
 
 #### `cc-code-simplifier.yml`
-Nightly DRY enforcement, creates draft PRs.
+Simplifies recently changed code for clarity and maintainability (preserving functionality); opens a PR.
 
 ```yaml
 on:

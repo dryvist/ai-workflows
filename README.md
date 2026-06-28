@@ -15,7 +15,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `best-practices.yml` | `workflow_call` | Wed 3am UTC | Weekly audit creating actionable best-practices recommendations |
 | `cc-ci-fix.yml` | `workflow_run` | On CI failure | Analyzes failed CI logs and pushes fixes (max 2 attempts per PR) |
 | `claude-review.yml` | `pull_request` | On PR open/sync | Reviews PRs for quality, security, and best practices |
-| `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | DRY enforcement, dead code removal, creates draft PRs |
+| `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies recently changed code for clarity and maintainability (functionality preserved); opens a PR |
 | `final-pr-review.yml` | `pull_request_review` | On PR review | Final review gate before merge |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
