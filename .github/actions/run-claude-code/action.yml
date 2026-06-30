@@ -51,8 +51,8 @@ inputs:
   inject_instructions:
     description: >-
       "true" (default) checks out dryvist/ai-assistant-instructions@main and
-      writes its AGENTS.md + agentsmd/rules into the runner's Claude Code user
-      memory (~/.claude/CLAUDE.md), so the CI run shares the same baseline
+      appends its AGENTS.md + agentsmd/rules to Claude's system prompt (via
+      claude_args --append-system-prompt), so the CI run shares the same baseline
       instructions as a local dev machine. Set "false" to opt a caller out.
     required: false
     default: "true"
@@ -125,9 +125,14 @@ runs:
         # Pass via env (not inline ${{ }}) so the value never lands in the shell
         # command line — avoids CodeQL actions/code-injection.
         ACTION_PATH: ${{ github.action_path }}
-      run: |
-        bash "${ACTION_PATH}/../../scripts/shared/build-claude-args.sh"
-        rm -rf "${GITHUB_WORKSPACE}/.ai-instructions"
+      run: bash "${ACTION_PATH}/../../scripts/shared/build-claude-args.sh"
+
+    # Separate, always-run cleanup so the checkout is removed even if the build
+    # step fails — it must never be left in the working tree for a verified commit.
+    - name: Remove canonical instructions checkout
+      if: always()
+      shell: bash
+      run: rm -rf "${GITHUB_WORKSPACE}/.ai-instructions"
 
     - name: Run Claude Code
       uses: anthropics/claude-code-action@v1

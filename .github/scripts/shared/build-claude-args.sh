@@ -25,10 +25,14 @@ if [ -n "$instr_dir" ] && [ -f "$instr_dir/AGENTS.md" ]; then
     printf '\n'
     cat "$instr_dir/AGENTS.md"
     if [ -d "$instr_dir/agentsmd/rules" ]; then
-      while IFS= read -r f; do
+      # globstar/nullglob: native recursive, lexically-sorted match (no find|sort
+      # process substitution, whose failures would slip past set -e). Scoped to
+      # this command-substitution subshell, so the shopt does not leak.
+      shopt -s globstar nullglob
+      for f in "$instr_dir"/agentsmd/rules/**/*.md; do
         printf '\n\n---\n\n'
         cat "$f"
-      done < <(find "$instr_dir/agentsmd/rules" -type f -name '*.md' | sort)
+      done
     fi
   )"
   # Escape ONLY backslash then double-quote for embedding inside a double-quoted
