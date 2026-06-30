@@ -48,6 +48,14 @@ inputs:
       commits.
     required: false
     default: "true"
+  inject_instructions:
+    description: >-
+      "true" (default) checks out dryvist/ai-assistant-instructions@main and
+      writes its AGENTS.md + agentsmd/rules into the runner's Claude Code user
+      memory (~/.claude/CLAUDE.md), so the CI run shares the same baseline
+      instructions as a local dev machine. Set "false" to opt a caller out.
+    required: false
+    default: "true"
 
 runs:
   using: composite
@@ -90,6 +98,27 @@ runs:
         private-key: ${{ inputs.app_private_key }}
         owner: ${{ github.repository_owner }}
         repositories: ${{ github.event.repository.name }}
+
+    # Give the CI run the same user-level instruction layer a local dev machine
+    # has via nix. Checked out to a workspace subdir, assembled into user memory,
+    # then removed so it is never staged into a verified commit.
+    - name: Checkout canonical agent instructions
+      if: inputs.inject_instructions == 'true'
+      uses: actions/checkout@v6
+      with:
+        repository: dryvist/ai-assistant-instructions
+        ref: main
+        sparse-checkout: |
+          AGENTS.md
+          agentsmd/rules
+        path: .ai-instructions
+
+    - name: Inject canonical instructions into Claude user memory
+      if: inputs.inject_instructions == 'true'
+      shell: bash
+      run: |
+        bash "${{ github.action_path }}/../../scripts/shared/inject-canonical-instructions.sh" "${GITHUB_WORKSPACE}/.ai-instructions"
+        rm -rf "${GITHUB_WORKSPACE}/.ai-instructions"
 
     - name: Run Claude Code
       uses: anthropics/claude-code-action@v1
