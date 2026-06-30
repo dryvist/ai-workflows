@@ -122,8 +122,11 @@ runs:
         ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
         MODEL: ${{ inputs.model }}
         INSTRUCTIONS_DIR: ${{ inputs.inject_instructions == 'true' && format('{0}/.ai-instructions', github.workspace) || '' }}
+        # Pass via env (not inline ${{ }}) so the value never lands in the shell
+        # command line — avoids CodeQL actions/code-injection.
+        ACTION_PATH: ${{ github.action_path }}
       run: |
-        bash "${{ github.action_path }}/../../scripts/shared/build-claude-args.sh"
+        bash "${ACTION_PATH}/../../scripts/shared/build-claude-args.sh"
         rm -rf "${GITHUB_WORKSPACE}/.ai-instructions"
 
     - name: Run Claude Code
