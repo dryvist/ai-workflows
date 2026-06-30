@@ -100,8 +100,10 @@ runs:
         repositories: ${{ github.event.repository.name }}
 
     # Give the CI run the same user-level instruction layer a local dev machine
-    # has via nix. Checked out to a workspace subdir, assembled into user memory,
-    # then removed so it is never staged into a verified commit.
+    # has via nix. claude-code-action@v1 does not load the runner's user memory
+    # (~/.claude) and exposes no append_system_prompt input, so the canonical
+    # instructions are appended to the system prompt via claude_args instead. The
+    # checkout is removed after assembly so it is never staged into a verified commit.
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
       uses: actions/checkout@v6
@@ -113,11 +115,15 @@ runs:
           agentsmd/rules
         path: .ai-instructions
 
-    - name: Inject canonical instructions into Claude user memory
-      if: inputs.inject_instructions == 'true'
+    - name: Build claude_args (with canonical instructions)
+      id: build-args
       shell: bash
+      env:
+        ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+        MODEL: ${{ inputs.model }}
+        INSTRUCTIONS_DIR: ${{ inputs.inject_instructions == 'true' && format('{0}/.ai-instructions', github.workspace) || '' }}
       run: |
-        bash "${{ github.action_path }}/../../scripts/shared/inject-canonical-instructions.sh" "${GITHUB_WORKSPACE}/.ai-instructions"
+        bash "${{ github.action_path }}/../../scripts/shared/build-claude-args.sh"
         rm -rf "${GITHUB_WORKSPACE}/.ai-instructions"
 
     - name: Run Claude Code
@@ -128,6 +134,4 @@ runs:
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}
         prompt: ${{ inputs.prompt }}
-        claude_args: >-
-          --allowedTools "${{ inputs.allowed_tools }}"
-          --model ${{ inputs.model }}
+        claude_args: ${{ steps.build-args.outputs.claude_args }}
