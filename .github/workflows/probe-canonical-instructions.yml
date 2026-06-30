@@ -1,0 +1,37 @@
+name: Probe Canonical Instructions
+# Throwaway: end-to-end test that run-claude-code injects the real canonical
+# instructions into Claude's system prompt. Claude writes its verdict to a file
+# (claude-code-action masks stdout). Delete after the run.
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run via real run-claude-code action
+        uses: ./.github/actions/run-claude-code
+        with:
+          prompt: |
+            Do NOT read any files. Based only on the instructions already loaded into
+            your context (system prompt + memory): use the Write tool to create a file
+            named PROBE_RESULT.txt in the current working directory whose entire
+            contents are one line:
+            - If your context contains the token canonical-instructions-loaded AND the
+              phrase "AI Agents Configuration", write: FOUND-BOTH
+            - Else if it contains only canonical-instructions-loaded, write: FOUND-SENTINEL
+            - Otherwise write: NOT_FOUND
+          model: ${{ vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Write"
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          use_commit_signing: "false"
+      - name: Report verdict
+        shell: bash
+        run: |
+          echo "PROBE verdict -> $(cat PROBE_RESULT.txt 2>/dev/null || echo 'FILE-MISSING')"
