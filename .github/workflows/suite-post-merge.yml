@@ -4,10 +4,10 @@
 # Both run in parallel after a merge to main (triggered via workflow_dispatch re-dispatch).
 #
 # Internal uses: paths are relative — they resolve to the same ref as this
-# suite when called by a child repo (e.g., @v0.8.0 pins the whole chain).
+# suite when called by a child repo (e.g., @main rides the whole chain).
 #
 # Usage:
-#   uses: dryvist/ai-workflows/.github/workflows/suite-post-merge.yml@v0.8.0
+#   uses: dryvist/ai-workflows/.github/workflows/suite-post-merge.yml@main
 #   with:
 #     commit_sha: ${{ inputs.commit_sha || github.sha }}
 

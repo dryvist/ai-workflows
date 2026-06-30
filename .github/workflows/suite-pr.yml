@@ -4,10 +4,10 @@
 # Callers pass caller_event to route to the correct individual workflow.
 #
 # Internal uses: paths are relative — they resolve to the same ref as this
-# suite when called by a child repo (e.g., @v0.8.0 pins the whole chain).
+# suite when called by a child repo (e.g., @main rides the whole chain).
 #
 # Usage:
-#   uses: dryvist/ai-workflows/.github/workflows/suite-pr.yml@v0.8.0
+#   uses: dryvist/ai-workflows/.github/workflows/suite-pr.yml@main
 #   with:
 #     caller_event: ${{ github.event_name }}
 

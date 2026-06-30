@@ -50,7 +50,7 @@ jobs:
     if: >-
       github.event_name == 'issues' &&
       (github.event.action == 'opened' || github.event.action == 'reopened')
-    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@v0
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@main
     secrets: inherit
 
   resolve:
@@ -63,7 +63,7 @@ jobs:
       !(github.event_name == 'issues' &&
         github.event.action == 'labeled' &&
         github.event.label.name != 'ai:ready')
-    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@v0
+    uses: dryvist/ai-workflows/.github/workflows/cc-issue-resolver.yml@main
     secrets: inherit
     with:
       # Describe your repo so Claude has context (language, frameworks, how it builds).
