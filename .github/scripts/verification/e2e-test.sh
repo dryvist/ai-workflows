@@ -278,8 +278,7 @@ cmd_check_all() {
   local repo=${1:-JacobPEvans/ansible-proxmox-apps}
   cmd_issue_lifecycle "$repo"
   cmd_check_scheduled
-  info "To complete Tests B/C (PR Review + Post-Merge), run:"
-  echo "Then merge the PR manually and verify post-merge workflows"
+  info "To complete Test C (Post-Merge): merge the PR manually and verify post-merge workflows"
   info "To test CI Fix:"
   echo "  $0 ci-fix JacobPEvans/terraform-proxmox"
 }
