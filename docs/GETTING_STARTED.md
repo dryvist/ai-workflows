@@ -42,6 +42,7 @@ jobs:
 ### Event-Triggered Workflows
 
 #### `issue-triage.yml`
+
 Triggered by `issues: [opened]`. Categorizes, deduplicates, and labels new issues.
 
 ```yaml
@@ -55,6 +56,7 @@ permissions:
 ```
 
 #### `cc-issue-resolver.yml`
+
 Triggered by `issues: [opened]`. Creates draft PRs for simple, well-scoped issues.
 
 ```yaml
@@ -71,6 +73,7 @@ permissions:
 Inputs: `repo_context` (required), `file_patterns` (optional)
 
 #### `claude-review.yml`
+
 Triggered by `pull_request`. Reviews PRs for quality and best practices.
 
 ```yaml
@@ -85,22 +88,8 @@ permissions:
   pull-requests: write
 ```
 
-#### `final-pr-review.yml`
-Triggered by `pull_request_review`. Final review gate before merge.
-
-```yaml
-on:
-  pull_request_review:
-    types: [submitted]
-permissions:
-  checks: read
-  contents: read
-  id-token: write
-  issues: write
-  pull-requests: write
-```
-
 #### `cc-ci-fix.yml`
+
 Triggered by `workflow_run` with `conclusion: failure`. Analyzes CI failure logs and pushes fixes.
 
 ```yaml
@@ -119,6 +108,7 @@ permissions:
 Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (optional)
 
 #### `cc-post-merge-docs-review.yml`
+
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
@@ -133,6 +123,7 @@ permissions:
 See [docs/PATTERNS.md — Post-Merge Dispatch Pattern](PATTERNS.md#post-merge-dispatch-pattern) for the full two-job consumer caller template.
 
 #### `cc-post-merge-tests.yml`
+
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
@@ -147,6 +138,7 @@ permissions:
 See [docs/PATTERNS.md — Post-Merge Dispatch Pattern](PATTERNS.md#post-merge-dispatch-pattern) for the full two-job consumer caller template.
 
 #### `project-router.yml`
+
 Triggered by issue/PR events. Routes items to GitHub Projects.
 
 ```yaml
@@ -169,6 +161,7 @@ permissions:
 These are typically called with `schedule:` and `workflow_dispatch:`.
 
 #### `best-practices.yml`
+
 Weekly audit creating actionable recommendations. Gate: skips if no recent human activity.
 
 ```yaml
@@ -184,6 +177,7 @@ permissions:
 ```
 
 #### `cc-code-simplifier.yml`
+
 Simplifies recently changed code for clarity and maintainability (preserving functionality); opens a PR.
 
 ```yaml
@@ -198,6 +192,7 @@ permissions:
 ```
 
 #### `issue-hygiene.yml`
+
 Weekly duplicate detection, links merged PRs.
 
 ```yaml
@@ -213,6 +208,7 @@ permissions:
 ```
 
 #### `issue-sweeper.yml`
+
 Weekly scan of open issues, closes resolved ones.
 
 ```yaml
@@ -228,6 +224,7 @@ permissions:
 ```
 
 #### `label-sync.yml`
+
 Syncs canonical labels from `.github` repo.
 
 ```yaml
@@ -242,6 +239,7 @@ permissions:
 ```
 
 #### `cc-next-steps.yml`
+
 Daily momentum analyzer, creates issues or PRs with suggested next actions.
 
 ```yaml
@@ -257,6 +255,7 @@ permissions:
 ```
 
 #### `repo-orchestrator.yml`
+
 On-demand multi-repo workflow dispatcher.
 
 ```yaml

@@ -77,31 +77,6 @@ and merge state CLEAN or UNSTABLE. If UNSTABLE and only **AI Moderator / conclus
 
 ---
 
-## Test B: PR Review Chain
-
-Tests: **final-pr-review**
-
-**Precondition**: Test A created a draft PR.
-
-**Trigger**:
-
-```bash
-PR=$(gh pr list --repo JacobPEvans/ansible-proxmox-apps --state open --json number -q '.[0].number')
-gh pr review $PR --repo JacobPEvans/ansible-proxmox-apps --approve
-```
-
-**Expected**: `pull_request_review: [submitted]` → **final-pr-review** gate check runs
-
-**Verify**:
-
-```bash
-gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Final PR Review" --limit 1 --json status,conclusion,url
-```
-
-**Pass condition**: Run triggered (gate job executed). Gate may skip Claude if conditions not met — that is valid.
-
----
-
 ## Test C: Post-Merge Chain
 
 Tests: **post-merge-docs-review**, **post-merge-tests**
@@ -211,12 +186,11 @@ done
 | Test | Workflows | Pass Condition |
 |------|-----------|----------------|
 | A: Issue Lifecycle | issue-triage, issue-resolver, claude-review | Labels applied, PR created, review runs |
-| B: PR Review | final-pr-review | Run triggered (gate executed) |
 | C: Post-Merge | post-merge-docs-review, post-merge-tests | Runs triggered (gate jobs execute) |
 | D: CI Fix | ci-fix | Run triggered, fix attempted |
 | E: Scheduled (next run) | best-practices, code-simplifier, next-steps, issue-sweeper, issue-hygiene | conclusion != failure |
 
-**Total**: 12 of 15 workflows verified via real triggers. (claude-review and final-pr-review are indirectly covered via Tests A and B.)
+**Total**: 11 of 14 workflows verified via real triggers. (claude-review is indirectly covered via Test A.)
 
 ---
 

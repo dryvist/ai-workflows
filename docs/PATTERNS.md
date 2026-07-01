@@ -189,7 +189,6 @@ Used when workflow logic exceeds the 5-line inline threshold.
 
 - ci-fix: `find-pr.js`, `check-attempts.js`, `post-attempt-comment.js`, `get-failure-logs.js`
 - best-practices: `check-recent-activity.js`
-- final-pr-review: `check-gate.js`
 - post-merge-docs-review: `check-docs-relevance.js`
 - post-merge-tests: `check-test-infra.js`
 - issue-resolver: `check-eligibility.js`
@@ -318,8 +317,8 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 - `issue_comment` events (interactive job): `github.event.pull_request` is null → `'' != 'Bot'` → true — always runs
 - `workflow_run` events (ci-fix): `github.event.pull_request` is null → always runs
 
-**Consumer configuration**: PR-triggered workflows (`claude-review`, `final-pr-review`, `issue-linker`) and suites
-(`suite-pr`, `suite-all`) accept an `allowed_bots` input:
+**Consumer configuration**: PR-triggered workflows (`claude-review`, `issue-linker`) and suites
+(`suite-all`) accept an `allowed_bots` input:
 
 ```yaml
 jobs:
@@ -334,7 +333,7 @@ Supports comma-separated logins or `*` to allow all bots.
 
 ### Layer 3: Dependency bot filtering (`if:` guards)
 
-PR-triggered workflows (claude-review, final-pr-review, issue-linker, pr-issue-linker) add `if:` guards on their first job
+PR-triggered workflows (claude-review, issue-linker, pr-issue-linker) add `if:` guards on their first job
 to skip runs triggered by dependency bots (Renovate, Dependabot) and the Claude GitHub App.
 This produces a clean **skipped** (grey) status instead of a **failed** (red) status.
 

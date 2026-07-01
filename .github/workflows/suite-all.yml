@@ -55,20 +55,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  # PR events → PR Suite (claude-review + final-pr-review)
-  pr-suite:
-    if: >-
-      inputs.caller_event == 'pull_request' ||
-      inputs.caller_event == 'issue_comment' ||
-      inputs.caller_event == 'pull_request_review' ||
-      inputs.caller_event == 'check_suite'
-    uses: ./.github/workflows/suite-pr.yml
-    with:
-      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
-      caller_event: ${{ inputs.caller_event }}
-      allowed_bots: ${{ inputs.allowed_bots }}
-    secrets: inherit
-
   # workflow_dispatch → Post-Merge Suite (docs-review + tests-review)
   post-merge-suite:
     if: inputs.caller_event == 'workflow_dispatch'
