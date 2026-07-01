@@ -175,23 +175,6 @@ cmd_issue_lifecycle() {
   fi
 }
 
-# Test B/C: PR review + post-merge (manual steps, documented but not automated)
-cmd_pr_review() {
-  local repo=${1:-JacobPEvans/ansible-proxmox-apps}
-  local pr_num
-  pr_num=$(jq -r --arg repo "$repo" '.prs[$repo] // ""' "$STATE_FILE" 2>/dev/null || echo "")
-  if [[ -z "$pr_num" ]]; then
-    pr_num=$(gh pr list --repo "$repo" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
-  fi
-  if [[ -z "$pr_num" ]]; then
-    fail "No PR found in $repo to review"
-    return 1
-  fi
-  info "Approving PR #$pr_num in $repo..."
-  gh pr review "$pr_num" --repo "$repo" --approve
-  wait_for_run "$repo" "Final PR Review"
-}
-
 # Test D: CI Fix workflow
 cmd_ci_fix() {
   local repo=${1:-JacobPEvans/terraform-proxmox}
@@ -296,7 +279,6 @@ cmd_check_all() {
   cmd_issue_lifecycle "$repo"
   cmd_check_scheduled
   info "To complete Tests B/C (PR Review + Post-Merge), run:"
-  echo "  $0 pr-review $repo"
   echo "Then merge the PR manually and verify post-merge workflows"
   info "To test CI Fix:"
   echo "  $0 ci-fix JacobPEvans/terraform-proxmox"
@@ -305,7 +287,6 @@ cmd_check_all() {
 # Main dispatch
 case "${1:-}" in
   issue-lifecycle) cmd_issue_lifecycle "${2:-}" ;;
-  pr-review)       cmd_pr_review "${2:-}" ;;
   ci-fix)          cmd_ci_fix "${2:-}" ;;
   check-scheduled) cmd_check_scheduled ;;
   check-all)       cmd_check_all "${2:-}" ;;
@@ -315,7 +296,6 @@ case "${1:-}" in
     echo ""
     echo "Commands:"
     echo "  issue-lifecycle <repo>   Create test issue and verify triage + resolver chain"
-    echo "  pr-review <repo>         Approve PR and verify final-pr-review"
     echo "  ci-fix <repo>            Create PR with lint error and verify ci-fix"
     echo "  check-scheduled          Check most recent scheduled workflow runs"
     echo "  check-all <repo>         Run issue-lifecycle + check-scheduled"
