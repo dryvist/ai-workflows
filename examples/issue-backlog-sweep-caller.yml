@@ -46,6 +46,10 @@ concurrency:
 jobs:
   sweep:
     uses: dryvist/ai-workflows/.github/workflows/issue-backlog-sweep.yml@main
-    secrets: inherit
+    # Pass exactly the two secrets the reusable needs — not `secrets: inherit`,
+    # which hands over every parent secret and trips zizmor's secrets-inherit audit.
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
     with:
       max_issues: ${{ inputs.max_issues || '5' }}
