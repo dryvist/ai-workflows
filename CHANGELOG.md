@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.22.0](https://github.com/dryvist/ai-workflows/compare/v0.21.1...v0.22.0) (2026-07-02)
+
+
+### Features
+
+* **run-claude-code:** inject canonical org instructions into CI Claude ([#281](https://github.com/dryvist/ai-workflows/issues/281)) ([96433fa](https://github.com/dryvist/ai-workflows/commit/96433fa661254eeb32723d645f079231979d3a19))
+
 ## [0.21.1](https://github.com/dryvist/ai-workflows/compare/v0.21.0...v0.21.1) (2026-06-22)
 
 
