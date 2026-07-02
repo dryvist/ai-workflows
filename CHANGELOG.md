@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.23.6](https://github.com/dryvist/ai-workflows/compare/v0.23.5...v0.23.6) (2026-07-02)
+
+
+### Bug Fixes
+
+* remove colliding concurrency from backlog example caller ([a6bbfad](https://github.com/dryvist/ai-workflows/commit/a6bbfad94ffba90c706509948b0a56558efb9464))
+
 ## [0.23.5](https://github.com/dryvist/ai-workflows/compare/v0.23.4...v0.23.5) (2026-07-02)
 
 
