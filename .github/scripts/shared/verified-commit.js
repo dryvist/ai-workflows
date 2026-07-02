@@ -40,18 +40,16 @@ const git = (args) => {
 // or null when there is nothing to commit.
 // ponytail: --name-status quotes paths with spaces; tab-split assumes plain paths.
 function stageChanges(extraExcludes = []) {
-  const excludes = ['.ai-workflows', ...extraExcludes].map((p) => `:(exclude)${p}`);
-  // claude-code-action runs git under the hood and can leave a stale
-  // `.git/index.lock` behind. Steps run sequentially, so by the time we stage
-  // there is never a legitimate concurrent git process — any leftover lock is
-  // stale and makes `git add` die with exit 128 ("Another git process seems to
-  // be running"). Clear it best-effort; if the real failure is something else
-  // (dubious ownership, corrupt index), the surfaced git() stderr still shows it.
-  try {
-    const gitDir = git(['rev-parse', '--git-dir']).trim();
-    fs.rmSync(`${gitDir}/index.lock`, { force: true });
-  } catch { /* best-effort — never let lock cleanup mask the real git error below */ }
-  git(['add', '-A', '--', ...excludes]);
+  const excludes = ['.ai-workflows', ...extraExcludes];
+  // Stage everything, then unstage the tool checkouts. Do NOT use
+  // `git add -A -- :(exclude).ai-workflows`: when a consumer repo .gitignores
+  // the .ai-workflows checkout, git flags the explicitly-named ignored path and
+  // exits 1 ("The following paths are ignored") instead of skipping it — this
+  // broke every cc-ci-fix commit on such repos. `git add -A` skips ignored paths
+  // silently; the reset drops the checkouts whether they were staged (embedded
+  // -repo gitlink when not ignored) or not (nothing staged when ignored).
+  git(['add', '-A']);
+  git(['reset', '-q', '--', ...excludes]);
   const status = git(['diff', '--cached', '--name-status']).trim();
   if (!status) return null;
 

@@ -103,17 +103,20 @@ describe('commit-fix', () => {
     expect(core.getOutput('committed')).toBe('false');
   });
 
-  it('clears a stale .git/index.lock so staging succeeds', async () => {
+  it('stages the fix when the repo .gitignores the .ai-workflows checkout', async () => {
+    // Regression: `git add -A -- :(exclude).ai-workflows` exits 1 ("paths are
+    // ignored") when .ai-workflows is gitignored, breaking the commit entirely.
+    fs.writeFileSync(path.join(dir, '.gitignore'), '.ai-workflows\n');
     fs.writeFileSync(path.join(dir, 'main.tf'), 'fixed\n');
-    fs.writeFileSync(path.join(dir, '.git', 'index.lock'), ''); // leftover from claude-code-action
+    fs.mkdirSync(path.join(dir, '.ai-workflows'), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.ai-workflows', 'x.js'), 'leak\n');
     const github = makeGithub();
 
     await runIn(dir, { github, context, core });
 
     expect(github.graphql).toHaveBeenCalledTimes(1);
-    const paths = github.graphql.mock.calls[0][1].input.fileChanges.additions.map((a) => a.path);
-    expect(paths).toEqual(['main.tf']);
-    expect(fs.existsSync(path.join(dir, '.git', 'index.lock'))).toBe(false);
+    const paths = github.graphql.mock.calls[0][1].input.fileChanges.additions.map((a) => a.path).sort();
+    expect(paths).toEqual(['.gitignore', 'main.tf']); // .ai-workflows never staged
   });
 
   it('surfaces git stderr (not just "Command failed") when a git call fails', async () => {
