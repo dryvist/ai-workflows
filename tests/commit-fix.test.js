@@ -103,6 +103,22 @@ describe('commit-fix', () => {
     expect(core.getOutput('committed')).toBe('false');
   });
 
+  it('surfaces git stderr (not just "Command failed") when a git call fails', async () => {
+    fs.writeFileSync(path.join(dir, 'main.tf'), 'fixed\n');
+    // Corrupt the index so `git add` exits non-zero with a real diagnostic.
+    fs.writeFileSync(path.join(dir, '.git', 'index'), 'not a valid index\n');
+    const github = makeGithub();
+
+    let err;
+    await runIn(dir, { github, context, core }).catch((e) => { err = e; });
+
+    expect(err).toBeDefined();
+    expect(github.graphql).not.toHaveBeenCalled();
+    // The thrown message must carry git's own diagnostics, not an opaque command echo.
+    expect(err.message).toMatch(/git add .* failed \(exit/);
+    expect(err.message).not.toBe('Command failed: git add -A -- :(exclude).ai-workflows');
+  });
+
   it('fails when HEAD_BRANCH is missing', async () => {
     delete process.env.HEAD_BRANCH;
     const github = makeGithub();

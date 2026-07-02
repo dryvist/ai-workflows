@@ -17,7 +17,21 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
-const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
+// execFileSync's default thrown Error carries git's real diagnostics on `.stderr`
+// but hides them from `.message` — so a failed commit surfaced only
+// "Command failed: git add ..." with no cause. Re-throw with stderr + exit code
+// folded into the message so CI logs show WHY git failed (e.g. index.lock,
+// embedded-repo refusal, pathspec error) instead of an opaque command string.
+const git = (args) => {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8' });
+  } catch (e) {
+    const stderr = (e.stderr || '').toString().trim();
+    const stdout = (e.stdout || '').toString().trim();
+    const detail = stderr || stdout || e.message;
+    throw new Error(`git ${args.join(' ')} failed (exit ${e.status ?? '?'}): ${detail}`);
+  }
+};
 
 // Stage all working-tree changes except the ai-workflows checkout (and any extra
 // excludes, e.g. a Claude-authored PR-body file) and return GraphQL fileChanges,
