@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.23.7](https://github.com/dryvist/ai-workflows/compare/v0.23.6...v0.23.7) (2026-07-02)
+
+
+### Bug Fixes
+
+* remove inputs-in-with from backlog example (schedule startup failure) ([7556708](https://github.com/dryvist/ai-workflows/commit/7556708c402d6c1fac07ba7329ea724d5dcce940))
+
 ## [0.23.6](https://github.com/dryvist/ai-workflows/compare/v0.23.5...v0.23.6) (2026-07-02)
 
 
