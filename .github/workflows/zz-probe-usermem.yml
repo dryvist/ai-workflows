@@ -1,0 +1,69 @@
+# THROWAWAY PROBE — delete before merge. Verifies claude-code-action@v1 loads
+# ~/.claude/CLAUDE.md (user memory) with $ and # characters intact. This is the
+# go/no-go gate for PR #281's user-memory injection approach.
+name: "zz probe usermem"
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Write synthetic canonical to user memory
+        run: |
+          mkdir -p "$HOME/.claude"
+          cat > "$HOME/.claude/CLAUDE.md" <<'EOF'
+          PROBE-SENTINEL-USERMEM-4213
+          Path token: ${PROBE_VAR_GITHOME}/public must stay literal.
+
+          ## PROBE-HEADING-KEEPME
+
+          Body line under the heading.
+          EOF
+          echo "Wrote $(wc -c < "$HOME/.claude/CLAUDE.md") bytes to ~/.claude/CLAUDE.md"
+
+      - name: Run Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          allowed_bots: "github-actions"
+          prompt: >-
+            You have user-level memory loaded into your context. WITHOUT reading
+            any file from disk, reproduce three strings from that loaded memory
+            EXACTLY, character for character, and write them to a new file
+            probe-out.txt (one per line): (1) the line beginning "PROBE-SENTINEL",
+            (2) the line beginning "Path token:", (3) the line beginning with "##".
+            Copy them verbatim including every $ and # character. If you cannot
+            find them in your memory, write the single line MEMORY-NOT-LOADED to
+            probe-out.txt instead.
+          claude_args: >-
+            --allowedTools "Write"
+            --model ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+
+      - name: Assert fidelity
+        run: |
+          echo "=== probe-out.txt ==="
+          cat probe-out.txt || { echo "::error::probe-out.txt not created"; exit 1; }
+          echo "====================="
+          fail=0
+          grep -qF 'PROBE-SENTINEL-USERMEM-4213' probe-out.txt || { echo "::error::sentinel missing (memory not loaded)"; fail=1; }
+          grep -qF '${PROBE_VAR_GITHOME}' probe-out.txt || { echo "::error::\$-token corrupted or missing (\$VAR not literal)"; fail=1; }
+          grep -qF '## PROBE-HEADING-KEEPME' probe-out.txt || { echo "::error::# heading corrupted or missing (markdown heading stripped)"; fail=1; }
+          if [ "$fail" -eq 0 ]; then
+            echo "PROBE PASS: user memory loaded with \$ and # intact." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "PROBE FAIL: see errors above." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
