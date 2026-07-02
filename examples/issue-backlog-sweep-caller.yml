@@ -48,7 +48,7 @@ jobs:
     uses: dryvist/ai-workflows/.github/workflows/issue-backlog-sweep.yml@main
     # Org-level secrets can only be forwarded via `inherit` — explicit mapping of
     # org secrets fails reusable instantiation. zizmor's secrets-inherit audit is a
-    # false positive here (first-party, version-pinned reusable), hence the ignore.
+    # false positive here (this is a first-party reusable), hence the ignore.
     secrets: inherit # zizmor: ignore[secrets-inherit]
     with:
       max_issues: ${{ inputs.max_issues || '5' }}
