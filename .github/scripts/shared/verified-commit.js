@@ -26,10 +26,12 @@ const git = (args) => {
   try {
     return execFileSync('git', args, { encoding: 'utf8' });
   } catch (e) {
-    const stderr = (e.stderr || '').toString().trim();
-    const stdout = (e.stdout || '').toString().trim();
-    const detail = stderr || stdout || e.message;
-    throw new Error(`git ${args.join(' ')} failed (exit ${e.status ?? '?'}): ${detail}`);
+    // Defensive optional-chaining: execFileSync always throws an Error here, but
+    // guard anyway so a non-Error throw can't mask the failure with a TypeError.
+    const stderr = (e?.stderr || '').toString().trim();
+    const stdout = (e?.stdout || '').toString().trim();
+    const detail = stderr || stdout || e?.message || String(e);
+    throw new Error(`git ${args.join(' ')} failed (exit ${e?.status ?? '?'}): ${detail}`);
   }
 };
 
