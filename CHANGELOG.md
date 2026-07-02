@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.23.4](https://github.com/dryvist/ai-workflows/compare/v0.23.3...v0.23.4) (2026-07-02)
+
+
+### Bug Fixes
+
+* **write-workflows:** stage via add+reset so gitignored .ai-workflows doesn't break commits ([#294](https://github.com/dryvist/ai-workflows/issues/294)) ([9290f35](https://github.com/dryvist/ai-workflows/commit/9290f35799d08c3853161fabcf2126b09d989f1b))
+
 ## [0.23.3](https://github.com/dryvist/ai-workflows/compare/v0.23.2...v0.23.3) (2026-07-02)
 
 
