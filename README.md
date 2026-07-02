@@ -17,6 +17,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies recently changed code for clarity and maintainability (functionality preserved); opens a PR |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
+| `issue-backlog-sweep.yml` | `workflow_call` | Weekly (consumer) | Labels the oldest untriaged issues so `ai:ready` ones enter the resolver — shrinks a pre-existing backlog |
 | `issue-sweeper.yml` | `workflow_call` | Mon 6am UTC | Scans open issues, comments on progress, closes resolved |
 | `issue-triage.yml` | `issues: [opened]` | On issue open | Categorizes, deduplicates, and labels new issues |
 | `label-sync.yml` | `workflow_call` | On-demand | Syncs a canonical label set into target repositories |

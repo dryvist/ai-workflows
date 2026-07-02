@@ -19,6 +19,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     best-practices/                 # Extracted JS scripts per workflow
     ci-fail-issue/
     ci-fix/
+    issue-backlog-sweep/
     issue-linker/
     issue-resolver/
     notification/
