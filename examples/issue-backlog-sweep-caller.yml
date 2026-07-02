@@ -38,9 +38,10 @@ permissions:
   issues: write
   pull-requests: read
 
-concurrency:
-  group: issue-backlog-sweep-${{ github.repository }}
-  cancel-in-progress: false # Never cancel — queue instead to avoid wasting AI tokens
+# Do NOT add a caller-level `concurrency:` here. The reusable already sets the
+# group `issue-backlog-sweep-${{ github.repository }}`. A caller that reuses the
+# reusable's EXACT group holds that slot, so the reusable's jobs can never
+# acquire it — the run startup-fails with 0 jobs. The reusable queues runs.
 
 jobs:
   sweep:
