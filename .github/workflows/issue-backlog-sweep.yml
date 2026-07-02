@@ -48,17 +48,11 @@ on:
         description: "Max sweep runs per 24h (0 to disable)"
         type: string
         default: "3"
-    secrets:
-      # Declared explicitly so callers pass exactly these two rather than
-      # `secrets: inherit` (which hands the reusable every parent secret and
-      # trips zizmor's secrets-inherit audit). required: false keeps existing
-      # inherit-based callers working unchanged.
-      GH_ACTION_AI_API_KEY:
-        description: "AI provider API key for the claude-code-action step."
-        required: false
-      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
-        description: "Private key for the JacobPEvans-claude App, used to mint the token that applies triage labels."
-        required: false
+    # No `secrets:` block: callers forward org-level secrets via `secrets: inherit`.
+    # Declaring them here (even required: false) broke workflow_call instantiation
+    # for consumers passing org secrets — GitHub startup-failed the caller. The
+    # reusable reads GH_ACTION_AI_API_KEY / GH_APP_CLAUDE_BOT_PRIVATE_KEY from the
+    # inherited context, same as every other reusable here.
   workflow_dispatch:
     inputs:
       max_issues:
