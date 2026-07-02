@@ -94,6 +94,26 @@ describe('issue-backlog-sweep apply-labels', () => {
     expect(github.rest.issues.addLabels).toHaveBeenCalledTimes(2);
   });
 
+  it('falls back to a cap of 5 when MAX_ISSUES is negative or invalid', async () => {
+    process.env.MAX_ISSUES = '-1';
+    writeVerdict(dir, {
+      issues: [1, 2, 3, 4, 5, 6].map(n => ({ number: n, labels: ['type:chore', 'size:xs', 'priority:low'], ai_ready: false })),
+    });
+    await runIn(dir, { github, context, core });
+    expect(github.rest.issues.addLabels).toHaveBeenCalledTimes(5);
+  });
+
+  it('keeps at most one label per type:/size:/priority: prefix', async () => {
+    writeVerdict(dir, {
+      issues: [
+        { number: 3, labels: ['type:bug', 'type:chore', 'size:s', 'size:m', 'priority:low'], ai_ready: false },
+      ],
+    });
+    await runIn(dir, { github, context, core });
+    const call = github.rest.issues.addLabels.mock.calls[0][0];
+    expect(call.labels).toEqual(['type:bug', 'size:s', 'priority:low']);
+  });
+
   it('skips entries with an invalid issue number', async () => {
     writeVerdict(dir, {
       issues: [

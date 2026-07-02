@@ -36,7 +36,10 @@ module.exports = async ({ github, context, core }) => {
     return;
   }
 
-  const maxIssues = parseInt(process.env.MAX_ISSUES || '5', 10);
+  // Robust cap: a negative MAX_ISSUES would make slice(0, n) count from the end
+  // (bypassing the cap), and a non-numeric value yields NaN — fall back to 5.
+  const parsedMax = parseInt(process.env.MAX_ISSUES, 10);
+  const maxIssues = Number.isInteger(parsedMax) && parsedMax >= 0 ? parsedMax : 5;
   const runUrl = process.env.RUN_URL || '';
   let labeledCount = 0;
   let aiReadyCount = 0;
@@ -48,12 +51,18 @@ module.exports = async ({ github, context, core }) => {
       continue;
     }
 
-    // Whitelist: keep only type:/size:/priority: labels; drop anything else.
+    // Whitelist: keep only type:/size:/priority: labels; drop anything else. Claude's
+    // verdict is untrusted, so enforce at most one label per prefix (first wins) —
+    // matches triage's "exactly one type:/size:/priority: each" rule.
     const rawLabels = Array.isArray(entry?.labels) ? entry.labels : [];
-    const labels = rawLabels
-      .filter(l => typeof l === 'string')
-      .map(l => l.trim().toLowerCase())
-      .filter(l => ALLOWED_PREFIXES.some(p => l.startsWith(p)));
+    const byPrefix = new Map();
+    for (const raw of rawLabels) {
+      if (typeof raw !== 'string') continue;
+      const l = raw.trim().toLowerCase();
+      const prefix = ALLOWED_PREFIXES.find(p => l.startsWith(p));
+      if (prefix && !byPrefix.has(prefix)) byPrefix.set(prefix, l);
+    }
+    const labels = [...byPrefix.values()];
 
     if (entry?.ai_ready === true) {
       labels.push('ai:ready');
@@ -81,15 +90,16 @@ module.exports = async ({ github, context, core }) => {
     if (unique.includes('ai:ready')) aiReadyCount += 1;
 
     const reason = typeof entry?.reason === 'string' ? entry.reason.slice(0, 300) : '';
-    const body = [
-      `${MARKER}`,
+    const bodyParts = [
+      MARKER,
       `**Backlog sweep triage.** Applied: ${unique.map(l => `\`${l}\``).join(', ')}.`,
-      reason ? `\n${reason}` : '',
-      unique.includes('ai:ready')
-        ? `\n\n\`ai:ready\` applied — autonomous resolution will be attempted.`
-        : '',
-      runUrl ? `\n\n> [Sweep run](${runUrl})` : '',
-    ].join('');
+    ];
+    if (reason) bodyParts.push(reason);
+    if (unique.includes('ai:ready')) {
+      bodyParts.push('`ai:ready` applied — autonomous resolution will be attempted.');
+    }
+    if (runUrl) bodyParts.push(`> [Sweep run](${runUrl})`);
+    const body = bodyParts.join('\n\n');
     try {
       await github.rest.issues.createComment({
         owner: context.repo.owner,
