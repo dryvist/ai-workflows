@@ -17,7 +17,23 @@
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
-const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
+// execFileSync's default thrown Error carries git's real diagnostics on `.stderr`
+// but hides them from `.message` — so a failed commit surfaced only
+// "Command failed: git add ..." with no cause. Re-throw with stderr + exit code
+// folded into the message so CI logs show WHY git failed (e.g. index.lock,
+// embedded-repo refusal, pathspec error) instead of an opaque command string.
+const git = (args) => {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8' });
+  } catch (e) {
+    // Defensive optional-chaining: execFileSync always throws an Error here, but
+    // guard anyway so a non-Error throw can't mask the failure with a TypeError.
+    const stderr = (e?.stderr || '').toString().trim();
+    const stdout = (e?.stdout || '').toString().trim();
+    const detail = stderr || stdout || e?.message || String(e);
+    throw new Error(`git ${args.join(' ')} failed (exit ${e?.status ?? '?'}): ${detail}`);
+  }
+};
 
 // Stage all working-tree changes except the ai-workflows checkout (and any extra
 // excludes, e.g. a Claude-authored PR-body file) and return GraphQL fileChanges,
@@ -25,6 +41,16 @@ const git = (args) => execFileSync('git', args, { encoding: 'utf8' });
 // ponytail: --name-status quotes paths with spaces; tab-split assumes plain paths.
 function stageChanges(extraExcludes = []) {
   const excludes = ['.ai-workflows', ...extraExcludes].map((p) => `:(exclude)${p}`);
+  // claude-code-action runs git under the hood and can leave a stale
+  // `.git/index.lock` behind. Steps run sequentially, so by the time we stage
+  // there is never a legitimate concurrent git process — any leftover lock is
+  // stale and makes `git add` die with exit 128 ("Another git process seems to
+  // be running"). Clear it best-effort; if the real failure is something else
+  // (dubious ownership, corrupt index), the surfaced git() stderr still shows it.
+  try {
+    const gitDir = git(['rev-parse', '--git-dir']).trim();
+    fs.rmSync(`${gitDir}/index.lock`, { force: true });
+  } catch { /* best-effort — never let lock cleanup mask the real git error below */ }
   git(['add', '-A', '--', ...excludes]);
   const status = git(['diff', '--cached', '--name-status']).trim();
   if (!status) return null;
