@@ -317,23 +317,23 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 - `issue_comment` events (interactive job): `github.event.pull_request` is null → `'' != 'Bot'` → true — always runs
 - `workflow_run` events (ci-fix): `github.event.pull_request` is null → always runs
 
-**Consumer configuration**: PR-triggered workflows (`claude-review`, `issue-linker`) and suites
-(`suite-all`) accept an `allowed_bots` input:
+**Consumer configuration**: the PR-triggered `issue-linker` workflow accepts an
+`allowed_bots` input:
 
 ```yaml
 jobs:
-  sweep:
-    uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@main
+  link-issues:
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@main
     with:
-      caller_event: ${{ github.event_name }}
-      allowed_bots: "claude"  # Allow Claude App PRs to be reviewed
+      allowed_bots: "claude"  # Allow Claude App PRs to be linked
+    secrets: inherit
 ```
 
 Supports comma-separated logins or `*` to allow all bots.
 
 ### Layer 3: Dependency bot filtering (`if:` guards)
 
-PR-triggered workflows (claude-review, issue-linker, pr-issue-linker) add `if:` guards on their first job
+PR-triggered workflows (issue-linker, pr-issue-linker) add `if:` guards on their first job
 to skip runs triggered by dependency bots (Renovate, Dependabot) and the Claude GitHub App.
 This produces a clean **skipped** (grey) status instead of a **failed** (red) status.
 
@@ -568,7 +568,7 @@ See [AI Moderator UNSTABLE Workaround](#ai-moderator-unstable-workaround) for th
 ```yaml
 concurrency:
   group: >-
-    claude-review-${{ github.repository }}-${{ github.event_name }}-
+    issue-linker-${{ github.repository }}-${{ github.event_name }}-
     ${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
   cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
 ```
