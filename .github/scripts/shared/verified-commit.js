@@ -39,6 +39,16 @@ const git = (args) => {
 // ponytail: --name-status quotes paths with spaces; tab-split assumes plain paths.
 function stageChanges(extraExcludes = []) {
   const excludes = ['.ai-workflows', ...extraExcludes].map((p) => `:(exclude)${p}`);
+  // claude-code-action runs git under the hood and can leave a stale
+  // `.git/index.lock` behind. Steps run sequentially, so by the time we stage
+  // there is never a legitimate concurrent git process — any leftover lock is
+  // stale and makes `git add` die with exit 128 ("Another git process seems to
+  // be running"). Clear it best-effort; if the real failure is something else
+  // (dubious ownership, corrupt index), the surfaced git() stderr still shows it.
+  try {
+    const gitDir = git(['rev-parse', '--git-dir']).trim();
+    fs.rmSync(`${gitDir}/index.lock`, { force: true });
+  } catch { /* best-effort — never let lock cleanup mask the real git error below */ }
   git(['add', '-A', '--', ...excludes]);
   const status = git(['diff', '--cached', '--name-status']).trim();
   if (!status) return null;

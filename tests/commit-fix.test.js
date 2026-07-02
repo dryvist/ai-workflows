@@ -103,6 +103,19 @@ describe('commit-fix', () => {
     expect(core.getOutput('committed')).toBe('false');
   });
 
+  it('clears a stale .git/index.lock so staging succeeds', async () => {
+    fs.writeFileSync(path.join(dir, 'main.tf'), 'fixed\n');
+    fs.writeFileSync(path.join(dir, '.git', 'index.lock'), ''); // leftover from claude-code-action
+    const github = makeGithub();
+
+    await runIn(dir, { github, context, core });
+
+    expect(github.graphql).toHaveBeenCalledTimes(1);
+    const paths = github.graphql.mock.calls[0][1].input.fileChanges.additions.map((a) => a.path);
+    expect(paths).toEqual(['main.tf']);
+    expect(fs.existsSync(path.join(dir, '.git', 'index.lock'))).toBe(false);
+  });
+
   it('surfaces git stderr (not just "Command failed") when a git call fails', async () => {
     fs.writeFileSync(path.join(dir, 'main.tf'), 'fixed\n');
     // Corrupt the index so `git add` exits non-zero with a real diagnostic.
