@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.23.3](https://github.com/dryvist/ai-workflows/compare/v0.23.2...v0.23.3) (2026-07-02)
+
+
+### Bug Fixes
+
+* **write-workflows:** clear stale index.lock + surface git stderr in verified-commit ([#292](https://github.com/dryvist/ai-workflows/issues/292)) ([46844c2](https://github.com/dryvist/ai-workflows/commit/46844c2d441786d3603cdc336d4ea709a8b9caeb))
+
 ## [0.23.2](https://github.com/dryvist/ai-workflows/compare/v0.23.1...v0.23.2) (2026-07-02)
 
 
