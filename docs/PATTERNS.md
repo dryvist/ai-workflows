@@ -38,6 +38,37 @@ Used by most workflows. Static prompt, read-only tools.
 
 ---
 
+## Canonical Instruction Injection Pattern
+
+Gives every CI Claude run the same org-wide baseline instructions a local dev
+machine loads via nix (`dryvist/ai-assistant-instructions`: `AGENTS.md` +
+`agentsmd/rules/`). Implemented once inside the shared `run-claude-code`
+composite action, so **all** Claude workflows inherit it with no per-workflow
+edits.
+
+**How it works** (`.github/actions/run-claude-code/action.yml`):
+
+1. Sparse-checkout `dryvist/ai-assistant-instructions@main` (floating, stays
+   current) into `.ai-instructions`, `continue-on-error: true` (fail-open).
+2. Concatenate `AGENTS.md` + `agentsmd/rules/**/*.md` into `~/.claude/CLAUDE.md`.
+3. `claude-code-action@v1` loads that file as **user memory** by default (its
+   `settingSources` default is `user`+`project`+`local`), so the content is
+   delivered verbatim — no `claude_args` escaping. The consumer repo's own
+   `CLAUDE.md` still auto-loads as **project memory** on top, exactly as locally.
+4. An always-run cleanup removes the `.ai-instructions` checkout so it is never
+   staged into a verified commit. `~/.claude` lives outside the workspace, so it
+   is not staged and persists into the Claude step.
+
+**Why user memory, not `claude_args --append-system-prompt`**: the action runs
+`claude_args` through `shell-quote` + a comment-stripper, which would blank every
+`${VAR}` and delete every `#`-leading markdown heading in the payload. User
+memory is loaded by the same native mechanism as a local machine, with full
+fidelity and zero escaping.
+
+**Opt out** per caller with `inject_instructions: "false"`.
+
+---
+
 ## Verified Commit & PR Pattern
 
 **This is the ONE way every write-workflow lands commits and PRs. Do not invent another.**

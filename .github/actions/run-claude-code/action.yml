@@ -51,9 +51,10 @@ inputs:
   inject_instructions:
     description: >-
       "true" (default) checks out dryvist/ai-assistant-instructions@main and
-      appends its AGENTS.md + agentsmd/rules to Claude's system prompt (via
-      claude_args --append-system-prompt), so the CI run shares the same baseline
-      instructions as a local dev machine. Set "false" to opt a caller out.
+      writes its AGENTS.md + agentsmd/rules to ~/.claude/CLAUDE.md (Claude Code
+      user memory, loaded by default), so the CI run shares the same baseline
+      instructions as a local dev machine. The consumer repo's own CLAUDE.md
+      still auto-loads as project memory on top. Set "false" to opt a caller out.
     required: false
     default: "true"
 
@@ -100,12 +101,15 @@ runs:
         repositories: ${{ github.event.repository.name }}
 
     # Give the CI run the same user-level instruction layer a local dev machine
-    # has via nix. claude-code-action@v1 does not load the runner's user memory
-    # (~/.claude) and exposes no append_system_prompt input, so the canonical
-    # instructions are appended to the system prompt via claude_args instead. The
-    # checkout is removed after assembly so it is never staged into a verified commit.
+    # has via nix. claude-code-action@v1 loads user memory (~/.claude/CLAUDE.md)
+    # by default (its settingSources default is user+project+local), so the
+    # canonical instructions are delivered by writing that file before the action
+    # runs — no claude_args escaping, full fidelity. The checkout is removed after
+    # assembly so it is never staged into a verified commit. continue-on-error
+    # keeps injection fail-open: a checkout hiccup must not break the Claude run.
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
+      continue-on-error: true
       uses: actions/checkout@v6
       with:
         repository: dryvist/ai-assistant-instructions
@@ -115,20 +119,22 @@ runs:
           agentsmd/rules
         path: .ai-instructions
 
-    - name: Build claude_args (with canonical instructions)
-      id: build-args
+    - name: Write canonical instructions to user memory
+      if: inputs.inject_instructions == 'true'
       shell: bash
       env:
-        ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
-        MODEL: ${{ inputs.model }}
-        INSTRUCTIONS_DIR: ${{ inputs.inject_instructions == 'true' && format('{0}/.ai-instructions', github.workspace) || '' }}
-        # Pass via env (not inline ${{ }}) so the value never lands in the shell
-        # command line — avoids CodeQL actions/code-injection.
-        ACTION_PATH: ${{ github.action_path }}
-      run: bash "${ACTION_PATH}/../../scripts/shared/build-claude-args.sh"
+        INSTR_DIR: ${{ github.workspace }}/.ai-instructions
+      run: |
+        shopt -s globstar nullglob
+        [ -f "$INSTR_DIR/AGENTS.md" ] || { echo "::warning::canonical instructions unavailable; skipping injection"; exit 0; }
+        mkdir -p "$HOME/.claude"
+        cat "$INSTR_DIR/AGENTS.md" "$INSTR_DIR"/agentsmd/rules/**/*.md > "$HOME/.claude/CLAUDE.md"
+        echo "Wrote $(wc -c < "$HOME/.claude/CLAUDE.md") bytes to ~/.claude/CLAUDE.md (delivered payload)."
 
-    # Separate, always-run cleanup so the checkout is removed even if the build
+    # Separate, always-run cleanup so the checkout is removed even if the write
     # step fails — it must never be left in the working tree for a verified commit.
+    # ~/.claude lives outside the workspace, so it is not staged and correctly
+    # persists into the Run Claude Code step below.
     - name: Remove canonical instructions checkout
       if: always()
       shell: bash
@@ -142,4 +148,6 @@ runs:
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: ${{ inputs.use_commit_signing }}
         prompt: ${{ inputs.prompt }}
-        claude_args: ${{ steps.build-args.outputs.claude_args }}
+        claude_args: >-
+          --allowedTools "${{ inputs.allowed_tools }}"
+          --model ${{ inputs.model }}
