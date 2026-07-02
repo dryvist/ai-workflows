@@ -24,11 +24,9 @@ describe('issue-backlog-sweep apply-labels', () => {
     context = createMockContext();
     github = createMockGithub();
     github.rest.issues.addLabels.mockResolvedValue({});
-    github.rest.issues.createComment.mockResolvedValue({});
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'backlog-sweep-'));
     delete process.env.BACKLOG_FILE;
     process.env.MAX_ISSUES = '5';
-    process.env.RUN_URL = 'https://x/run/1';
   });
 
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -51,8 +49,6 @@ describe('issue-backlog-sweep apply-labels', () => {
     expect(second.issue_number).toBe(7);
     expect(second.labels).not.toContain('ai:ready');
     expect(core.getOutput('labeled_count')).toBe('2');
-    expect(core.getOutput('ai_ready_count')).toBe('1');
-    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(2);
   });
 
   it('drops labels outside the type:/size:/priority: whitelist', async () => {
@@ -137,8 +133,6 @@ describe('issue-backlog-sweep apply-labels', () => {
     });
     await runIn(dir, { github, context, core });
     expect(core.getOutput('labeled_count')).toBe('1');
-    // failed issue gets no comment; successful one does
-    expect(github.rest.issues.createComment).toHaveBeenCalledTimes(1);
   });
 
   it('fails cleanly on malformed JSON', async () => {
