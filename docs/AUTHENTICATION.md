@@ -71,7 +71,7 @@ There is no hard-coded model fallback. If nothing is set, the action receives an
 
 | Variable | Tier | Used by |
 |----------|------|---------|
-| `GH_ACTION_AI_MODEL` | Global default | claude-review, label-sync, best-practices, repo-orchestrator, next-steps, cc-post-merge-docs-review |
+| `GH_ACTION_AI_MODEL` | Global default | label-sync, best-practices, repo-orchestrator, next-steps, cc-post-merge-docs-review |
 | `GH_ACTION_AI_MODEL_CODE` | Code generation | cc-ci-fix, cc-code-simplifier, cc-post-merge-tests |
 | `GH_ACTION_AI_MODEL_ISSUES` | Issue management | issue-triage, issue-hygiene, issue-sweeper, issue-linker |
 | `GH_ACTION_AI_MODEL_PLAN` | Deep planning | cc-issue-resolver |
