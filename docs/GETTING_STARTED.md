@@ -72,22 +72,6 @@ permissions:
 
 Inputs: `repo_context` (required), `file_patterns` (optional)
 
-#### `claude-review.yml`
-
-Triggered by `pull_request`. Reviews PRs for quality and best practices.
-
-```yaml
-on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review]
-permissions:
-  actions: read
-  contents: read
-  id-token: write
-  issues: write
-  pull-requests: write
-```
-
 #### `cc-ci-fix.yml`
 
 Triggered by `workflow_run` with `conclusion: failure`. Analyzes CI failure logs and pushes fixes.

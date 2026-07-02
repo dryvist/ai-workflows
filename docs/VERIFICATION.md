@@ -33,7 +33,7 @@ gh run watch
 
 ## Test A: Issue Lifecycle Chain
 
-Tests: **issue-triage**, **issue-resolver** (via issue-auto-resolve.yml), **claude-review**
+Tests: **issue-triage**, **issue-resolver** (via issue-auto-resolve.yml)
 
 **Target repo**: `JacobPEvans/ansible-proxmox-apps` (least activity)
 
@@ -52,7 +52,6 @@ gh issue create \
 
 1. `issues: [opened]` → **issue-triage** → adds `type:chore` + `size:xs` labels
 2. `issues: [opened]` → **issue-resolver** (eligibility passes for chore+xs) → creates non-draft PR with signed commit
-3. PR creation → **claude-review** triggers on `pull_request: [opened]`
 
 **Verify**:
 
@@ -60,7 +59,6 @@ gh issue create \
 # Wait ~2 minutes, then check:
 gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Issue Triage" --limit 1 --json status,conclusion,url
 gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Issue Auto-Resolve" --limit 1 --json status,conclusion,url
-gh run list --repo JacobPEvans/ansible-proxmox-apps --workflow "Claude Code Review" --limit 1 --json status,conclusion,url
 # Check issue labels:
 ISSUE=$(gh issue list --repo JacobPEvans/ansible-proxmox-apps --search "add comment to main playbook" --json number -q '.[0].number')
 gh issue view $ISSUE --repo JacobPEvans/ansible-proxmox-apps --json labels
@@ -185,12 +183,12 @@ done
 
 | Test | Workflows | Pass Condition |
 |------|-----------|----------------|
-| A: Issue Lifecycle | issue-triage, issue-resolver, claude-review | Labels applied, PR created, review runs |
+| A: Issue Lifecycle | issue-triage, issue-resolver | Labels applied, PR created |
 | C: Post-Merge | post-merge-docs-review, post-merge-tests | Runs triggered (gate jobs execute) |
 | D: CI Fix | ci-fix | Run triggered, fix attempted |
 | E: Scheduled (next run) | best-practices, code-simplifier, next-steps, issue-sweeper, issue-hygiene | conclusion != failure |
 
-**Total**: 11 of 14 workflows verified via real triggers. (claude-review is indirectly covered via Test A.)
+**Total**: 10 of 13 workflows verified via real triggers.
 
 ---
 

@@ -1,11 +1,10 @@
 # Suite: All
 #
 # Reusable workflow: top-level coordinator for standard repos.
-# Routes PR events → suite-pr, workflow_dispatch → suite-post-merge.
-# CI (workflow_run) and issues stay in caller-side files — they require
-# repo-specific trigger configuration.
+# Routes workflow_dispatch → suite-post-merge. CI (workflow_run), PR, and issue
+# events stay in caller-side files — they require repo-specific trigger config.
 #
-# Nesting: caller → suite-all → suite-pr/suite-post-merge → individual workflow
+# Nesting: caller → suite-all → suite-post-merge → individual workflow
 # = 3 levels (well within the 4-level GitHub Actions limit).
 #
 # Internal uses: paths are relative — they resolve to the same ref as this
@@ -36,10 +35,6 @@ on:
         required: true
       commit_sha:
         description: "Commit SHA for post-merge reviews (from workflow_dispatch)"
-        type: string
-        default: ""
-      allowed_bots:
-        description: "Comma-separated bot logins allowed to trigger review (supports *)"
         type: string
         default: ""
   workflow_dispatch:
