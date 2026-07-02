@@ -21,7 +21,6 @@
 #
 # Throttling (never runs away):
 #   - max_issues caps how many issues are labeled per run (default 5).
-#   - daily_run_limit caps sweep runs per 24h (default 3).
 #   - the downstream resolver's own PR ceiling (5 bot PRs / 24h) is the hard
 #     backstop on PRs opened — this sweep cannot exceed it.
 #
@@ -44,10 +43,6 @@ on:
         description: "Max backlog issues to label per run"
         type: string
         default: "5"
-      daily_run_limit:
-        description: "Max sweep runs per 24h (0 to disable)"
-        type: string
-        default: "3"
     # No `secrets:` block: callers forward org-level secrets via `secrets: inherit`.
     # Declaring them here (even required: false) broke workflow_call instantiation
     # for consumers passing org secrets — GitHub startup-failed the caller. The
@@ -62,8 +57,10 @@ on:
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
+# NOTE: no `actions: read` here — granting it made cross-repo workflow_call
+# consumers fail at startup ("workflow file issue"). The daily-run-limit check
+# that needed it was removed; the resolver's 5-PR/24h ceiling is the hard cap.
 permissions:
-  actions: read
   contents: read
   id-token: write
   issues: write
@@ -97,35 +94,9 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
             await run({ github, context, core });
 
-  check-daily-limit:
-    name: Check daily run limit
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      actions: read
-    outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
-    steps:
-      - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
-        with:
-          repository: dryvist/ai-workflows
-          sparse-checkout: .github/scripts
-          path: .ai-workflows
-
-      - name: Check daily run limit
-        id: check
-        uses: actions/github-script@v9
-        env:
-          DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
-          WORKFLOW_FILE: ${{ github.workflow_ref }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
-            await run({ github, context, core });
-
   sweep:
-    needs: [check-pr-ceiling, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+    needs: [check-pr-ceiling]
+    if: needs.check-pr-ceiling.outputs.allowed == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
