@@ -25,6 +25,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     notification/
     post-merge-docs-review/
     post-merge-tests/
+    pr-review-responder/
     shared/
     verification/
   workflows/
@@ -39,7 +40,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
 - Static prompts: most workflows
 - Dynamic prompts (ci-fix, post-merge-tests, post-merge-docs-review): `render-prompt.sh` with named env vars
 - Write workflows (code-simplifier, next-steps, post-merge-*, ci-fix,
-  issue-resolver): Claude only EDITS files (`use_commit_signing: "false"`, no
+  issue-resolver, pr-review-responder): Claude only EDITS files (`use_commit_signing: "false"`, no
   git-write/`gh pr`/`gh api` write tools); a workflow step lands a GitHub-VERIFIED
   commit/PR via `createCommitOnBranch` (shared `scripts/shared/verified-commit.js`).
   This is mandatory — native `use_commit_signing` cannot target a branch on our

@@ -30,6 +30,7 @@ function createMockGithub() {
   const paginate = mock();
   paginate.iterator = mock();
   return {
+    graphql: mock(),
     rest: {
       issues: {
         get: mock(),
