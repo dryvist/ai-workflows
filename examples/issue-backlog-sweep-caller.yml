@@ -1,0 +1,51 @@
+# Example consumer caller for backlog activation.
+#
+# Drop this in your repo at .github/workflows/issue-backlog-sweep.yml.
+#
+# What it does: on a slow schedule (and on demand), Claude judges the oldest
+# UNTRIAGED open issues and labels the auto-resolvable ones `ai:ready` via the
+# JacobPEvans-claude App token. That label fires your existing
+# issue-auto-resolve.yml (issues: labeled), which opens the resolving PR through
+# its full gate stack. This is how a pre-existing backlog starts shrinking.
+#
+# PREREQUISITE: this repo must already have issue-auto-resolve.yml wired on
+# `issues: [labeled]` (see issue-auto-resolve-caller.yml). Without it, this
+# sweep will label issues but nothing will resolve them.
+#
+# A schedule is used deliberately: a backlog is static state, not an event, so
+# there is nothing to trigger on. Everything else in the estate prefers event
+# triggers. Keep the cadence slow — the sweep only needs to top up the ai:ready
+# queue as the resolver drains it.
+#
+# Throttling: max_issues caps labels per run; the resolver's own PR ceiling
+# (5 bot PRs / 24h) is the hard backstop on PRs actually opened.
+
+name: Issue Backlog Sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: "Max backlog issues to label this run"
+        type: string
+        default: "5"
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC — top up the ai:ready queue weekly
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-backlog-sweep-${{ github.repository }}
+  cancel-in-progress: false # Never cancel — queue instead to avoid wasting AI tokens
+
+jobs:
+  sweep:
+    uses: dryvist/ai-workflows/.github/workflows/issue-backlog-sweep.yml@main
+    secrets: inherit
+    with:
+      max_issues: ${{ inputs.max_issues || '5' }}

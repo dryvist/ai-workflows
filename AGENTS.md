@@ -20,6 +20,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     ci-fail-issue/
     ci-fix/
     claude-review/
+    issue-backlog-sweep/
     issue-linker/
     issue-resolver/
     notification/

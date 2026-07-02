@@ -1,0 +1,184 @@
+# Issue Backlog Sweep
+#
+# Activates the EXISTING triage -> resolve chain for BACKLOG issues.
+#
+# The event-driven path (issue-auto-resolve.yml) only resolves issues that carry
+# the `ai:ready` label, and nothing ever applies that label to pre-existing
+# issues — so backlogs never shrink. This workflow closes that gap:
+#
+#   1. Claude judges the N oldest UNTRIAGED open issues (read-only) and writes a
+#      JSON verdict file — the same triage criteria as issue-triage.md.
+#   2. A workflow step applies the triage labels via the JacobPEvans-claude App
+#      token. Applying `ai:ready` with an App token FIRES `issues: labeled`,
+#      which the consumer's existing issue-auto-resolve.yml picks up and resolves
+#      through its full gate stack (author, type, size, ai:ready, excluded
+#      labels, attempts, daily limit, PR ceiling).
+#
+# Claude never applies labels itself: its `gh` uses GITHUB_TOKEN, whose writes do
+# NOT trigger downstream workflows (GitHub loop-prevention). The App-token apply
+# is what bridges triage to resolution — same "Claude judges, a privileged step
+# mutates" split as the Verified Commit & PR pattern.
+#
+# Throttling (never runs away):
+#   - max_issues caps how many issues are labeled per run (default 5).
+#   - daily_run_limit caps sweep runs per 24h (default 3).
+#   - the downstream resolver's own PR ceiling (5 bot PRs / 24h) is the hard
+#     backstop on PRs opened — this sweep cannot exceed it.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Issue Backlog Sweep
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          docs) to opt the calling repo into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
+      max_issues:
+        description: "Max backlog issues to label per run"
+        type: string
+        default: "5"
+      daily_run_limit:
+        description: "Max sweep runs per 24h (0 to disable)"
+        type: string
+        default: "3"
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: "Max backlog issues to label per run"
+        type: string
+        default: "5"
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-backlog-sweep-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  check-pr-ceiling:
+    name: Check bot PR ceiling
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      pull-requests: read
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Check bot PR ceiling
+        id: check
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
+            await run({ github, context, core });
+
+  check-daily-limit:
+    name: Check daily run limit
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      actions: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Check daily run limit
+        id: check
+        uses: actions/github-script@v9
+        env:
+          DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
+          WORKFLOW_FILE: ${{ github.workflow_ref }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
+            await run({ github, context, core });
+
+  sweep:
+    needs: [check-pr-ceiling, check-daily-limit]
+    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    timeout-minutes: 10
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Checkout ai-workflows
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: |
+            .github/prompts
+            .github/scripts
+          path: .ai-workflows
+
+      - name: Render prompt
+        id: prompt
+        env:
+          MAX_ISSUES: ${{ inputs.max_issues || '5' }}
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-backlog-sweep.md MAX_ISSUES
+
+      # Claude only JUDGES (read-only + writes the JSON verdict file). It applies no
+      # labels — the App-token step below does that so `ai:ready` fires the resolver.
+      - name: Execute Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          allowed_bots: "github-actions"
+          use_commit_signing: "false"
+          prompt: ${{ steps.prompt.outputs.content }}
+          claude_args: >-
+            --allowedTools "Read,Glob,Grep,LS,Write,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
+            --model ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+
+      # Mint an App token so labels are applied by JacobPEvans-claude[bot]. An App
+      # installation token DOES trigger workflows, so applying `ai:ready` fires the
+      # consumer's issue-auto-resolve.yml (issues: labeled) — the bridge to resolution.
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      - name: Apply triage labels
+        uses: actions/github-script@v9
+        env:
+          MAX_ISSUES: ${{ inputs.max_issues || '5' }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/issue-backlog-sweep/apply-labels.js');
+            await run({ github, context, core });
