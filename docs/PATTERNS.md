@@ -123,7 +123,7 @@ steps:
     with:
       prompt: ${{ steps.prompt.outputs.content }}
       model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
-      allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)"
+      allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git status:*)"
       claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
       use_commit_signing: "false"
 
@@ -676,59 +676,63 @@ in the upstream `githubnext/agentics` repo. Until that ships via a `gh aw upgrad
 
 ## PR Review Responder Pattern
 
-**Workflow**: `cc-pr-review-responder.yml` (reusable). Delivers the
-respond-and-finalize behavior of the `/ship` skill for review threads that have
-sat **unanswered for ~N minutes** — natively. The `/ship` skill itself cannot run
-in CI: it is an interactive skill orchestrator (chains `github-workflows` →
-`codeql-resolver` → `superpowers` → native `/simplify`, spawns subagents, and
-builds its context from conversation history that does not exist in a CI job). So
-this reproduces the useful, deterministic part — evaluate feedback, fix the valid
-points, reply, resolve — as a bounded `claude-code-action` prompt.
+**Workflow**: `cc-pr-review-responder.yml` (reusable). When a reviewer leaves
+feedback on a PR, Claude evaluates the unresolved review threads, edits code to fix
+the valid points, replies, and resolves them — **never merges**. It delivers the
+substantive part of a `/ship` pass (the `/ship` skill itself is an interactive
+orchestrator that cannot run in CI). It **complements** the non-AI
+`review-thread-resolver`, which cheaply clears *outdated / failed-run* bot threads;
+this handles the threads with real content.
 
-**Why a schedule, not an event.** "A review comment has gone unanswered for N
-minutes" is a *time condition*, not a GitHub event — there is nothing to trigger
-on. Consumer callers run it on `cron "*/10 * * * *"`; the reusable's `stale_minutes`
-(default 10) defines the window. (See the AI Dispatch and Gate patterns for the
-general shape; this combines a staleness gate with the Verified Commit pattern.)
+**Zero custom code by design.** This is the reference example of "reach for the
+event + the action's native behavior + `gh` in the prompt before writing a script."
+An earlier revision used a scheduled sweep with ~250 lines of bespoke JS (GraphQL
+enumeration, staleness scan, reply/resolve mutations, attempt markers, a
+verified-commit wrapper). All of it collapsed into configuration by switching to an
+**event-driven** trigger:
 
-**Two-phase shape** (same "Claude judges read-only, a privileged step mutates"
-split as issue-backlog-sweep):
+| Job it once did | Now |
+| --- | --- |
+| Enumerate stale PRs across the repo | The **event payload** — a review IS the event; `github.event.pull_request.number` is the PR |
+| Fork guard + own-bot loop guard + attempt cap | One job-level **`if:`** (same-repo head + sender not our bot) |
+| Fetch review threads (GraphQL) | `Bash(gh api graphql)` **in the prompt** |
+| Reply + `resolveReviewThread` | `gh api graphql` **in the prompt** (no native action support for this) |
+| Verified commit via `createCommitOnBranch` | `claude-code-action`'s **native** `use_commit_signing: "true"` — see below |
 
-1. **enumerate** (`find-stale-review-prs.js`) — scan OPEN, same-repo PRs via
-   GraphQL `reviewThreads`. A PR is eligible when a thread's **newest comment** is
-   older than `stale_minutes`, authored by neither the PR author nor one of our
-   bots (`OUR_BOT_LOGINS` — prevents self-loops), and the PR is under its per-PR
-   attempt cap. Emits a bounded JSON array of PR numbers; the scan **fails closed**
-   (no PRs on error). `PR_NUMBER` set → single-PR dispatch mode (skips the scan).
-2. **respond** (matrix, one job per PR) — post the hidden attempt marker
-   (`<!-- claude-review-responder-attempt -->`, counted to cap attempts), checkout
-   the PR branch, dump unresolved threads to `.review-threads.json`, run Claude
-   (`use_commit_signing: false` — it only EDITS files and writes
-   `.review-responses.json`; no git/gh/merge), then App-token steps land a
-   **verified commit** (`commit-edits.js` → `commitToBranch`, excluding the scratch
-   JSON) and post replies / `resolveReviewThread` (`apply-thread-responses.js`).
+**Why native commit works here (and not for the write-workflows above).** The
+Verified Commit Pattern exists because `workflow_run`/`issues`/`schedule`/`dispatch`
+triggers give the action no branch to resolve. Review events
+(`pull_request_review`, `pull_request_review_comment`) **carry open-PR context**, so
+`use_commit_signing: "true"` pushes a GitHub-verified commit **straight to the PR
+branch** (docs: *"On open PRs: always pushes directly to the existing PR branch"*).
+That satisfies `required_signatures` and re-triggers CI with no `verified-commit.js`.
+The App token minted by `run-claude-code` (pass `app_id` + `app_private_key`) backs
+both that commit **and** Claude's `gh api graphql` calls — the default `GITHUB_TOKEN`
+is often rejected resolving bot-authored threads (needs Contents-RW).
+
+**Consumer caller** (`examples/pr-review-responder-caller.yml`): triggers on
+`pull_request_review: [submitted]` + `pull_request_review_comment: [created]`. No
+cron, no enumeration, and **no** caller-level `concurrency` (the reusable owns the
+per-PR group).
 
 **Safety invariants**:
 
-- **Never merges** — there is no merge step, matching `/ship`'s own never-merge stance.
-- **Fork guard** — cross-repository PR heads are skipped (enumerator + a per-job
-  head-repo re-check), so untrusted branches are never checked out with write scope.
-- **Loop bound** — per-PR attempt cap (default 2, lifetime) + `max_prs` per run.
-  There is deliberately **no** `daily-run-limit` / `actions: read`: adding
-  `actions: read` broke cross-repo `workflow_call` startup for issue-backlog-sweep,
-  and the per-PR cap already bounds cost.
-- **Untrusted-verdict guard** — `apply-thread-responses.js` re-fetches the PR's
-  live unresolved thread IDs and only replies to / resolves IDs in that set, so a
-  manipulated verdict file cannot touch arbitrary threads (same defense as
-  issue-backlog-sweep's label whitelist).
-- **Critical evaluation** — the prompt instructs Claude to verify each claim
-  against the code and push back with reasoning on wrong/opinionated feedback
-  rather than rubber-stamp; `resolve: true` only when genuinely settled.
-
-**Consumer caller**: `examples/pr-review-responder-caller.yml`. Like every
-scheduled reusable caller, it sets **no** caller-level `concurrency` (the reusable
-owns the group) and passes **no** `inputs`-referencing `with:` values under
-`schedule` (both cause 0-job startup failures).
+- **Never merges / approves** — the prompt forbids it; `allowed_tools` has no
+  `gh pr merge` / git-write.
+- **Fork guard** — `if:` requires `head.repo.full_name == github.repository`, so a
+  fork branch is never checked out with write scope. The dispatch path resolves the
+  head **SHA** (a hex OID, not the attacker-influenceable `head.ref`) from the
+  trusted integer `pr_number`, avoiding branch-name injection.
+- **Loop guard** — the bot's own reply is itself a `pull_request_review_comment`
+  event; the `if:` excludes our bot logins (`jacobpevans-claude[bot]`,
+  `claude[bot]`, `github-actions[bot]`), and `allowed_bots` does not list our bot.
+- **Critical evaluation** — the prompt tells Claude to verify each claim against the
+  code and push back with reasoning on wrong/opinionated feedback, and to resolve a
+  thread only when genuinely settled.
+- **Trade-off (documented):** dropping the old scheduled sweep drops the ~10-minute
+  "let a human answer first" grace window — a review event fires immediately. A hard
+  timer would need `sleep 600` (burns runner minutes) or the enumeration we deleted;
+  the prompt instead skips threads the author already answered.
 
 ---
 

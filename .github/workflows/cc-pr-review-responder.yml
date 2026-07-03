@@ -1,26 +1,18 @@
 # cc-PR Review Responder
 #
-# Reusable workflow: delivers the respond-and-finalize behavior of the `/ship`
-# skill for UNRESOLVED review feedback that has sat unhandled for ~N minutes —
-# natively, via claude-code-action (the /ship skill itself cannot run in CI; it
-# is an interactive skill orchestrator). Scoped to review-thread handling; CI
-# failures are already covered by cc-ci-fix.yml.
+# Reusable workflow: when a reviewer leaves feedback on a PR, Claude evaluates the
+# unresolved review threads, edits code to fix the valid points, replies, and
+# resolves them — never merges. Delivers the substantive part of a /ship pass.
 #
-# Flow ("Claude judges read-only, a privileged step mutates" — same split as
-# issue-backlog-sweep and cc-ci-fix):
-#   1. enumerate — find OPEN, same-repo PRs with a review thread whose newest
-#      comment is >stale_minutes old and unanswered by the author/us. Emits a
-#      bounded JSON array of PR numbers.
-#   2. respond (matrix, one job per PR) — post an attempt marker, checkout the PR
-#      branch, dump its unresolved threads to a file, let Claude EDIT files +
-#      write a reply/resolve verdict (no git, no gh, no merge), then App-token
-#      steps land a VERIFIED commit and post replies / resolve threads.
+# Zero custom code by design: the trigger is event-driven (consumer callers fire on
+# pull_request_review / pull_request_review_comment, which carry open-PR context),
+# so claude-code-action commits its edits NATIVELY to the PR branch
+# (use_commit_signing: "true" → GitHub-verified, satisfies required_signatures,
+# re-triggers CI). Reply + resolveReviewThread have no native action support, so the
+# PROMPT drives `gh api graphql`. Nothing here is a bespoke JS step.
 #
-# Throttling (never runs away): max_prs caps PRs touched per run; a per-PR attempt
-# cap (hidden marker, default 2 lifetime) stops loops; fork PRs are skipped. There
-# is deliberately NO daily-run-limit / actions:read here — adding actions:read
-# broke cross-repo workflow_call startup for issue-backlog-sweep, and the per-PR
-# cap already bounds cost. NEVER merges.
+# Complements the non-AI review-thread-resolver (which clears outdated/failed bot
+# threads cheaply); this handles substantive feedback.
 
 name: cc-PR Review Responder
 
@@ -29,7 +21,7 @@ on:
     inputs:
       runner_label:
         description: >-
-          GitHub Actions runner label to run the job(s) on. Defaults to
+          GitHub Actions runner label to run the job on. Defaults to
           ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
         type: string
         required: false
@@ -39,22 +31,6 @@ on:
         type: string
         required: false
         default: ""
-      stale_minutes:
-        description: "A review thread is actionable once its newest comment is older than this many minutes"
-        type: string
-        default: "10"
-      max_prs:
-        description: "Max PRs to respond to per run"
-        type: string
-        default: "5"
-      attempt_cap:
-        description: "Max responder attempts per PR (lifetime, via hidden marker)"
-        type: string
-        default: "2"
-      pr_number:
-        description: "Target a single PR (skips the staleness scan). Empty = scan all open PRs."
-        type: string
-        default: ""
       extra_tools:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
@@ -63,192 +39,86 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Target a single PR (skips the staleness scan)"
+        description: "Target a single PR (manual/E2E runs, which lack PR event context)"
         type: string
         default: ""
-      stale_minutes:
-        description: "Minutes before an unanswered review thread is actionable"
-        type: string
-        default: "10"
-      max_prs:
-        description: "Max PRs to respond to per run"
-        type: string
-        default: "5"
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: write
   id-token: write
-  issues: write
   pull-requests: write
 
 concurrency:
-  group: pr-review-responder-${{ github.repository }}
+  group: pr-review-responder-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
   cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
 
 jobs:
-  enumerate:
-    name: Find stale-review PRs
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      pull-requests: read
-      issues: read
-    outputs:
-      pr_numbers: ${{ steps.find.outputs.pr_numbers }}
-      has_prs: ${{ steps.find.outputs.has_prs }}
-    steps:
-      - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
-        with:
-          repository: dryvist/ai-workflows
-          sparse-checkout: .github/scripts
-          path: .ai-workflows
-
-      - name: Find stale-review PRs
-        id: find
-        uses: actions/github-script@v9
-        env:
-          STALE_MINUTES: ${{ inputs.stale_minutes || '10' }}
-          MAX_PRS: ${{ inputs.max_prs || '5' }}
-          ATTEMPT_CAP: ${{ inputs.attempt_cap || '2' }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pr-review-responder/find-stale-review-prs.js');
-            await run({ github, context, core });
-
   respond:
-    name: Respond to PR #${{ matrix.pr }}
-    needs: [enumerate]
-    if: needs.enumerate.outputs.has_prs == 'true'
+    name: Respond to review feedback
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        pr: ${{ fromJSON(needs.enumerate.outputs.pr_numbers) }}
-    permissions:
-      contents: write
-      id-token: write
-      issues: write
-      pull-requests: write
+    # Fork guard: only same-repo PR heads (never check out a fork with write scope).
+    # Loop guard: never act on our own bot's review/comment (its reply is itself a
+    # pull_request_review_comment event). workflow_dispatch has no actor/PR to guard,
+    # so it is always allowed through for manual/E2E runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.sender.login != 'jacobpevans-claude[bot]' &&
+       github.event.sender.login != 'claude[bot]' &&
+       github.event.sender.login != 'github-actions[bot]')
     timeout-minutes: 15
     env:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
-      - name: Resolve PR head branch (fork guard)
-        id: head
-        uses: actions/github-script@v9
+      # workflow_dispatch has no PR event context — resolve the head SHA (a hex OID,
+      # no injection surface) from the trusted integer pr_number input. Review-event
+      # runs skip this and use github.event.pull_request.* directly below.
+      - name: Resolve PR head (dispatch only)
+        id: pr
+        if: github.event_name == 'workflow_dispatch'
         env:
-          PR_NUMBER: ${{ matrix.pr }}
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({ owner: context.repo.owner, repo: context.repo.repo, pull_number: Number(process.env.PR_NUMBER) });
-            if (pr.data.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) { core.setFailed('PR head is a fork — skipping.'); return; }
-            core.setOutput('ref', pr.data.head.ref);
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PR: ${{ inputs.pr_number }}
+        run: |
+          echo "number=$INPUT_PR" >> "$GITHUB_OUTPUT"
+          echo "sha=$(gh pr view "$INPUT_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout PR branch
+      - name: Checkout PR head
         uses: actions/checkout@v6
         with:
-          ref: ${{ steps.head.outputs.ref }}
+          ref: ${{ github.event.pull_request.head.sha || steps.pr.outputs.sha }}
           fetch-depth: 0
 
-      - name: Checkout ai-workflows scripts and prompts
+      - name: Checkout ai-workflows prompt and scripts
         uses: actions/checkout@v6
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: |
-            .github/scripts
             .github/prompts
+            .github/scripts
           path: .ai-workflows
-
-      - name: Post attempt marker
-        uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ matrix.pr }}
-          ATTEMPT_CAP: ${{ inputs.attempt_cap || '2' }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pr-review-responder/post-attempt-comment.js');
-            await run({ github, context, core });
-
-      - name: Write unresolved threads to file
-        uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ matrix.pr }}
-        with:
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pr-review-responder/write-pr-threads.js');
-            await run({ github, context, core });
 
       - name: Render prompt
         id: prompt
         env:
-          PR_NUMBER: ${{ matrix.pr }}
+          PR_NUMBER: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
           REPO_CONTEXT: ${{ inputs.repo_context }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/pr-review-responder.md PR_NUMBER REPO_CONTEXT
 
-      # Claude only EDITS files + writes the verdict file (use_commit_signing: false).
-      # The App-token steps below land the verified commit and post/resolve threads.
+      # Claude edits files (committed NATIVELY to the PR branch via use_commit_signing)
+      # and drives reply + resolveReviewThread through `gh api graphql`. The App token
+      # minted by run-claude-code backs both the verified commit and Claude's gh calls
+      # (the default GITHUB_TOKEN is often rejected resolving bot-authored threads).
       - name: Run Claude Code
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
           model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
-          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(gh api graphql:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          use_commit_signing: "false"
-          allowed_bots: "github-actions,claude"
-
-      # Mint an App token so the commit + thread replies are authored by
-      # JacobPEvans-claude[bot] and GitHub-VERIFIED (satisfies required_signatures,
-      # re-triggers CI on the PR).
-      - name: Mint App token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
-
-      - name: Commit edits to PR branch
-        uses: actions/github-script@v9
-        env:
-          HEAD_BRANCH: ${{ steps.head.outputs.ref }}
-          COMMIT_MESSAGE: >-
-            fix: address review feedback (AI responder)
-
-
-            AI Provenance | Workflow: ${{ github.workflow }} | Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} | Event: ${{ github.event_name }}
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pr-review-responder/commit-edits.js');
-            await run({ github, context, core });
-
-      - name: Post replies and resolve threads
-        uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ matrix.pr }}
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pr-review-responder/apply-thread-responses.js');
-            await run({ github, context, core });
-
-      - name: Comment on failure
-        if: failure()
-        uses: actions/github-script@v9
-        env:
-          PR_NUMBER: ${{ matrix.pr }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = Number(process.env.PR_NUMBER);
-            if (!prNumber) return;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `> **AI review responder failed.** The workflow errored or timed out.\n> [View run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n> These review threads may need a manual response.`
-            });
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          use_commit_signing: "true"
+          allowed_bots: "gemini-code-assist,copilot-pull-request-reviewer,github-actions"

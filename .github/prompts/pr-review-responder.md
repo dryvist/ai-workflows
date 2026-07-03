@@ -3,53 +3,84 @@
 You are handling unresolved code-review feedback on PR #${PR_NUMBER}.
 Repo context: ${REPO_CONTEXT}
 
-The unresolved review threads are in `.review-threads.json` (already fetched for
-you). Each entry has `threadId`, `path`, `line`, and `comments` (author + body,
-oldest first — the last comment is the reviewer's current ask). Reviewers may be
-bots (e.g. `gemini-code-assist`, `copilot`) or humans.
+Reviewers may be bots (`gemini-code-assist`, `copilot-pull-request-reviewer`) or
+humans. Your job: evaluate each unresolved review thread, fix the valid feedback,
+reply, and resolve — **never merge, never approve**.
 
-Work **read-only on GitHub**: edit repository files with your file tools, and
-write ONE verdict file. Do NOT run git, do NOT commit, do NOT push, do NOT call
-`gh`/the API, do NOT merge. A later workflow step commits your edits and posts
-your replies.
+## 1. Fetch the unresolved threads
 
-## Evaluate each thread on its merits — do NOT rubber-stamp
+Get the repo's `owner`/`name`:
 
-For every unresolved thread, decide independently whether the feedback is correct:
+```bash
+gh repo view --json owner,name --jq '{owner: .owner.login, name: .name}'
+```
+
+Then list this PR's review threads (newest comment last):
+
+```bash
+gh api graphql -f query='
+  query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){
+    repository(owner:$owner,name:$repo){
+      pullRequest(number:$pr){
+        reviewThreads(first:100, after:$cursor){
+          pageInfo{ hasNextPage endCursor }
+          nodes{
+            id isResolved isOutdated path line
+            comments(last:20){ nodes{ author{ login } body } }
+          }
+        }
+      }
+    }
+  }' -F owner=OWNER -F repo=REPO -F pr=${PR_NUMBER}
+```
+
+Work only on threads where `isResolved` is false. Skip a thread if its newest
+comment's author is `jacobpevans-claude[bot]` / `claude[bot]` (you already replied)
+or if the PR author has already answered it.
+
+## 2. Evaluate each thread on its merits — do NOT rubber-stamp
+
+For every unresolved thread:
 
 1. **Read the actual code** at `path`:`line` before judging. Verify the claim.
 2. **If the feedback is right** — apply the smallest correct fix by editing the
-   file(s). Prefer the minimal change that resolves the concern.
+   file(s) with your editing tools. Do NOT run `git commit`/`git push` — your file
+   edits are committed to the PR branch automatically.
 3. **If the feedback is wrong, unnecessary, or a matter of taste** — do NOT change
-   the code. Reply explaining precisely why, with evidence (cite the code/behavior).
-   Disagreeing with a reviewer is correct when you are right; be direct and specific.
+   the code. Reply explaining precisely why, citing the code/behavior. Disagreeing
+   with a reviewer is correct when you are right; be direct and specific.
 4. **If it needs human judgment** (architecture, product, security trade-offs, or
-   anything you cannot verify) — make no edit, reply noting it needs the author's
+   anything you cannot verify) — make no edit, reply that it needs the author's
    decision, and leave the thread unresolved.
 
-## Write the verdict file
+## 3. Reply and resolve via `gh api graphql`
 
-Write `.review-responses.json` in the repo root, exactly this shape:
+For each thread you handled, post a concise reply (what you changed, or why you
+didn't):
 
-```json
-{
-  "responses": [
-    {
-      "threadId": "PRRT_...",
-      "reply": "One concise, specific reply to the reviewer (what you changed, or why you didn't).",
-      "resolve": true
-    }
-  ]
-}
+```bash
+gh api graphql -f query='
+  mutation($id:ID!,$body:String!){
+    addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$id, body:$body}){ comment{ id } }
+  }' -F id=THREAD_ID -F body="your reply"
 ```
 
-Rules:
+Then resolve it **only when it is genuinely settled** — you applied the fix, or you
+are declining with a justification a reasonable reviewer would accept:
 
-- Include an entry only for threads you actually handled this run. `threadId` MUST
-  be copied verbatim from `.review-threads.json`.
-- `resolve: true` ONLY when the thread is genuinely settled — you applied the fix,
-  or you are declining with a justification a reasonable reviewer would accept.
-  When in doubt, or when it needs the author, use `resolve: false` and just reply.
-- `reply` is required and under 1500 characters. Reference the specific change or
-  reason; don't be generic.
-- Make code edits directly in the files. Emit valid JSON. Touch nothing else.
+```bash
+gh api graphql -f query='
+  mutation($id:ID!){ resolveReviewThread(input:{threadId:$id}){ thread{ isResolved } } }' \
+  -F id=THREAD_ID
+```
+
+Leave a thread **unresolved** (reply only) when it still needs the author, or when
+you are unsure.
+
+## Rules
+
+- **Never merge, never approve** the PR. Do not run `git commit`, `git push`, or
+  `gh pr merge` — only edit files (auto-committed) and run the `gh api graphql`
+  calls above.
+- Keep code changes surgical and minimal. Replies under 1500 characters, specific.
+- If there are no actionable unresolved threads, do nothing and stop.

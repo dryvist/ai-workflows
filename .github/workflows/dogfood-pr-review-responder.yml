@@ -1,28 +1,22 @@
 name: Dogfood PR Review Responder
 on:
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Target a single PR (skips the staleness scan)"
+        description: "Target a single PR (manual/E2E runs)"
         type: string
         default: ""
-  # --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
-  # schedule:
-  #   - cron: "*/10 * * * *"
-  # --- END DISABLED ---
 permissions:
   contents: write
   id-token: write
-  issues: write
   pull-requests: write
 jobs:
   respond:
     uses: ./.github/workflows/cc-pr-review-responder.yml
     with:
       repo_context: "Reusable AI agent workflows for GitHub Actions; consumer repos call these with thin callers."
-      # `inputs.pr_number` is safe to reference here ONLY while this workflow is
-      # dispatch-only. Before uncommenting the `schedule` trigger above, remove this
-      # line — referencing `inputs` in a reusable-call `with:` under `schedule`
-      # startup-fails every scheduled run.
-      pr_number: ${{ inputs.pr_number || '' }}
     secrets: inherit # zizmor: ignore[secrets-inherit]

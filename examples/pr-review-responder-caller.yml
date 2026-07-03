@@ -2,51 +2,38 @@
 #
 # Drop this in your repo at .github/workflows/pr-review-responder.yml.
 #
-# What it does: every ~10 minutes (and on demand), scans your OPEN PRs for review
-# threads whose newest comment has sat unanswered for >10 minutes, and — for each
-# — lets Claude evaluate the feedback, commit fixes for the valid points as a
-# VERIFIED bot commit, reply, and resolve. It NEVER merges. CI failures are out of
-# scope here; wire cc-ci-fix.yml (ci-fix-caller.yml) for those.
+# What it does: when a reviewer submits a review or leaves a review comment on a PR,
+# Claude evaluates the unresolved threads, commits fixes for the valid feedback,
+# replies, and resolves them. It NEVER merges. CI failures are out of scope here
+# (wire cc-ci-fix.yml for those); noise threads (outdated / failed bot reviews) are
+# handled cheaply by review-thread-resolver.yml.
 #
-# A schedule is used deliberately: "a review comment has gone unanswered for N
-# minutes" is a time condition, not a GitHub event, so there is nothing to trigger
-# on directly. Keep the cadence at ~10 min to match the reusable's stale window.
-#
-# Throttling: the reusable's max_prs (default 5) caps PRs per run and a per-PR
-# attempt cap (default 2, lifetime) stops loops. Fork PRs are skipped.
-#
-# Do NOT pass `with:` values that reference the `inputs` context here — referencing
-# `inputs` in a reusable-call `with:` while a `schedule` trigger is present makes
-# GitHub startup-fail every scheduled run. The reusable's defaults cover it. A
-# LITERAL `with: repo_context: "..."` string is fine (no inputs context).
+# Event-driven, not scheduled: a review IS the event, so no cron and no enumeration
+# are needed. The reusable's fork guard + own-bot loop guard keep it safe.
 
 name: PR Review Responder
 
 on:
-  workflow_dispatch:
-  schedule:
-    - cron: "*/10 * * * *" # every 10 minutes — match the reusable's stale window
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
 
 permissions:
   contents: write
   id-token: write
-  issues: write
   pull-requests: write
 
-# Do NOT add a caller-level `concurrency:` here. The reusable already sets the
-# group `pr-review-responder-${{ github.repository }}`. A caller that reuses the
-# reusable's EXACT group holds that slot, so the reusable's jobs can never acquire
-# it — the run startup-fails with 0 jobs. The reusable queues overlapping runs.
+# Do NOT add a caller-level `concurrency:` here. The reusable already sets a per-PR
+# group; reusing its exact group would 0-job startup-fail the run.
 
 jobs:
   respond:
     uses: dryvist/ai-workflows/.github/workflows/cc-pr-review-responder.yml@main
-    # Optional: a one-line repo description helps Claude judge feedback. Must be a
-    # LITERAL string, never an `inputs.*` reference (see header note).
+    # Optional: a one-line repo description helps Claude judge feedback.
     # with:
     #   repo_context: "Terraform modules for the homelab Proxmox cluster."
     #
-    # Org-level secrets can only be forwarded via `inherit` — explicit mapping of
-    # org secrets fails reusable instantiation. zizmor's secrets-inherit audit is a
-    # false positive here (this is a first-party reusable), hence the ignore.
+    # Org-level secrets can only be forwarded via `inherit`. zizmor's secrets-inherit
+    # audit is a false positive here (this is a first-party reusable).
     secrets: inherit # zizmor: ignore[secrets-inherit]
