@@ -83,7 +83,8 @@ jobs:
           INPUT_PR: ${{ inputs.pr_number }}
         run: |
           echo "number=$INPUT_PR" >> "$GITHUB_OUTPUT"
-          echo "sha=$(gh pr view "$INPUT_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)" >> "$GITHUB_OUTPUT"
+          gh pr view "$INPUT_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid,headRefName \
+            --jq '"sha=\(.headRefOid)\nref=\(.headRefName)"' >> "$GITHUB_OUTPUT"
 
       - name: Checkout PR head
         uses: actions/checkout@v6
@@ -107,10 +108,12 @@ jobs:
           REPO_CONTEXT: ${{ inputs.repo_context }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/pr-review-responder.md PR_NUMBER REPO_CONTEXT
 
-      # Claude edits files (committed NATIVELY to the PR branch via use_commit_signing)
-      # and drives reply + resolveReviewThread through `gh api graphql`. The App token
-      # minted by run-claude-code backs both the verified commit and Claude's gh calls
-      # (the default GITHUB_TOKEN is often rejected resolving bot-authored threads).
+      # Claude only EDITS files + drives reply/resolveReviewThread via `gh api graphql`;
+      # it does NOT commit. Native use_commit_signing cannot resolve a branch on a
+      # review-triggered reusable (observed base_branch:"" → committed nothing), so a
+      # separate step commits Claude's edits via the shared verified-commit helper —
+      # the same path cc-ci-fix uses. app_id/app_private_key here give Claude's `gh`
+      # the App token (the default GITHUB_TOKEN is often rejected resolving bot threads).
       - name: Run Claude Code
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
@@ -120,5 +123,26 @@ jobs:
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
-          use_commit_signing: "true"
+          use_commit_signing: "false"
           allowed_bots: "gemini-code-assist,copilot-pull-request-reviewer,github-actions"
+
+      # Mint an App token so the commit is GitHub-VERIFIED + bot-attributed
+      # (satisfies required_signatures, re-triggers CI). Reuses cc-ci-fix's commit
+      # wrapper → shared verified-commit.js; no responder-specific code.
+      - name: Mint commit token
+        id: commit-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      - name: Commit fixes to PR branch
+        uses: actions/github-script@v9
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || steps.pr.outputs.ref }}
+          COMMIT_MESSAGE: "fix: address review feedback (AI responder)"
+        with:
+          github-token: ${{ steps.commit-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/ci-fix/commit-fix.js');
+            await run({ github, context, core });
