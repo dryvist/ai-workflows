@@ -1,0 +1,27 @@
+# Dogfood: hourly org-wide sweep resolving stale bot review threads.
+#
+# Runs from this hub repo only — consumer repos need no caller for sweep
+# coverage. The repo list comes from the org-level AI_SWEEP_REPOS Actions
+# variable (managed in tofu-github from config/ai-callers.yml), with an inline
+# fallback until that variable is applied.
+#
+# No concurrency block on purpose: a caller sharing the reusable workflow's
+# exact concurrency group causes an opaque 0-job startup_failure.
+
+name: Dogfood Review Thread Sweep
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sweep:
+    uses: ./.github/workflows/review-thread-resolver.yml
+    with:
+      sweep_repos: ${{ vars.AI_SWEEP_REPOS || 'ai-workflows,nix-darwin,nix-ai,nix-claude-code,nix-home,terraform-proxmox,ansible-proxmox,ansible-proxmox-apps,ansible-splunk,claude-code-plugins,ai-assistant-instructions' }}
+    secrets: inherit

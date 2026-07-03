@@ -1,0 +1,122 @@
+# Review Thread Resolver
+#
+# Reusable workflow: resolves review threads left by bot reviewers when the
+# thread is outdated or the bot reported a failed review run. Threads with any
+# human comment are never touched. Non-AI utility workflow — plain
+# actions/github-script, no AI tokens.
+#
+# Why: the org branch ruleset requires every review thread to be resolved
+# before merge, and bot reviewers routinely leave threads (including failed-run
+# notices) that otherwise need a manual GraphQL mutation per thread.
+#
+# Two modes:
+#   - Single PR: call from pull_request / pull_request_review events, or pass
+#     pr_number via dispatch.
+#   - Org sweep: pass sweep_repos (comma-separated repo names); every open PR
+#     in each repo is processed. Consumer repos need no files for this mode.
+#
+# Token note: resolveReviewThread requires CONTENTS read-write, and the default
+# GITHUB_TOKEN is often rejected for bot-authored threads in non-interactive
+# runs. When the GH_APP_CLAUDE_BOT_ID var is configured, a GitHub App token is
+# minted (org-wide in sweep mode) and used instead.
+
+name: Review Thread Resolver
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest.
+        type: string
+        required: false
+        default: ubuntu-latest
+      bot_reviewers:
+        description: "Comma-separated bot logins whose threads may be auto-resolved"
+        type: string
+        default: "gemini-code-assist,copilot-pull-request-reviewer"
+      resolve_outdated:
+        description: "Resolve bot-only threads whose code has changed underneath them"
+        type: string
+        default: "true"
+      resolve_bot_failures:
+        description: "Resolve bot-only threads whose body matches failure_patterns"
+        type: string
+        default: "true"
+      failure_patterns:
+        description: "Case-insensitive regex marking failed-review notices (empty = built-in default)"
+        type: string
+        default: ""
+      pr_number:
+        description: "PR number override (single-PR mode)"
+        type: string
+        default: ""
+      sweep_repos:
+        description: "Comma-separated repo names to sweep (org-sweep mode)"
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number (single-PR mode)"
+        type: string
+        default: ""
+      sweep_repos:
+        description: "Comma-separated repo names to sweep (org-sweep mode)"
+        type: string
+        default: ""
+
+# contents: write is required by the resolveReviewThread GraphQL mutation.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: review-thread-resolver-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false  # Never cancel — queue instead
+
+jobs:
+  resolve:
+    name: Resolve bot review threads
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Mint App token (single repo)
+        id: app-token
+        if: vars.GH_APP_CLAUDE_BOT_ID != '' && inputs.sweep_repos == ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      - name: Mint App token (org sweep)
+        id: app-token-sweep
+        if: vars.GH_APP_CLAUDE_BOT_ID != '' && inputs.sweep_repos != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Resolve threads
+        uses: actions/github-script@v9
+        env:
+          BOT_REVIEWERS: ${{ inputs.bot_reviewers }}
+          RESOLVE_OUTDATED: ${{ inputs.resolve_outdated }}
+          RESOLVE_BOT_FAILURES: ${{ inputs.resolve_bot_failures }}
+          FAILURE_PATTERNS: ${{ inputs.failure_patterns }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          SWEEP_REPOS: ${{ inputs.sweep_repos }}
+        with:
+          github-token: ${{ steps.app-token-sweep.outputs.token || steps.app-token.outputs.token || github.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/review-thread-resolver/resolve-threads.js');
+            await run({ github, context, core });

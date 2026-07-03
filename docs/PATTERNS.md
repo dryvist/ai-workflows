@@ -675,3 +675,41 @@ jobs:
 
 **Implementation**: Extracted script at `.github/scripts/notification/send-slack-pr-notify.js`.
 Parses the AI Provenance footer from the PR body using regex to populate the Slack message fields.
+
+## Non-AI Utility Workflow Pattern
+
+Not every reusable workflow needs Claude. When the job is deterministic
+(GraphQL mutations, notifications, labeling), a plain `actions/github-script`
+workflow is cheaper, faster, and immune to AI-token limits. Current members:
+`notify-ai-pr.yml`, `ci-fail-issue.yml`, `review-thread-resolver.yml`.
+
+**Review Thread Resolver** (`review-thread-resolver.yml`) exists because the
+org branch ruleset enforces `required_review_thread_resolution`: bot reviewers
+(gemini-code-assist, Copilot) leave review threads — including failed-run
+notices — that block merges until someone manually runs a
+`resolveReviewThread` GraphQL mutation per thread.
+
+**Safety invariant**: a thread is only ever auto-resolved when EVERY comment
+in it was authored by an allow-listed bot (`__typename == 'Bot'`, login in
+`bot_reviewers`) AND the thread is either outdated (code changed underneath
+it) or matches `failure_patterns`. One human reply anywhere means the thread
+is never touched. Substantive bot feedback that is still current also
+survives — responding to that is `cc-pr-review-responder`'s job, not this
+workflow's.
+
+**Two modes**:
+
+- *Single PR* — consumer caller on `pull_request: [synchronize]` +
+  `pull_request_review: [submitted]` for instant cleanup.
+- *Org sweep* — the hub's `dogfood-review-thread-sweep.yml` runs hourly over
+  the repos in the org-level `AI_SWEEP_REPOS` variable (managed by
+  tofu-github). Consumer repos need **zero files** for sweep coverage.
+
+**Token requirement** (hard-won): `resolveReviewThread` requires a token with
+**Contents read-write** — `pull-requests: write` alone is not enough — and the
+default `GITHUB_TOKEN` is often rejected (`Resource not accessible by
+integration`) for bot-authored threads in non-interactive runs. The workflow
+mints a GitHub App installation token from `GH_APP_CLAUDE_BOT_ID` /
+`GH_APP_CLAUDE_BOT_PRIVATE_KEY` when available (org-wide in sweep mode) and
+falls back to `GITHUB_TOKEN` with a per-thread warning instead of a run
+failure.
