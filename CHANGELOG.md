@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.1](https://github.com/dryvist/ai-workflows/compare/v0.26.0...v0.26.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* declare GH_ACTION_AI_API_KEY on comment workflows for explicit secret passing ([#313](https://github.com/dryvist/ai-workflows/issues/313)) ([b4875cc](https://github.com/dryvist/ai-workflows/commit/b4875cc763fc8908bbf8d9e1e50a085e75bb7fa1))
+
 ## [0.26.0](https://github.com/dryvist/ai-workflows/compare/v0.25.0...v0.26.0) (2026-07-03)
 
 
