@@ -123,7 +123,7 @@ steps:
     with:
       prompt: ${{ steps.prompt.outputs.content }}
       model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
-      allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)"
+      allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git status:*)"
       claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
       use_commit_signing: "false"
 
@@ -691,6 +691,68 @@ git push
 
 **Durable fix**: Issue #203 — the conclusion job needs `needs.agent.result != 'cancelled'` added to its `if:` guard
 in the upstream `githubnext/agentics` repo. Until that ships via a `gh aw upgrade`, the empty-commit kick is the remedy.
+
+---
+
+## PR Review Responder Pattern
+
+**Workflow**: `cc-pr-review-responder.yml` (reusable). When a reviewer leaves
+feedback on a PR, Claude evaluates the unresolved review threads, edits code to fix
+the valid points, replies, and resolves them — **never merges**. It delivers the
+substantive part of a `/ship` pass (the `/ship` skill itself is an interactive
+orchestrator that cannot run in CI). It **complements** the non-AI
+`review-thread-resolver`, which cheaply clears *outdated / failed-run* bot threads;
+this handles the threads with real content.
+
+**Zero custom code by design.** This is the reference example of "reach for the
+event + the action's native behavior + `gh` in the prompt before writing a script."
+An earlier revision used a scheduled sweep with ~250 lines of bespoke JS (GraphQL
+enumeration, staleness scan, reply/resolve mutations, attempt markers, a
+verified-commit wrapper). All of it collapsed into configuration by switching to an
+**event-driven** trigger:
+
+| Job it once did | Now |
+| --- | --- |
+| Enumerate stale PRs across the repo | The **event payload** — a review IS the event; `github.event.pull_request.number` is the PR |
+| Fork guard + own-bot loop guard + attempt cap | One job-level **`if:`** (same-repo head + sender not our bot) |
+| Fetch review threads (GraphQL) | `Bash(gh api graphql)` **in the prompt** |
+| Reply + `resolveReviewThread` | `gh api graphql` **in the prompt** (no native action support for this) |
+| Verified commit via `createCommitOnBranch` | `claude-code-action`'s **native** `use_commit_signing: "true"` — see below |
+
+**Why native commit works here (and not for the write-workflows above).** The
+Verified Commit Pattern exists because `workflow_run`/`issues`/`schedule`/`dispatch`
+triggers give the action no branch to resolve. Review events
+(`pull_request_review`, `pull_request_review_comment`) **carry open-PR context**, so
+`use_commit_signing: "true"` pushes a GitHub-verified commit **straight to the PR
+branch** (docs: *"On open PRs: always pushes directly to the existing PR branch"*).
+That satisfies `required_signatures` and re-triggers CI with no `verified-commit.js`.
+The App token minted by `run-claude-code` (pass `app_id` + `app_private_key`) backs
+both that commit **and** Claude's `gh api graphql` calls — the default `GITHUB_TOKEN`
+is often rejected resolving bot-authored threads (needs Contents-RW).
+
+**Consumer caller** (`examples/pr-review-responder-caller.yml`): triggers on
+`pull_request_review: [submitted]` + `pull_request_review_comment: [created]`. No
+cron, no enumeration, and **no** caller-level `concurrency` (the reusable owns the
+per-PR group).
+
+**Safety invariants**:
+
+- **Never merges / approves** — the prompt forbids it; `allowed_tools` has no
+  `gh pr merge` / git-write.
+- **Fork guard** — `if:` requires `head.repo.full_name == github.repository`, so a
+  fork branch is never checked out with write scope. The dispatch path resolves the
+  head **SHA** (a hex OID, not the attacker-influenceable `head.ref`) from the
+  trusted integer `pr_number`, avoiding branch-name injection.
+- **Loop guard** — the bot's own reply is itself a `pull_request_review_comment`
+  event; the `if:` excludes our bot logins (`jacobpevans-claude[bot]`,
+  `claude[bot]`, `github-actions[bot]`), and `allowed_bots` does not list our bot.
+- **Critical evaluation** — the prompt tells Claude to verify each claim against the
+  code and push back with reasoning on wrong/opinionated feedback, and to resolve a
+  thread only when genuinely settled.
+- **Trade-off (documented):** dropping the old scheduled sweep drops the ~10-minute
+  "let a human answer first" grace window — a review event fires immediately. A hard
+  timer would need `sleep 600` (burns runner minutes) or the enumeration we deleted;
+  the prompt instead skips threads the author already answered.
 
 ---
 

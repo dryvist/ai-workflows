@@ -1,0 +1,124 @@
+# cc-PR Review Responder
+#
+# Reusable workflow: when a reviewer leaves feedback on a PR, Claude evaluates the
+# unresolved review threads, edits code to fix the valid points, replies, and
+# resolves them — never merges. Delivers the substantive part of a /ship pass.
+#
+# Zero custom code by design: the trigger is event-driven (consumer callers fire on
+# pull_request_review / pull_request_review_comment, which carry open-PR context),
+# so claude-code-action commits its edits NATIVELY to the PR branch
+# (use_commit_signing: "true" → GitHub-verified, satisfies required_signatures,
+# re-triggers CI). Reply + resolveReviewThread have no native action support, so the
+# PROMPT drives `gh api graphql`. Nothing here is a bespoke JS step.
+#
+# Complements the non-AI review-thread-resolver (which clears outdated/failed bot
+# threads cheaply); this handles substantive feedback.
+
+name: cc-PR Review Responder
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job on. Defaults to
+          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
+      repo_context:
+        description: "Brief description of the repository (given to Claude for context)"
+        type: string
+        required: false
+        default: ""
+      extra_tools:
+        description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
+        type: string
+        default: ""
+    # No `secrets:` block: callers forward org-level secrets via `secrets: inherit`.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Target a single PR (manual/E2E runs, which lack PR event context)"
+        type: string
+        default: ""
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: pr-review-responder-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
+
+jobs:
+  respond:
+    name: Respond to review feedback
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    # Fork guard: only same-repo PR heads (never check out a fork with write scope).
+    # Loop guard: never act on our own bot's review/comment (its reply is itself a
+    # pull_request_review_comment event). workflow_dispatch has no actor/PR to guard,
+    # so it is always allowed through for manual/E2E runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.sender.login != 'jacobpevans-claude[bot]' &&
+       github.event.sender.login != 'claude[bot]' &&
+       github.event.sender.login != 'github-actions[bot]')
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      # workflow_dispatch has no PR event context — resolve the head SHA (a hex OID,
+      # no injection surface) from the trusted integer pr_number input. Review-event
+      # runs skip this and use github.event.pull_request.* directly below.
+      - name: Resolve PR head (dispatch only)
+        id: pr
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_PR: ${{ inputs.pr_number }}
+        run: |
+          echo "number=$INPUT_PR" >> "$GITHUB_OUTPUT"
+          echo "sha=$(gh pr view "$INPUT_PR" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || steps.pr.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Checkout ai-workflows prompt and scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: |
+            .github/prompts
+            .github/scripts
+          path: .ai-workflows
+
+      - name: Render prompt
+        id: prompt
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
+          REPO_CONTEXT: ${{ inputs.repo_context }}
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/pr-review-responder.md PR_NUMBER REPO_CONTEXT
+
+      # Claude edits files (committed NATIVELY to the PR branch via use_commit_signing)
+      # and drives reply + resolveReviewThread through `gh api graphql`. The App token
+      # minted by run-claude-code backs both the verified commit and Claude's gh calls
+      # (the default GITHUB_TOKEN is often rejected resolving bot-authored threads).
+      - name: Run Claude Code
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+        with:
+          prompt: ${{ steps.prompt.outputs.content }}
+          model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(gh api graphql:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          use_commit_signing: "true"
+          allowed_bots: "gemini-code-assist,copilot-pull-request-reviewer,github-actions"

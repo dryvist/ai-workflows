@@ -1,0 +1,22 @@
+name: Dogfood PR Review Responder
+on:
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Target a single PR (manual/E2E runs)"
+        type: string
+        default: ""
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+jobs:
+  respond:
+    uses: ./.github/workflows/cc-pr-review-responder.yml
+    with:
+      repo_context: "Reusable AI agent workflows for GitHub Actions; consumer repos call these with thin callers."
+    secrets: inherit # zizmor: ignore[secrets-inherit]
