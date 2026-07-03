@@ -34,13 +34,14 @@ function wireGraphql(github, validIds, { failResolve = false } = {}) {
 
 describe('apply-thread-responses', () => {
   let core, context, github, file;
+  let caseId = 0;
 
   beforeEach(() => {
     core = createMockCore();
     context = createMockContext();
     github = createMockGithub();
     process.env.PR_NUMBER = '327';
-    file = path.join(os.tmpdir(), `review-responses-${process.pid}-${core.infos.length}.json`);
+    file = path.join(os.tmpdir(), `review-responses-${process.pid}-${caseId++}.json`);
     process.env.RESPONSES_FILE = file;
   });
 
