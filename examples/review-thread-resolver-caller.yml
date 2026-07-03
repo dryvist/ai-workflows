@@ -1,0 +1,28 @@
+# Example consumer caller for review-thread-resolver (event-driven mode).
+#
+# Most repos do NOT need this file: the hub's scheduled org sweep
+# (dogfood-review-thread-sweep.yml in dryvist/ai-workflows) already covers
+# every repo listed in the org AI_SWEEP_REPOS variable. Add this caller only
+# when a busy repo wants instant resolution on PR events instead of waiting
+# for the hourly sweep.
+#
+# No concurrency block on purpose: a caller sharing the reusable workflow's
+# exact concurrency group causes an opaque 0-job startup_failure.
+
+name: Review Thread Resolver
+
+on:
+  pull_request:
+    types: [synchronize]
+  pull_request_review:
+    types: [submitted]
+
+# contents: write is required by the resolveReviewThread GraphQL mutation.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  resolve:
+    uses: dryvist/ai-workflows/.github/workflows/review-thread-resolver.yml@main
+    secrets: inherit

@@ -25,6 +25,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     notification/
     post-merge-docs-review/
     post-merge-tests/
+    review-thread-resolver/
     shared/
     verification/
   workflows/
@@ -33,7 +34,10 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
 
 ### Workflow Types
 
-**All workflows use `claude-code-action@v1`** with OIDC auth (`id-token: write`).
+**All AI workflows use `claude-code-action@v1`** with OIDC auth (`id-token: write`).
+Non-AI utility workflows (`notify-ai-pr`, `ci-fail-issue`,
+`review-thread-resolver`) use plain `actions/github-script` — see
+docs/PATTERNS.md "Non-AI Utility Workflow Pattern".
 
 - Prompts rendered via `render-prompt.sh` + step output (envsubst)
 - Static prompts: most workflows
