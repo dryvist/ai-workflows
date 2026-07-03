@@ -4,8 +4,10 @@
 # `opened` only: Renovate force-pushes rebases constantly and the assessment
 # does not change; the dedup marker makes any re-run a cheap no-op anyway.
 #
-# No concurrency block on purpose: a caller sharing the reusable workflow's
-# exact concurrency group causes an opaque 0-job startup_failure.
+# Permissions are job-scoped and the secret is passed explicitly (not
+# `secrets: inherit`) so zizmor-audited repos stay clean. No concurrency
+# block on purpose: a caller sharing the reusable workflow's exact
+# concurrency group causes an opaque 0-job startup_failure.
 
 name: Dep Review
 
@@ -13,12 +15,12 @@ on:
   pull_request:
     types: [opened]
 
-permissions:
-  contents: read
-  id-token: write
-  pull-requests: write
-
 jobs:
   review:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
     uses: dryvist/ai-workflows/.github/workflows/cc-dep-review.yml@main
-    secrets: inherit
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
