@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.24.0](https://github.com/dryvist/ai-workflows/compare/v0.23.7...v0.24.0) (2026-07-03)
+
+
+### Features
+
+* add review-thread-resolver reusable workflow ([#306](https://github.com/dryvist/ai-workflows/issues/306)) ([6cb6a79](https://github.com/dryvist/ai-workflows/commit/6cb6a799795238280bc513e7f3f7b8c9e2958f1f))
+
 ## [0.23.7](https://github.com/dryvist/ai-workflows/compare/v0.23.6...v0.23.7) (2026-07-02)
 
 
