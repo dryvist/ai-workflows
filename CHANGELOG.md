@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.0](https://github.com/dryvist/ai-workflows/compare/v0.26.2...v0.27.0) (2026-07-03)
+
+
+### Features
+
+* declare GH_APP_CLAUDE_BOT_PRIVATE_KEY on review-thread-resolver ([#320](https://github.com/dryvist/ai-workflows/issues/320)) ([6c762e3](https://github.com/dryvist/ai-workflows/commit/6c762e3773969aa5b6d8f09b8a427201b1b25934))
+
 ## [0.26.2](https://github.com/dryvist/ai-workflows/compare/v0.26.1...v0.26.2) (2026-07-03)
 
 
