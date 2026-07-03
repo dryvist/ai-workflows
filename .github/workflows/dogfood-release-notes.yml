@@ -1,0 +1,22 @@
+# Dogfood: AI release highlights on this repo's own release-please PRs.
+#
+# Permissions are job-scoped and the secret is passed explicitly, matching
+# the consumer caller examples. No concurrency block on purpose: a caller
+# sharing the reusable workflow's exact concurrency group causes an opaque
+# 0-job startup_failure.
+
+name: Dogfood Release Notes
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  highlights:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-release-notes.yml
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}

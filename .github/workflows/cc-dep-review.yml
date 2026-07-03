@@ -1,0 +1,143 @@
+# CC Dep Review
+#
+# Reusable workflow: Claude posts ONE concise risk assessment comment on
+# Renovate dependency PRs (major/minor by default) — breaking changes,
+# required migrations, repo impact, and a merge/hold verdict. Comment-only:
+# Claude never commits, and the comment is posted deterministically by a
+# workflow step (sticky-comment.js), not by Claude.
+#
+# Cost bounds are structural: consumer callers trigger on
+# `pull_request: [opened]` only, the gate skips digest pins / lock-file
+# maintenance / patch bumps, and a dedup marker guarantees at most one Claude
+# run per PR. No check-daily-limit job (actions:read under cross-repo
+# workflow_call causes startup_failure — see issue-backlog-sweep history).
+
+name: CC Dep Review
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest.
+        type: string
+        required: false
+        default: ubuntu-latest
+      model:
+        description: "Claude model to use (overrides GH_ACTION_AI_MODEL_CODE and GH_ACTION_AI_MODEL vars)"
+        type: string
+        default: ""
+      update_types:
+        description: "Comma-separated Renovate update types to review"
+        type: string
+        default: "major,minor"
+      require_label:
+        description: "Only review PRs carrying this label (empty = no label gate)"
+        type: string
+        default: ""
+      bot_authors:
+        description: "Comma-separated bot logins whose PRs are reviewed"
+        type: string
+        default: "renovate[bot]"
+    secrets:
+      GH_ACTION_AI_API_KEY:
+        description: "AI provider API key (org secret); declared so callers can pass it explicitly instead of secrets: inherit"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: cc-dep-review-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
+
+jobs:
+  check-eligibility:
+    name: Check eligibility
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+      update_type: ${{ steps.check.outputs.update_type }}
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Check eligibility
+        id: check
+        uses: actions/github-script@v9
+        env:
+          UPDATE_TYPES: ${{ inputs.update_types }}
+          REQUIRE_LABEL: ${{ inputs.require_label }}
+          BOT_AUTHORS: ${{ inputs.bot_authors }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/dep-review/check-eligibility.js');
+            await run({ github, context, core });
+
+  review:
+    name: Review dependency update
+    needs: check-eligibility
+    if: needs.check-eligibility.outputs.should_run == 'true'
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Checkout ai-workflows
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: |
+            .github/prompts
+            .github/scripts
+          path: .ai-workflows
+
+      - name: Render prompt
+        id: prompt
+        env:
+          PR_NUMBER: ${{ needs.check-eligibility.outputs.pr_number }}
+          UPDATE_TYPE: ${{ needs.check-eligibility.outputs.update_type }}
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/dep-review.md PR_NUMBER UPDATE_TYPE
+
+      - name: Run Claude Code
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+        with:
+          prompt: ${{ steps.prompt.outputs.content }}
+          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh api repos/*),WebFetch(domain:github.com)"
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          allowed_bots: "github-actions,renovate"
+          use_commit_signing: "false"
+
+      - name: Post review comment
+        uses: actions/github-script@v9
+        env:
+          BODY_FILE: .claude-dep-review.md
+          MARKER_MATCH: "<!-- cc-dep-review -->"
+          PR_NUMBER: ${{ needs.check-eligibility.outputs.pr_number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });

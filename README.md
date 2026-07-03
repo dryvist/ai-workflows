@@ -14,7 +14,9 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 |----------|---------|----------|--------------|
 | `best-practices.yml` | `workflow_call` | Wed 3am UTC | Weekly audit creating actionable best-practices recommendations |
 | `cc-ci-fix.yml` | `workflow_run` | On CI failure | Analyzes failed CI logs and pushes fixes (max 2 attempts per PR) |
+| `cc-dep-review.yml` | `pull_request: [opened]` | On Renovate PR | Posts one AI risk-assessment comment on major/minor dependency PRs (breaking changes, migrations, verdict) |
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies recently changed code for clarity and maintainability (functionality preserved); opens a PR |
+| `cc-release-notes.yml` | `pull_request` | On release PR | Posts sticky AI release-highlights comment on release-please PRs (refreshed per head SHA) |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
 | `issue-backlog-sweep.yml` | `workflow_call` | Weekly (consumer) | Labels the oldest untriaged issues so `ai:ready` ones enter the resolver — shrinks a pre-existing backlog |
@@ -29,6 +31,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `pr-issue-linker.yml` | `pull_request` | On PR open/close | Auto-links PRs to referenced issues via Development sidebar |
 | `project-router.yml` | `workflow_call` | On issue/PR events | Routes items to GitHub Projects with smart field assignment |
 | `repo-orchestrator.yml` | `workflow_call` | On-demand | Hub-and-spoke multi-repo workflow dispatcher |
+| `review-thread-resolver.yml` | `workflow_call` | Hourly org sweep (hub) | Resolves outdated/failed bot review threads so thread-resolution rules stop blocking merges — no AI tokens |
 
 ---
 

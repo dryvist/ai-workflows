@@ -191,7 +191,7 @@ The prompt file uses `${MERGE_SHA}` and `${REPO_FULL_NAME}` as placeholders.
 Used by workflows with a pre-check job that decides whether to run the expensive Claude step.
 
 **Workflows**: best-practices (check-recent-activity), post-merge-docs-review (check-relevance), post-merge-tests (check-test-infra),
-ci-fix (should-fix), issue-resolver (eligibility check)
+ci-fix (should-fix), issue-resolver (eligibility check), cc-dep-review (eligibility check), cc-release-notes (head-SHA dedup)
 
 **Structure**: Two jobs — a lightweight gating job followed by the Claude job that only runs if the gate passes:
 
@@ -579,6 +579,37 @@ env:
 **Why prompt-based** (not a post-step): `claude-code-action@v1` doesn't expose a PR number output, making post-creation API appends fragile.
 The prompt approach fits the existing `render-prompt.sh` + `envsubst` pattern with no additional steps.
 
+Comment-posting workflows (cc-dep-review) get the same footer from
+`sticky-comment.js` instead, which already knows the PR number — see the
+Sticky Comment Pattern below.
+
+---
+
+## Sticky Comment Pattern
+
+Comment-only AI workflows (cc-dep-review, cc-release-notes) post exactly ONE marker-keyed
+comment per PR and update it in place on re-runs instead of stacking
+duplicates.
+
+**How it works**: Claude only WRITES its output to a file (no `gh pr comment`
+tool access — deterministic posting beats prompting). A final
+`actions/github-script` step runs `.github/scripts/shared/sticky-comment.js`:
+
+- `BODY_FILE`: the file Claude wrote; missing/empty file → Claude declined →
+  clean no-op (mirrors `pr-from-file.js`).
+- `MARKER_MATCH`: stable HTML-comment prefix identifying the workflow's
+  comment (e.g. `<!-- cc-dep-review -->`); also doubles as the gate's dedup
+  marker.
+- `MARKER_WRITE` (optional): full marker embedded in the new body, letting a
+  workflow carry state in the marker (e.g. a head SHA) while still matching
+  the stable prefix.
+- Provenance: when `RUN_URL` is set, the AI Provenance footer is appended
+  automatically.
+
+**Why comments, not body edits**: bot-owned PR bodies (Renovate,
+release-please) are overwritten by their owners on every refresh; a comment
+survives and keeps authorship clean.
+
 ---
 
 ## Concurrency Pattern
@@ -733,3 +764,41 @@ jobs:
 
 **Implementation**: Extracted script at `.github/scripts/notification/send-slack-pr-notify.js`.
 Parses the AI Provenance footer from the PR body using regex to populate the Slack message fields.
+
+## Non-AI Utility Workflow Pattern
+
+Not every reusable workflow needs Claude. When the job is deterministic
+(GraphQL mutations, notifications, labeling), a plain `actions/github-script`
+workflow is cheaper, faster, and immune to AI-token limits. Current members:
+`notify-ai-pr.yml`, `ci-fail-issue.yml`, `review-thread-resolver.yml`.
+
+**Review Thread Resolver** (`review-thread-resolver.yml`) exists because the
+org branch ruleset enforces `required_review_thread_resolution`: bot reviewers
+(gemini-code-assist, Copilot) leave review threads — including failed-run
+notices — that block merges until someone manually runs a
+`resolveReviewThread` GraphQL mutation per thread.
+
+**Safety invariant**: a thread is only ever auto-resolved when EVERY comment
+in it was authored by an allow-listed bot (`__typename == 'Bot'`, login in
+`bot_reviewers`) AND the thread is either outdated (code changed underneath
+it) or matches `failure_patterns`. One human reply anywhere means the thread
+is never touched. Substantive bot feedback that is still current also
+survives — responding to that is `cc-pr-review-responder`'s job, not this
+workflow's.
+
+**Two modes**:
+
+- *Single PR* — consumer caller on `pull_request: [synchronize]` +
+  `pull_request_review: [submitted]` for instant cleanup.
+- *Org sweep* — the hub's `dogfood-review-thread-sweep.yml` runs hourly over
+  the repos in the org-level `AI_SWEEP_REPOS` variable (managed by
+  tofu-github). Consumer repos need **zero files** for sweep coverage.
+
+**Token requirement** (hard-won): `resolveReviewThread` requires a token with
+**Contents read-write** — `pull-requests: write` alone is not enough — and the
+default `GITHUB_TOKEN` is often rejected (`Resource not accessible by
+integration`) for bot-authored threads in non-interactive runs. The workflow
+mints a GitHub App installation token from `GH_APP_CLAUDE_BOT_ID` /
+`GH_APP_CLAUDE_BOT_PRIVATE_KEY` when available (org-wide in sweep mode) and
+falls back to `GITHUB_TOKEN` with a per-thread warning instead of a run
+failure.

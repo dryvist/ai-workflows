@@ -1,0 +1,22 @@
+# Dogfood: AI risk assessment on this repo's own Renovate PRs.
+#
+# Permissions are job-scoped and the secret is passed explicitly, matching
+# the consumer caller examples. No concurrency block on purpose: a caller
+# sharing the reusable workflow's exact concurrency group causes an opaque
+# 0-job startup_failure.
+
+name: Dogfood Dep Review
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  review:
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-dep-review.yml
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}

@@ -35,8 +35,18 @@ jobs:
     steps:
       - name: Verify Copilot agent checks
         run: |
-          FAILED=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/check-runs" \
-            --jq '[.check_runs[] | select(.app.slug | test("copilot"; "i")) | select(.conclusion == "failure" or .conclusion == "timed_out")] | length')
+          # The API occasionally returns a transient HTML error page; piping it
+          # straight into --jq crashed the gate (false-negative merge block).
+          # Retry with backoff and require a numeric answer before judging.
+          for i in 1 2 3; do
+            FAILED=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.app.slug | test("copilot"; "i")) | select(.conclusion == "failure" or .conclusion == "timed_out")] | length') && break
+            sleep $((i * 5))
+          done
+          if ! [[ "$FAILED" =~ ^[0-9]+$ ]]; then
+            echo "::error::check-runs API unreadable after retries"
+            exit 1
+          fi
           echo "Copilot agent failures: $FAILED"
           if [ "$FAILED" -gt "0" ]; then
             echo "::error::$FAILED Copilot agent check(s) failed"

@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.0](https://github.com/dryvist/ai-workflows/compare/v0.26.2...v0.27.0) (2026-07-03)
+
+
+### Features
+
+* declare GH_APP_CLAUDE_BOT_PRIVATE_KEY on review-thread-resolver ([#320](https://github.com/dryvist/ai-workflows/issues/320)) ([6c762e3](https://github.com/dryvist/ai-workflows/commit/6c762e3773969aa5b6d8f09b8a427201b1b25934))
+
+## [0.26.2](https://github.com/dryvist/ai-workflows/compare/v0.26.1...v0.26.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* validate check-runs API response in _ai-merge-gate ([#315](https://github.com/dryvist/ai-workflows/issues/315)) ([71d2c1c](https://github.com/dryvist/ai-workflows/commit/71d2c1c845d5f00b6dcac635e2d45a01386c6c69)), closes [#302](https://github.com/dryvist/ai-workflows/issues/302)
+
+## [0.26.1](https://github.com/dryvist/ai-workflows/compare/v0.26.0...v0.26.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* declare GH_ACTION_AI_API_KEY on comment workflows for explicit secret passing ([#313](https://github.com/dryvist/ai-workflows/issues/313)) ([b4875cc](https://github.com/dryvist/ai-workflows/commit/b4875cc763fc8908bbf8d9e1e50a085e75bb7fa1))
+
+## [0.26.0](https://github.com/dryvist/ai-workflows/compare/v0.25.0...v0.26.0) (2026-07-03)
+
+
+### Features
+
+* add cc-release-notes reusable workflow ([#310](https://github.com/dryvist/ai-workflows/issues/310)) ([fd915df](https://github.com/dryvist/ai-workflows/commit/fd915df17e0b46bafb8d8ad97ee614cf4fbf8735))
+
+## [0.25.0](https://github.com/dryvist/ai-workflows/compare/v0.24.0...v0.25.0) (2026-07-03)
+
+
+### Features
+
+* add cc-dep-review reusable workflow ([#307](https://github.com/dryvist/ai-workflows/issues/307)) ([7849e22](https://github.com/dryvist/ai-workflows/commit/7849e22ad594cfc268fa55b5f035e4eaf9be3d5a))
+
+## [0.24.0](https://github.com/dryvist/ai-workflows/compare/v0.23.7...v0.24.0) (2026-07-03)
+
+
+### Features
+
+* add review-thread-resolver reusable workflow ([#306](https://github.com/dryvist/ai-workflows/issues/306)) ([6cb6a79](https://github.com/dryvist/ai-workflows/commit/6cb6a799795238280bc513e7f3f7b8c9e2958f1f))
+
 ## [0.23.7](https://github.com/dryvist/ai-workflows/compare/v0.23.6...v0.23.7) (2026-07-02)
 
 
