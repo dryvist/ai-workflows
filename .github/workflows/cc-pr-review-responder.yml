@@ -4,12 +4,13 @@
 # unresolved review threads, edits code to fix the valid points, replies, and
 # resolves them — never merges. Delivers the substantive part of a /ship pass.
 #
-# Zero custom code by design: the trigger is event-driven (consumer callers fire on
-# pull_request_review / pull_request_review_comment, which carry open-PR context),
-# so claude-code-action commits its edits NATIVELY to the PR branch
-# (use_commit_signing: "true" → GitHub-verified, satisfies required_signatures,
-# re-triggers CI). Reply + resolveReviewThread have no native action support, so the
-# PROMPT drives `gh api graphql`. Nothing here is a bespoke JS step.
+# Near-zero custom code: the trigger is event-driven (consumer callers fire on
+# pull_request_review / pull_request_review_comment). Claude only EDITS files and
+# drives reply + resolveReviewThread via `gh api graphql` (no native action support
+# for thread resolution); a step then commits the edits via the shared
+# verified-commit.js (ci-fix/commit-fix.js). Native use_commit_signing is NOT used —
+# it does not resolve the PR branch on a review-triggered reusable (logs
+# base_branch:"" and commits nothing; proven by E2E, see docs/PATTERNS.md).
 #
 # Complements the non-AI review-thread-resolver (which clears outdated/failed bot
 # threads cheaply); this handles substantive feedback.
