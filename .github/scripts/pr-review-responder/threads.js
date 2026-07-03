@@ -48,7 +48,8 @@ async function scanOpenPRThreads({ github, owner, repo }) {
   let cursor = null;
   do {
     const res = await github.graphql(query, { owner, repo, cursor });
-    const page = res.repository.pullRequests;
+    const page = res?.repository?.pullRequests;
+    if (!page?.nodes) break; // repo missing / no read access — return what we have (caller fails closed)
     for (const pr of page.nodes) {
       prs.push({
         number: pr.number,
@@ -79,7 +80,7 @@ async function fetchUnresolvedThreads({ github, owner, repo, number }) {
               isResolved
               path
               line
-              comments(first: 20) { nodes { author { login } body createdAt } }
+              comments(last: 50) { nodes { author { login } body createdAt } }
             }
           }
         }
@@ -89,7 +90,8 @@ async function fetchUnresolvedThreads({ github, owner, repo, number }) {
   let cursor = null;
   do {
     const res = await github.graphql(query, { owner, repo, number, cursor });
-    const page = res.repository.pullRequest.reviewThreads;
+    const page = res?.repository?.pullRequest?.reviewThreads;
+    if (!page?.nodes) break; // PR/repo not found — return what we have
     for (const t of page.nodes) {
       if (t.isResolved) continue;
       threads.push({

@@ -97,6 +97,18 @@ describe('apply-thread-responses', () => {
     expect(core.failures.length).toBe(1);
   });
 
+  it('deduplicates a repeated threadId in the verdict', async () => {
+    writeVerdict([
+      { threadId: 'T1', reply: 'first', resolve: true },
+      { threadId: 'T1', reply: 'again', resolve: true },
+    ]);
+    const calls = wireGraphql(github, ['T1']);
+    await run({ github, context, core });
+    expect(calls.reply).toHaveLength(1);
+    expect(calls.resolve).toHaveLength(1);
+    expect(core.infos.some((m) => m.includes('duplicate'))).toBe(true);
+  });
+
   it('counts the reply even when the resolve mutation throws', async () => {
     writeVerdict([{ threadId: 'T1', reply: 'done', resolve: true }]);
     wireGraphql(github, ['T1'], { failResolve: true });

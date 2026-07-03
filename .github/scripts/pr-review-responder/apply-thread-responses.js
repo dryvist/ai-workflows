@@ -36,9 +36,12 @@ module.exports = async ({ github, context, core }) => {
 
   let replied = 0;
   let resolved = 0;
+  const processed = new Set(); // a duplicate threadId in the verdict must not double-reply/resolve
   for (const r of responses) {
     const threadId = typeof r?.threadId === 'string' ? r.threadId : null;
     if (!threadId || !valid.has(threadId)) { core.info(`Skipping unknown/foreign threadId: ${threadId}`); continue; }
+    if (processed.has(threadId)) { core.info(`Skipping duplicate threadId: ${threadId}`); continue; }
+    processed.add(threadId);
 
     const reply = typeof r?.reply === 'string' ? r.reply.trim() : '';
     if (reply) {

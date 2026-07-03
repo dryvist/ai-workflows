@@ -122,4 +122,11 @@ describe('find-stale-review-prs', () => {
     expect(core.getOutput('has_prs')).toBe('false');
     expect(core.infos.some((m) => m.includes('scan failed'))).toBe(true);
   });
+
+  it('emits no PRs when GraphQL returns a null repository (no read access)', async () => {
+    github.graphql.mockResolvedValue({ repository: null });
+    await run({ github, context, core });
+    expect(core.getOutput('has_prs')).toBe('false');
+    expect(JSON.parse(core.getOutput('pr_numbers'))).toEqual([]);
+  });
 });
