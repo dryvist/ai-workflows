@@ -1,0 +1,86 @@
+# Example consumer caller for deterministic IaC drift detection.
+#
+# Drop this in your repo at .github/workflows/iac-drift.yml.
+#
+# What it does: on a daily schedule (and on demand), runs
+# `tofu`/`terragrunt plan -detailed-exitcode` against one or more stacks. Exit 2
+# (drift) or exit 1 (plan error) fails the job LOUDLY and opens/refreshes a
+# deduped `IaC drift detected: ...` issue (one per working directory). When a
+# later run comes back clean, the issue is commented and closed automatically.
+#
+# There is NO AI in this chain — drift detection is a deterministic plan exit
+# code, cheap to run on every tick.
+#
+# PREREQUISITES:
+#   - Repo secret DOPPLER_TOKEN (service token) whose project holds everything
+#     the stack needs as secrets: AWS_* backend creds, TF_VAR_* provider vars,
+#     and (optionally) NTFY_BASE_URL. secrets-fetch injects them as env vars.
+#   - A self-hosted runner if the stack targets a private/LAN API. Pass its
+#     labels as a JSON array string in runner_label.
+#
+# GATE: like the rest of the estate, drift is gated on a repo variable so it can
+# be turned off intentionally rather than silently. When IAC_DRIFT_ENABLED is
+# not 'true' the gate job emits a ::notice and the drift jobs are skipped.
+# (tofu-github's config/iac-drift.yml sets this variable per opted-in repo.)
+
+name: IaC Drift
+
+on:
+  schedule:
+    # Daily, off the :00 mark to dodge the cron thundering herd.
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  # Distinct from the reusable's per-workdir group so the caller never holds a
+  # slot the reusable's jobs need.
+  group: iac-drift-caller-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  gate-check:
+    name: Check drift gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notice when IAC_DRIFT_ENABLED is not true
+        if: vars.IAC_DRIFT_ENABLED != 'true'
+        env:
+          GATE_MESSAGE: >-
+            IAC_DRIFT_ENABLED is not 'true' -- scheduled IaC drift detection is
+            OFF, so out-of-band infrastructure changes go unnoticed. Provision
+            the Doppler service token (repo secret DOPPLER_TOKEN) and set the
+            repo variable IAC_DRIFT_ENABLED=true to enable. Disable this
+            schedule intentionally if drift detection is meant to be off.
+        run: echo "::notice::${GATE_MESSAGE}"
+
+  # A plain tofu subdir stack on a self-hosted runner (LAN-reachable APIs).
+  drift-subdir:
+    name: Drift — infra subdir stack
+    needs: gate-check
+    if: vars.IAC_DRIFT_ENABLED == 'true'
+    uses: dryvist/ai-workflows/.github/workflows/_iac-drift.yml@main
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    with:
+      # JSON array string -> fromJSON-decoded to a multi-label self-hosted runner.
+      runner_label: '["self-hosted","Linux","terraform"]'
+      working_directory: servarr-config
+      tool: tofu
+      backend_config: "bucket=my-tf-state-bucket"
+      ntfy_topic: keystone
+      # post_plan_excerpt stays false (default): plan output can echo resource
+      # names/values and this repo is public.
+
+  # A terragrunt root on GitHub-hosted runners.
+  drift-terragrunt:
+    name: Drift — terragrunt root
+    needs: gate-check
+    if: vars.IAC_DRIFT_ENABLED == 'true'
+    uses: dryvist/ai-workflows/.github/workflows/_iac-drift.yml@main
+    secrets: inherit # zizmor: ignore[secrets-inherit]
+    with:
+      working_directory: live/prod
+      tool: terragrunt

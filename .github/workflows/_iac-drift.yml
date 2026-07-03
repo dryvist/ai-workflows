@@ -1,0 +1,206 @@
+# Reusable: IaC Drift Detection (deterministic — NO AI)
+#
+# Scheduled config-as-code drift detection for any OpenTofu / Terragrunt stack.
+# `plan -detailed-exitcode` is the purpose-built drift detector: exit 0 = in
+# sync, exit 2 = the live infrastructure has drifted from committed code, exit 1
+# = the plan itself failed. Any non-zero exit fails the job so drift is LOUD,
+# never a silent green. Out-of-band changes surface as a deduped GitHub issue
+# (one per working directory) for triage — codify into IaC, or revert by apply.
+#
+# There is intentionally NO Claude / AI step here. Drift detection must be
+# deterministic and cheap to run on every schedule tick; a plan exit code is a
+# precise signal that needs no model.
+#
+# Secrets come from Doppler (dopplerhq/secrets-fetch-action) with
+# inject-env-vars: true, so the consumer's own project supplies whatever the
+# stack needs (AWS_*, TF_VAR_*, backend creds, NTFY_BASE_URL) as env vars with
+# no per-secret mapping in this reusable. Tradeoff: every Doppler secret in the
+# consumer's config is visible to later steps in this job — acceptable because
+# this job runs only first-party plan/init and the notify curl.
+#
+# Generalizes terraform-proxmox/.github/workflows/servarr-config-drift.yml.
+#
+# Usage:
+#   uses: dryvist/ai-workflows/.github/workflows/_iac-drift.yml@main
+name: _iac-drift
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          Runner label(s). A plain string (default ubuntu-latest) runs on a
+          single label. Pass a JSON array string (e.g.
+          '["self-hosted","Linux","terraform"]') to target a self-hosted
+          multi-label runner — it is fromJSON-decoded when it starts with '['.
+        type: string
+        required: false
+        default: ubuntu-latest
+      working_directory:
+        description: "Stack directory to plan (relative to the consumer repo root)."
+        type: string
+        required: true
+      tool:
+        description: "IaC tool: 'tofu' or 'terragrunt'. Default tofu."
+        type: string
+        required: false
+        default: tofu
+      backend_config:
+        description: "Optional value passed as `-backend-config=<value>` to init."
+        type: string
+        required: false
+        default: ""
+      plan_args:
+        description: "Optional extra args appended to the plan command (word-split)."
+        type: string
+        required: false
+        default: ""
+      post_plan_excerpt:
+        description: >-
+          When true, include the last ~60 lines of plan output in the drift
+          issue body. Default false — public-repo leak safety (plan output can
+          echo resource names / values).
+        type: boolean
+        required: false
+        default: false
+      ntfy_topic:
+        description: >-
+          Optional ntfy topic. When set and the job fails, POSTs an alert to
+          $NTFY_BASE_URL/<topic> (NTFY_BASE_URL is Doppler-injected).
+        type: string
+        required: false
+        default: ""
+      timeout_minutes:
+        description: "Job timeout in minutes. Default 15."
+        type: number
+        required: false
+        default: 15
+    # No `secrets:` block: callers forward org/repo secrets via `secrets: inherit`.
+    # Declaring secrets here (even required: false) breaks workflow_call
+    # instantiation for consumers passing inherited secrets.
+  workflow_dispatch:
+    inputs:
+      working_directory:
+        description: "Stack directory to plan (relative to the consumer repo root)."
+        type: string
+        required: true
+      tool:
+        description: "IaC tool: 'tofu' or 'terragrunt'."
+        type: string
+        required: false
+        default: tofu
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls; declare the full
+# set explicitly. No `actions: read` — granting it has historically startup-
+# failed cross-repo workflow_call consumers.
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: iac-drift-${{ github.repository }}-${{ inputs.working_directory }}
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Detect IaC drift
+    runs-on: ${{ startsWith(inputs.runner_label, '[') && fromJSON(inputs.runner_label) || inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: ${{ inputs.timeout_minutes || 15 }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout consumer repository
+        uses: actions/checkout@v6
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          # Pass the real plan exit code through (needed for -detailed-exitcode).
+          tofu_wrapper: false
+
+      - name: Setup Terragrunt
+        if: inputs.tool == 'terragrunt'
+        uses: autero1/action-terragrunt@v3
+        with:
+          terragrunt-version: latest
+          token: ${{ github.token }}
+
+      - name: Fetch secrets from Doppler
+        uses: dopplerhq/secrets-fetch-action@v2
+        with:
+          doppler-token: ${{ secrets.DOPPLER_TOKEN }}
+          # Inject every project secret as an env var for the init/plan/notify
+          # steps below — the reusable can't enumerate a consumer's secret names.
+          inject-env-vars: true
+
+      - name: Init
+        working-directory: ${{ inputs.working_directory }}
+        env:
+          TOOL: ${{ inputs.tool }}
+          BACKEND_CONFIG: ${{ inputs.backend_config }}
+          # Terragrunt drives the OpenTofu binary (no-op when tool == tofu).
+          TERRAGRUNT_TFPATH: tofu
+          TG_TF_PATH: tofu
+        run: |
+          ARGS=(-input=false)
+          [ -n "$BACKEND_CONFIG" ] && ARGS+=("-backend-config=$BACKEND_CONFIG")
+          "$TOOL" init "${ARGS[@]}"
+
+      - name: Plan (detailed-exitcode; non-zero = drift/error, captured not fatal)
+        id: plan
+        working-directory: ${{ inputs.working_directory }}
+        env:
+          TOOL: ${{ inputs.tool }}
+          PLAN_ARGS: ${{ inputs.plan_args }}
+          TERRAGRUNT_TFPATH: tofu
+          TG_TF_PATH: tofu
+        # -lock=false: a read-only drift plan must never block a real apply.
+        run: |
+          set +e
+          read -ra EXTRA <<< "$PLAN_ARGS"
+          "$TOOL" plan -input=false -lock=false -detailed-exitcode "${EXTRA[@]}" 2>&1 | tee plan.txt
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert drift issue
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          PLAN_EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
+          WORKDIR: ${{ inputs.working_directory }}
+          PLAN_FILE: ${{ inputs.working_directory }}/plan.txt
+          POST_PLAN_EXCERPT: ${{ inputs.post_plan_excerpt }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/iac-drift/upsert-drift-issue.js');
+            await run({ github, context, core });
+
+      - name: Fail on drift or plan error
+        if: steps.plan.outputs.exit_code != '0'
+        env:
+          TOOL: ${{ inputs.tool }}
+          EXIT_CODE: ${{ steps.plan.outputs.exit_code }}
+          WORKDIR: ${{ inputs.working_directory }}
+        run: |
+          echo "::error::${TOOL} plan exit ${EXIT_CODE} (1=plan error, 2=drift) in ${WORKDIR}"
+          exit 1
+
+      - name: Alert ntfy on drift/failure
+        if: failure() && inputs.ntfy_topic != ''
+        env:
+          NTFY_TOPIC: ${{ inputs.ntfy_topic }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          test -n "${NTFY_BASE_URL:-}" && curl -fsS --connect-timeout 5 --max-time 15 --retry 2
+          -H "Title: IaC drift ${{ github.repository }}" -H "Priority: high" -H "Tags: warning,drift"
+          -d "IaC drift or plan failure in ${WORKDIR:-stack}. Review: ${RUN_URL}"
+          "${NTFY_BASE_URL%/}/${NTFY_TOPIC}"
+          || echo "ntfy unset/failed; the job failure is the signal."

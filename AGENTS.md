@@ -33,7 +33,14 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
 
 ### Workflow Types
 
-**All workflows use `claude-code-action@v1`** with OIDC auth (`id-token: write`).
+**Most workflows use `claude-code-action@v1`** with OIDC auth (`id-token: write`).
+
+**Exception — deterministic workflows (no AI):** `_iac-drift.yml` is a reusable
+scheduled IaC drift detector that runs `tofu`/`terragrunt plan -detailed-exitcode`
+and opens a deduped GitHub issue per working directory. It contains no Claude
+step — drift is a precise plan exit code, so it needs no model. See
+`docs/PATTERNS.md` "Drift Issue Pattern". It has no dogfood caller (this repo has
+no IaC to plan); consumers wire it via `examples/iac-drift-caller.yml`.
 
 - Prompts rendered via `render-prompt.sh` + step output (envsubst)
 - Static prompts: most workflows

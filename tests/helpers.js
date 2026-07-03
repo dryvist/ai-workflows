@@ -33,6 +33,8 @@ function createMockGithub() {
     rest: {
       issues: {
         get: mock(),
+        create: mock(),
+        update: mock(),
         listComments: mock(),
         listCommentsForRepo: mock(),
         listForRepo: mock(),

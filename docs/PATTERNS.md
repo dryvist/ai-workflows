@@ -212,6 +212,51 @@ jobs:
 
 ---
 
+## Drift Issue Pattern
+
+Used by the deterministic (no-AI) `_iac-drift.yml` reusable workflow to report
+IaC drift as a single, self-healing GitHub issue per stack.
+
+**Workflows**: iac-drift
+
+**Why no AI**: drift is `tofu`/`terragrunt plan -detailed-exitcode` — exit 0 = in
+sync, exit 2 = drift, exit 1 = plan error. That exit code is a precise, cheap
+signal; a model would add cost and nondeterminism for zero gain. The plan step
+captures the code with `set +e` and writes it to `GITHUB_OUTPUT`; a later step
+fails the job on any non-zero code so drift is **loud, never a silent green**
+(same principle as the Gate Pattern's fail-loud posture).
+
+**Dedupe via a hidden body marker**: the reporting script
+(`.github/scripts/iac-drift/upsert-drift-issue.js`) keys off a
+`<!-- iac-drift:<working_directory> -->` marker carried in the issue body, so
+exactly one open issue tracks each working directory. Issues carry the
+`iac-drift` label (auto-created on first use) so the lookup is a cheap labeled
+list, not a full-repo scan.
+
+**Lifecycle**:
+
+- exit 2 (drift) / exit 1 (plan error) → create the issue, or refresh the
+  existing one's "Last seen" timestamp in place. At most one heartbeat comment
+  per calendar day (prefer body edits over comment stacking).
+- exit 0 (clean) → comment "drift cleared" and close the open issue.
+
+**Public-repo leak safety**: the plan excerpt is **off by default**
+(`post_plan_excerpt: false`) because plan output can echo resource names and
+values. Callers opt in only on private repos.
+
+**Secrets**: `dopplerhq/secrets-fetch-action@v2` with `inject-env-vars: true`
+exposes every consumer-project secret as an env var to init/plan/notify, so the
+reusable never enumerates a consumer's `AWS_*` / `TF_VAR_*` names. Tradeoff:
+those env vars are visible to all later steps in the job — acceptable because
+the job runs only first-party plan/init plus the notify curl.
+
+**Gate**: consumers gate the drift jobs on a repo variable
+`IAC_DRIFT_ENABLED == 'true'` (a `::notice` fires when unset), so drift is
+turned off intentionally rather than silently. `tofu-github`'s
+`config/iac-drift.yml` sets that variable per opted-in repo.
+
+---
+
 ## Extracted Script Pattern
 
 Used when workflow logic exceeds the 5-line inline threshold.
