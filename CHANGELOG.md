@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.28.0](https://github.com/dryvist/ai-workflows/compare/v0.27.0...v0.28.0) (2026-07-03)
+
+
+### Features
+
+* **dependency-review:** untrusted-tier AI reviewer with native gate ([b014198](https://github.com/dryvist/ai-workflows/commit/b0141982a633d12d790bb75746ca45c2b5d0c459))
+
 ## [0.27.0](https://github.com/dryvist/ai-workflows/compare/v0.26.2...v0.27.0) (2026-07-03)
 
 
