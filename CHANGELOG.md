@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.2](https://github.com/dryvist/ai-workflows/compare/v0.26.1...v0.26.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* validate check-runs API response in _ai-merge-gate ([#315](https://github.com/dryvist/ai-workflows/issues/315)) ([71d2c1c](https://github.com/dryvist/ai-workflows/commit/71d2c1c845d5f00b6dcac635e2d45a01386c6c69)), closes [#302](https://github.com/dryvist/ai-workflows/issues/302)
+
 ## [0.26.1](https://github.com/dryvist/ai-workflows/compare/v0.26.0...v0.26.1) (2026-07-03)
 
 
