@@ -35,6 +35,10 @@ on:
         description: "Head-branch prefix identifying release PRs"
         type: string
         default: "release-please--"
+    secrets:
+      GH_ACTION_AI_API_KEY:
+        description: "AI provider API key (org secret); declared so callers can pass it explicitly instead of secrets: inherit"
+        required: true
 
 permissions:
   contents: read
