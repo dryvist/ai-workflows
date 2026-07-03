@@ -1,0 +1,20 @@
+# Dogfood: AI risk assessment on this repo's own Renovate PRs.
+#
+# No concurrency block on purpose: a caller sharing the reusable workflow's
+# exact concurrency group causes an opaque 0-job startup_failure.
+
+name: Dogfood Dep Review
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  review:
+    uses: ./.github/workflows/cc-dep-review.yml
+    secrets: inherit
