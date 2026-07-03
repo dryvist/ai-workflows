@@ -56,6 +56,14 @@ on:
         description: "Comma-separated repo names to sweep (org-sweep mode)"
         type: string
         default: ""
+    secrets:
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          JacobPEvans-claude App private key. Enables resolving bot-authored
+          threads, which the default GITHUB_TOKEN usually cannot. Pass it
+          explicitly (preferred, zizmor-clean) or via secrets: inherit. If
+          absent, the workflow falls back to GITHUB_TOKEN and warns per thread.
+        required: false
   workflow_dispatch:
     inputs:
       pr_number:
@@ -81,6 +89,10 @@ jobs:
     name: Resolve bot review threads
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     timeout-minutes: 10
+    # Map the secret to env so the mint steps can skip (and fall back to
+    # GITHUB_TOKEN) when a caller passes no App key, instead of hard-failing.
+    env:
+      APP_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@v6
@@ -91,7 +103,7 @@ jobs:
 
       - name: Mint App token (single repo)
         id: app-token
-        if: vars.GH_APP_CLAUDE_BOT_ID != '' && inputs.sweep_repos == ''
+        if: vars.GH_APP_CLAUDE_BOT_ID != '' && env.APP_KEY != '' && inputs.sweep_repos == ''
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
@@ -99,7 +111,7 @@ jobs:
 
       - name: Mint App token (org sweep)
         id: app-token-sweep
-        if: vars.GH_APP_CLAUDE_BOT_ID != '' && inputs.sweep_repos != ''
+        if: vars.GH_APP_CLAUDE_BOT_ID != '' && env.APP_KEY != '' && inputs.sweep_repos != ''
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
