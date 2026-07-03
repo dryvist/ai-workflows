@@ -191,7 +191,7 @@ The prompt file uses `${MERGE_SHA}` and `${REPO_FULL_NAME}` as placeholders.
 Used by workflows with a pre-check job that decides whether to run the expensive Claude step.
 
 **Workflows**: best-practices (check-recent-activity), post-merge-docs-review (check-relevance), post-merge-tests (check-test-infra),
-ci-fix (should-fix), issue-resolver (eligibility check), cc-dep-review (eligibility check)
+ci-fix (should-fix), issue-resolver (eligibility check), cc-dep-review (eligibility check), cc-release-notes (head-SHA dedup)
 
 **Structure**: Two jobs — a lightweight gating job followed by the Claude job that only runs if the gate passes:
 
@@ -587,7 +587,7 @@ Sticky Comment Pattern below.
 
 ## Sticky Comment Pattern
 
-Comment-only AI workflows (cc-dep-review) post exactly ONE marker-keyed
+Comment-only AI workflows (cc-dep-review, cc-release-notes) post exactly ONE marker-keyed
 comment per PR and update it in place on re-runs instead of stacking
 duplicates.
 

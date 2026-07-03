@@ -1,0 +1,136 @@
+# CC Release Notes
+#
+# Reusable workflow: Claude reads a release-please PR's changelog delta and
+# posts 3-6 human-readable, user-impact highlight bullets as ONE sticky
+# comment. It never edits the PR body or branch — release-please force-pushes
+# its branch and round-trips its body into the GitHub Release, so a comment is
+# the only shape that survives; a human copies highlights into the body if
+# wanted (release-please preserves edits between its markers).
+#
+# Cost bound: the gate embeds the head SHA in the comment marker, so the
+# `synchronize` storm from release-please's body refreshes only pays for
+# Claude when the head actually moved.
+
+name: CC Release Notes
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job(s) on. Defaults to
+          ubuntu-latest.
+        type: string
+        required: false
+        default: ubuntu-latest
+      model:
+        description: "Claude model to use (overrides GH_ACTION_AI_MODEL vars)"
+        type: string
+        default: ""
+      release_bot:
+        description: "Login of the release-please App bot authoring release PRs"
+        type: string
+        default: "jacobpevans-release-please[bot]"
+      branch_prefix:
+        description: "Head-branch prefix identifying release PRs"
+        type: string
+        default: "release-please--"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: cc-release-notes-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
+
+jobs:
+  check-eligibility:
+    name: Check eligibility
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+      head_sha: ${{ steps.check.outputs.head_sha }}
+      release_bot_bare: ${{ steps.check.outputs.release_bot_bare }}
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Check eligibility
+        id: check
+        uses: actions/github-script@v9
+        env:
+          RELEASE_BOT: ${{ inputs.release_bot }}
+          BRANCH_PREFIX: ${{ inputs.branch_prefix }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/release-notes/check-eligibility.js');
+            await run({ github, context, core });
+
+  highlights:
+    name: Write release highlights
+    needs: check-eligibility
+    if: needs.check-eligibility.outputs.should_run == 'true'
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Claude diffs the last tag against HEAD
+
+      - name: Checkout ai-workflows
+        uses: actions/checkout@v6
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: |
+            .github/prompts
+            .github/scripts
+          path: .ai-workflows
+
+      - name: Render prompt
+        id: prompt
+        env:
+          PR_NUMBER: ${{ needs.check-eligibility.outputs.pr_number }}
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/release-notes.md PR_NUMBER
+
+      - name: Run Claude Code
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+        with:
+          prompt: ${{ steps.prompt.outputs.content }}
+          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Write,Bash(git log:*),Bash(git diff:*),Bash(git tag:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          allowed_bots: "github-actions,${{ needs.check-eligibility.outputs.release_bot_bare }}"
+          use_commit_signing: "false"
+
+      - name: Post highlights comment
+        uses: actions/github-script@v9
+        env:
+          BODY_FILE: .claude-release-notes.md
+          MARKER_MATCH: "<!-- cc-release-notes"
+          MARKER_WRITE: "<!-- cc-release-notes sha:${{ needs.check-eligibility.outputs.head_sha }} -->"
+          PR_NUMBER: ${{ needs.check-eligibility.outputs.pr_number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });
