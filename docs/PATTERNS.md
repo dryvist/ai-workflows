@@ -717,18 +717,21 @@ verified-commit wrapper). All of it collapsed into configuration by switching to
 | Fork guard + own-bot loop guard + attempt cap | One job-level **`if:`** (same-repo head + sender not our bot) |
 | Fetch review threads (GraphQL) | `Bash(gh api graphql)` **in the prompt** |
 | Reply + `resolveReviewThread` | `gh api graphql` **in the prompt** (no native action support for this) |
-| Verified commit via `createCommitOnBranch` | `claude-code-action`'s **native** `use_commit_signing: "true"` — see below |
+| Verified commit | Claude edits only; a step commits via the **shared** `verified-commit.js` (reused `ci-fix/commit-fix.js`) |
 
-**Why native commit works here (and not for the write-workflows above).** The
-Verified Commit Pattern exists because `workflow_run`/`issues`/`schedule`/`dispatch`
-triggers give the action no branch to resolve. Review events
-(`pull_request_review`, `pull_request_review_comment`) **carry open-PR context**, so
-`use_commit_signing: "true"` pushes a GitHub-verified commit **straight to the PR
-branch** (docs: *"On open PRs: always pushes directly to the existing PR branch"*).
-That satisfies `required_signatures` and re-triggers CI with no `verified-commit.js`.
-The App token minted by `run-claude-code` (pass `app_id` + `app_private_key`) backs
-both that commit **and** Claude's `gh api graphql` calls — the default `GITHUB_TOKEN`
-is often rejected resolving bot-authored threads (needs Contents-RW).
+**Why NOT native commit here (learned by E2E, 2026-07-03).** `claude-code-action`'s
+docs say `use_commit_signing: "true"` pushes to the PR branch "on open PRs", so the
+first cut relied on it. A live E2E proved it **does not work** when the responder is
+a `workflow_call` reusable triggered by a review event: the action logged
+`base_branch: ""` and committed **nothing**, while Claude still replied and resolved
+the thread — a silent false-positive (thread resolved, fix never landed). The
+open-PR-context branch resolution evidently does not survive the reusable/review-event
+indirection (same class as the `workflow_run` dead-end the Verified Commit Pattern
+documents). So the responder uses the **standard** path: Claude edits + replies +
+resolves; then a `Mint commit token` + `Commit fixes` step lands the working-tree
+edits via the shared `verified-commit.js` (through `ci-fix/commit-fix.js`) — no
+responder-specific code. `app_id`/`app_private_key` on `run-claude-code` still give
+Claude's `gh` the App token needed to resolve bot-authored threads.
 
 **Consumer caller** (`examples/pr-review-responder-caller.yml`): triggers on
 `pull_request_review: [submitted]` + `pull_request_review_comment: [created]`. No
