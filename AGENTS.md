@@ -26,6 +26,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     notification/
     post-merge-docs-review/
     post-merge-tests/
+    release-notes/
     review-thread-resolver/
     shared/
     verification/

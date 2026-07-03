@@ -1,0 +1,24 @@
+# Example consumer caller for cc-release-notes.
+#
+# Claude posts one sticky "Release Highlights (AI)" comment on release-please
+# PRs, refreshed only when the head SHA changes. Non-release PRs are skipped
+# by the gate at negligible cost.
+#
+# No concurrency block on purpose: a caller sharing the reusable workflow's
+# exact concurrency group causes an opaque 0-job startup_failure.
+
+name: Release Notes
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  highlights:
+    uses: dryvist/ai-workflows/.github/workflows/cc-release-notes.yml@main
+    secrets: inherit
