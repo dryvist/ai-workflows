@@ -191,7 +191,7 @@ The prompt file uses `${MERGE_SHA}` and `${REPO_FULL_NAME}` as placeholders.
 Used by workflows with a pre-check job that decides whether to run the expensive Claude step.
 
 **Workflows**: best-practices (check-recent-activity), post-merge-docs-review (check-relevance), post-merge-tests (check-test-infra),
-ci-fix (should-fix), issue-resolver (eligibility check)
+ci-fix (should-fix), issue-resolver (eligibility check), cc-dep-review (eligibility check)
 
 **Structure**: Two jobs — a lightweight gating job followed by the Claude job that only runs if the gate passes:
 
@@ -578,6 +578,37 @@ env:
 
 **Why prompt-based** (not a post-step): `claude-code-action@v1` doesn't expose a PR number output, making post-creation API appends fragile.
 The prompt approach fits the existing `render-prompt.sh` + `envsubst` pattern with no additional steps.
+
+Comment-posting workflows (cc-dep-review) get the same footer from
+`sticky-comment.js` instead, which already knows the PR number — see the
+Sticky Comment Pattern below.
+
+---
+
+## Sticky Comment Pattern
+
+Comment-only AI workflows (cc-dep-review) post exactly ONE marker-keyed
+comment per PR and update it in place on re-runs instead of stacking
+duplicates.
+
+**How it works**: Claude only WRITES its output to a file (no `gh pr comment`
+tool access — deterministic posting beats prompting). A final
+`actions/github-script` step runs `.github/scripts/shared/sticky-comment.js`:
+
+- `BODY_FILE`: the file Claude wrote; missing/empty file → Claude declined →
+  clean no-op (mirrors `pr-from-file.js`).
+- `MARKER_MATCH`: stable HTML-comment prefix identifying the workflow's
+  comment (e.g. `<!-- cc-dep-review -->`); also doubles as the gate's dedup
+  marker.
+- `MARKER_WRITE` (optional): full marker embedded in the new body, letting a
+  workflow carry state in the marker (e.g. a head SHA) while still matching
+  the stable prefix.
+- Provenance: when `RUN_URL` is set, the AI Provenance footer is appended
+  automatically.
+
+**Why comments, not body edits**: bot-owned PR bodies (Renovate,
+release-please) are overwritten by their owners on every refresh; a comment
+survives and keeps authorship clean.
 
 ---
 
