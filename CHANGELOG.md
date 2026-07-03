@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.29.0](https://github.com/dryvist/ai-workflows/compare/v0.28.0...v0.29.0) (2026-07-03)
+
+
+### Features
+
+* add cc-pr-review-responder reusable workflow ([dfd9a5e](https://github.com/dryvist/ai-workflows/commit/dfd9a5e10d5fc093b24779c5f21a5cd6d430d4ab))
+
 ## [0.28.0](https://github.com/dryvist/ai-workflows/compare/v0.27.0...v0.28.0) (2026-07-03)
 
 
