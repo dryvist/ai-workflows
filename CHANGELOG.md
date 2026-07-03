@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.0](https://github.com/dryvist/ai-workflows/compare/v0.25.0...v0.26.0) (2026-07-03)
+
+
+### Features
+
+* add cc-release-notes reusable workflow ([#310](https://github.com/dryvist/ai-workflows/issues/310)) ([fd915df](https://github.com/dryvist/ai-workflows/commit/fd915df17e0b46bafb8d8ad97ee614cf4fbf8735))
+
 ## [0.25.0](https://github.com/dryvist/ai-workflows/compare/v0.24.0...v0.25.0) (2026-07-03)
 
 
