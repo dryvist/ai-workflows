@@ -36,7 +36,19 @@ on:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
         default: ""
-    # No `secrets:` block: callers forward org-level secrets via `secrets: inherit`.
+    secrets:
+      GH_ACTION_AI_API_KEY:
+        description: >-
+          Provider-agnostic AI key mapped to the action's
+          claude_code_oauth_token. Required — the action errors without it.
+        required: true
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          JacobPEvans-claude App private key. Mints the App token used for the
+          verified commit and for resolving bot-authored threads (the default
+          GITHUB_TOKEN usually cannot). Pass it explicitly (preferred,
+          zizmor-clean) rather than via secrets: inherit.
+        required: false
   workflow_dispatch:
     inputs:
       pr_number:

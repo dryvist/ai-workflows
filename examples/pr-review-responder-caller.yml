@@ -34,6 +34,8 @@ jobs:
     # with:
     #   repo_context: "Terraform modules for the homelab Proxmox cluster."
     #
-    # Org-level secrets can only be forwarded via `inherit`. zizmor's secrets-inherit
-    # audit is a false positive here (this is a first-party reusable).
-    secrets: inherit # zizmor: ignore[secrets-inherit]
+    # Forward only the two secrets the reusable declares — explicit and
+    # zizmor-clean, no `secrets: inherit`.
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
