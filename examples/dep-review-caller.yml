@@ -1,13 +1,21 @@
-# Example consumer caller for cc-dep-review.
+# Example consumer caller for cc-dep-review — the untrusted-tier dependency gate.
 #
-# Claude posts one risk-assessment comment on Renovate major/minor PRs.
-# `opened` only: Renovate force-pushes rebases constantly and the assessment
-# does not change; the dedup marker makes any re-run a cheap no-op anyway.
+# On a Renovate/Dependabot PR it: runs the native GitHub Dependency Review gate
+# (authoritative, fails closed on vulnerable deps), has Claude apply one
+# risk:low|medium|high label with an injection-resistant prompt, and posts one
+# sticky risk-assessment comment. `opened` only: Renovate force-pushes rebases
+# constantly and the assessment does not change; the dedup marker makes any
+# re-run a cheap no-op anyway.
 #
 # Permissions are job-scoped and the secret is passed explicitly (not
 # `secrets: inherit`) so zizmor-audited repos stay clean. No concurrency
 # block on purpose: a caller sharing the reusable workflow's exact
 # concurrency group causes an opaque 0-job startup_failure.
+#
+# Auto-merge is OFF by default. To let the risk:low, non-major subset auto-merge
+# once the native gate passes, add `with: { enable_auto_merge: "true" }` below
+# AND change `contents: read` to `contents: write`. Do that per repo only after
+# validating AI verdicts on real Renovate PRs.
 
 name: Dep Review
 
