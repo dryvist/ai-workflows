@@ -1,16 +1,33 @@
-# CC Dep Review
+# CC Dep Review — the untrusted-tier dependency gate.
 #
-# Reusable workflow: Claude posts ONE concise risk assessment comment on
-# Renovate dependency PRs (major/minor by default) — breaking changes,
-# required migrations, repo impact, and a merge/hold verdict. Comment-only:
-# Claude never commits, and the comment is posted deterministically by a
-# workflow step (sticky-comment.js), not by Claude.
+# The INVERSE of Layer 3 (docs/PATTERNS.md → "Dependency bot filtering"): every
+# other AI workflow SKIPS renovate/dependabot PRs; this one runs ONLY on them.
+# It is the untrusted-tier reviewer in the org dependency-freshness model
+# (dryvist/.github → SECURITY.md → Dependency Trust): Renovate auto-merges
+# first-party + trusted minor/patch and opens trusted majors for a human; the
+# untrusted long tail — everything else — lands here.
 #
-# Cost bounds are structural: consumer callers trigger on
-# `pull_request: [opened]` only, the gate skips digest pins / lock-file
-# maintenance / patch bumps, and a dedup marker guarantees at most one Claude
-# run per PR. No check-daily-limit job (actions:read under cross-repo
-# workflow_call causes startup_failure — see issue-backlog-sweep history).
+# Defense in depth. The DETERMINISTIC native gate is authoritative; the AI is
+# one added signal that CANNOT override it:
+#   1. native-gate — actions/dependency-review-action fails closed on vulnerable
+#      or disallowed dependencies, including transitive/lockfile changes. The AI
+#      has no influence over this job.
+#   2. review — Claude assesses risk with an injection-resistant prompt (treats
+#      all package-supplied text as hostile data), applies exactly one
+#      risk:low|medium|high label, and writes an advisory that a workflow step
+#      posts as ONE sticky comment. Claude never merges, approves, commits, or
+#      posts the comment itself.
+#   3. auto-merge — OPT-IN (enable_auto_merge, default "false"). Merges only when
+#      the native gate passed AND the AI verdict is risk:low AND the update is not
+#      major. Ships OFF: run in review+label mode first, then enable per repo once
+#      you have validated verdicts on real Renovate PRs (and grant the caller
+#      contents: write).
+#
+# Cost bounds are structural: consumer callers trigger on `pull_request: [opened]`
+# only, check-eligibility skips digest pins / lock-file maintenance / out-of-scope
+# bump types, and a dedup marker guarantees at most one Claude run per PR. No
+# check-daily-limit job (actions:read under cross-repo workflow_call causes
+# startup_failure — see issue-backlog-sweep history).
 
 name: CC Dep Review
 
@@ -25,7 +42,7 @@ on:
         required: false
         default: ubuntu-latest
       model:
-        description: "Claude model to use (overrides GH_ACTION_AI_MODEL_CODE and GH_ACTION_AI_MODEL vars)"
+        description: "Claude model (overrides GH_ACTION_AI_MODEL_REVIEW / GH_ACTION_AI_MODEL_CODE / GH_ACTION_AI_MODEL vars)"
         type: string
         default: ""
       update_types:
@@ -40,13 +57,32 @@ on:
         description: "Comma-separated bot logins whose PRs are reviewed"
         type: string
         default: "renovate[bot]"
+      enable_auto_merge:
+        description: >-
+          "true" to auto-merge the risk:low, non-major subset once the native
+          dependency-review gate passes. Default "false" ships review+label only.
+          Flip on per repo AFTER validating AI verdicts on real Renovate PRs, and
+          grant the caller `contents: write`.
+        type: string
+        required: false
+        default: "false"
+      fail_on_severity:
+        description: >-
+          dependency-review-action severity threshold that fails the native gate
+          (low | moderate | high | critical).
+        type: string
+        required: false
+        default: moderate
     secrets:
       GH_ACTION_AI_API_KEY:
         description: "AI provider API key (org secret); declared so callers can pass it explicitly instead of secrets: inherit"
         required: true
 
+# Reusable-workflow ceiling. contents: write is used ONLY by the opt-in
+# auto-merge job; every other job narrows to contents: read below. A caller that
+# does not enable auto-merge can safely grant only contents: read.
 permissions:
-  contents: read
+  contents: write
   id-token: write
   pull-requests: write
 
@@ -85,6 +121,26 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/dep-review/check-eligibility.js');
             await run({ github, context, core });
 
+  # Deterministic, AI-independent gate. Fails closed on vulnerable/disallowed
+  # deps (incl. transitive + lockfile). Its check status is authoritative; the
+  # AI review below cannot override it.
+  native-gate:
+    name: Native gate (dependency review)
+    needs: check-eligibility
+    if: needs.check-eligibility.outputs.should_run == 'true'
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v6
+      - name: GitHub Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: ${{ inputs.fail_on_severity }}
+          comment-summary-in-pr: on-failure
+
   review:
     name: Review dependency update
     needs: check-eligibility
@@ -117,14 +173,17 @@ jobs:
           UPDATE_TYPE: ${{ needs.check-eligibility.outputs.update_type }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/dep-review.md PR_NUMBER UPDATE_TYPE
 
+      # Read-mostly reviewer. Its only mutations are (1) applying one risk:* label
+      # via `gh pr edit` and (2) writing .claude-dep-review.md (posted by the next
+      # step). It cannot merge, approve, comment directly, or commit.
       - name: Run Claude Code
         uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
-          allowed_tools: "Read,Glob,Grep,LS,Write,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh api repos/*),WebFetch(domain:github.com)"
+          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_REVIEW || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Write,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr edit:*),Bash(gh api repos/*),WebFetch(domain:github.com)"
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          allowed_bots: "github-actions,renovate"
+          allowed_bots: "github-actions,renovate,dependabot"
           use_commit_signing: "false"
 
       - name: Post review comment
@@ -141,3 +200,35 @@ jobs:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
             await run({ github, context, core });
+
+  auto-merge:
+    name: Auto-merge (risk:low subset, opt-in)
+    needs: [check-eligibility, native-gate, review]
+    # ALL must hold: opt-in enabled; not a major; native gate passed; review
+    # completed. The final risk:low check is a fresh, deterministic label read.
+    if: >-
+      inputs.enable_auto_merge == 'true' &&
+      needs.check-eligibility.outputs.update_type != 'major' &&
+      needs.native-gate.result == 'success' &&
+      needs.review.result == 'success'
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge only if AI verdict is risk:low
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.check-eligibility.outputs.pr_number }}
+        run: |
+          labels=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
+          if ! grep -qx 'risk:low' <<<"$labels"; then
+            echo "::notice::AI verdict is not risk:low — leaving for human review."
+            exit 0
+          fi
+          # Direct API squash-merge. platformAutomerge is deliberately NOT used
+          # (GitHub's merge queue stalls; see renovate-presets.json). If branch
+          # protection blocks the merge, leave the PR for a human — do not fail.
+          if ! gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch; then
+            echo "::notice::risk:low + gates green, but merge was blocked (branch protection?) — leaving for a human."
+          fi

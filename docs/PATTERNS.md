@@ -384,23 +384,26 @@ Loop prevention is handled by the attempt counter (`check-attempts.js`, max 2 at
 
 ### Inverse of Layer 3: the dependency-review gate
 
-`_dependency-review.yml` is the deliberate **inverse** of Layer 3 — it runs ONLY on
+`cc-dep-review.yml` is the deliberate **inverse** of Layer 3 — it runs ONLY on
 dependency-bot PRs and skips everything else. It is the untrusted-tier reviewer in the org
 dependency-freshness model (dryvist/.github → SECURITY.md → Dependency Trust): Renovate
 auto-merges first-party + trusted minor/patch and opens trusted majors for a human; the
 untrusted long tail lands in this workflow.
 
-```yaml
-  guard:
-    if: >-
-      github.event_name == 'pull_request' &&
-      (github.actor == 'renovate[bot]' || github.actor == 'dependabot[bot]')
+A `check-eligibility` job is the inverse gate: it runs the paid Claude review ONLY when the
+PR author is a dependency bot (`bot_authors`), the highest bump type is in scope
+(`update_types`), and no prior review comment exists (dedup marker) — otherwise every
+downstream job skips cleanly (grey, not red).
+
+```js
+// .github/scripts/dep-review/check-eligibility.js
+if (!authors.includes(login)) return skip(`author "${login}" is not a dependency bot`);
 ```
 
 Defense in depth: a native `actions/dependency-review-action` job is authoritative (fails
 closed on vulnerable/transitive deps, AI-independent); the Claude reviewer is one added
-signal that applies a `risk:*` label; opt-in auto-merge fires only on `risk:low` +
-native-gate-green + non-major.
+signal that applies a `risk:*` label and posts one sticky advisory comment; opt-in
+auto-merge fires only on `risk:low` + native-gate-green + non-major.
 
 ### Layer 4: Post-merge commit-author check (JS scripts)
 
