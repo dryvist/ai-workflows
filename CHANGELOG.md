@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.30.1](https://github.com/dryvist/ai-workflows/compare/v0.30.0...v0.30.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* responder forwards explicit secrets, not inherit ([#330](https://github.com/dryvist/ai-workflows/issues/330)) ([d8e06cc](https://github.com/dryvist/ai-workflows/commit/d8e06cc03f98e8baa1d3136f6a7c1dd5eb78a093))
+
 ## [0.30.0](https://github.com/dryvist/ai-workflows/compare/v0.29.1...v0.30.0) (2026-07-04)
 
 
