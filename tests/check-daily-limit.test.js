@@ -28,7 +28,7 @@ describe('check-daily-limit', () => {
     expect(core.failures).toHaveLength(0);
   });
 
-  it('calls setFailed when daily limit is reached', async () => {
+  it('sets should_run=false (no failure) when daily limit is reached', async () => {
     process.env.WORKFLOW_FILE = 'dryvist/ai-workflows/.github/workflows/cc-code-simplifier.yml@refs/heads/main';
     process.env.DAILY_RUN_LIMIT = '3';
 
@@ -40,9 +40,9 @@ describe('check-daily-limit', () => {
 
     await run({ github, context, core });
 
-    expect(core.failures).toHaveLength(1);
-    expect(core.failures[0]).toMatch(/Daily limit reached \(3\/3/);
-    expect(core.getOutput('should_run')).toBeUndefined();
+    // Cap reached is a clean skip, not a failure — downstream gates on should_run.
+    expect(core.failures).toHaveLength(0);
+    expect(core.getOutput('should_run')).toBe('false');
   });
 
   it('excludes runs older than 24 hours from count', async () => {
@@ -209,7 +209,7 @@ describe('check-daily-limit', () => {
 
     // Should only fetch one page since limit is hit within first page
     expect(github.rest.actions.listWorkflowRuns.mock.calls).toHaveLength(1);
-    expect(core.failures).toHaveLength(1);
-    expect(core.failures[0]).toMatch(/Daily limit reached \(5\/5/);
+    expect(core.failures).toHaveLength(0);
+    expect(core.getOutput('should_run')).toBe('false');
   });
 });

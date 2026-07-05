@@ -74,7 +74,11 @@ module.exports = async ({ github, context, core }) => {
   }
 
   if (count >= dailyRunLimit) {
-    core.setFailed(`Daily limit reached (${count}/${dailyRunLimit} runs in last 24h)`);
+    // Cap reached: skip the run cleanly via the should_run output the downstream
+    // jobs gate on. Do NOT setFailed — the daily cap is by-design cost control,
+    // not an error, and a red run would be false-alarm noise.
+    core.setOutput('should_run', 'false');
+    core.info(`Daily limit reached (${count}/${dailyRunLimit} runs in last 24h) — skipping`);
     return;
   }
 
