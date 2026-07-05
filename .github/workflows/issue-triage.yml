@@ -57,12 +57,17 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issue_number || '0' }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-triage.md ISSUE_NUMBER
 
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
+      # Use run-claude-code (mints a JacobPEvans-claude App token) instead of the
+      # raw action's OIDC exchange: that exchange 401s ("no write access") on
+      # private repos where the App has write but the OIDC identity does not.
+      - name: Run Claude Code
+        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          allowed_bots: "github-actions"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh search:*)"
-            --model ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh search:*)"
+          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          use_commit_signing: "false"
+          allowed_bots: "github-actions"
