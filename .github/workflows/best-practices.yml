@@ -25,7 +25,6 @@ on:
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
-  actions: read
   contents: read
   id-token: write
   issues: write
@@ -62,8 +61,9 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      actions: read
+    # No actions:read requirement — the check fails open if it cannot list runs,
+    # so callers need not grant actions:read (which they omit and startup-fail on).
+    permissions: {}
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
