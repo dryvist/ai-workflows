@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.30.2](https://github.com/dryvist/ai-workflows/compare/v0.30.1...v0.30.2) (2026-07-05)
+
+
+### Bug Fixes
+
+* daily-limit gate robustness (skip on cap + fail-open, no caller actions:read) ([#332](https://github.com/dryvist/ai-workflows/issues/332)) ([a529037](https://github.com/dryvist/ai-workflows/commit/a529037d1936645e2a90e3734df915bfb7afa7ac))
+
 ## [0.30.1](https://github.com/dryvist/ai-workflows/compare/v0.30.0...v0.30.1) (2026-07-05)
 
 
