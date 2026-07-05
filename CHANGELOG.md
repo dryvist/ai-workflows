@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.30.3](https://github.com/dryvist/ai-workflows/compare/v0.30.2...v0.30.3) (2026-07-05)
+
+
+### Bug Fixes
+
+* issue workflows mint an App token instead of OIDC exchange ([4c2ae28](https://github.com/dryvist/ai-workflows/commit/4c2ae28174c75c8c51625bd18cddd88bd9f4246b))
+
 ## [0.30.2](https://github.com/dryvist/ai-workflows/compare/v0.30.1...v0.30.2) (2026-07-05)
 
 
