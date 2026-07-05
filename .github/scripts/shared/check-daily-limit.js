@@ -39,38 +39,48 @@ module.exports = async ({ github, context, core }) => {
   let count = 0;
   let hasMore = true;
 
-  while (hasMore && count < dailyRunLimit) {
-    const { data } = await github.rest.actions.listWorkflowRuns({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      workflow_id: workflowId,
-      status: 'completed',
-      per_page: perPage,
-      page,
-    });
+  try {
+    while (hasMore && count < dailyRunLimit) {
+      const { data } = await github.rest.actions.listWorkflowRuns({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        workflow_id: workflowId,
+        status: 'completed',
+        per_page: perPage,
+        page,
+      });
 
-    const runs = data.workflow_runs || [];
+      const runs = data.workflow_runs || [];
 
-    if (runs.length === 0) {
-      break;
-    }
+      if (runs.length === 0) {
+        break;
+      }
 
-    for (const run of runs) {
-      if (new Date(run.created_at) <= since) {
+      for (const run of runs) {
+        if (new Date(run.created_at) <= since) {
+          hasMore = false;
+          break;
+        }
+        count += 1;
+        if (count >= dailyRunLimit) {
+          break;
+        }
+      }
+
+      if (runs.length < perPage) {
         hasMore = false;
-        break;
-      }
-      count += 1;
-      if (count >= dailyRunLimit) {
-        break;
+      } else if (hasMore && count < dailyRunLimit) {
+        page += 1;
       }
     }
-
-    if (runs.length < perPage) {
-      hasMore = false;
-    } else if (hasMore && count < dailyRunLimit) {
-      page += 1;
-    }
+  } catch (err) {
+    // Listing runs needs `actions: read`. If a caller's token lacks it the API
+    // 403s — fail OPEN (allow the run) rather than blocking. This lets the
+    // reusable drop its `actions: read` requirement so callers no longer
+    // startup-fail for omitting it; a caller that DOES grant it still gets the cap.
+    core.warning(`Could not read workflow runs (${err.message}); skipping daily-limit enforcement for this run.`);
+    core.setOutput('should_run', 'true');
+    return;
   }
 
   if (count >= dailyRunLimit) {

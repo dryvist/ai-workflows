@@ -212,4 +212,17 @@ describe('check-daily-limit', () => {
     expect(core.failures).toHaveLength(0);
     expect(core.getOutput('should_run')).toBe('false');
   });
+
+  it('fails open (should_run=true, no failure) when listing runs errors', async () => {
+    process.env.WORKFLOW_FILE = 'owner/repo/.github/workflows/test.yml@refs/heads/main';
+    process.env.DAILY_RUN_LIMIT = '5';
+
+    // Simulate the 403 a caller token without `actions: read` would get.
+    github.rest.actions.listWorkflowRuns.mockRejectedValue(new Error('Resource not accessible by integration'));
+
+    await run({ github, context, core });
+
+    expect(core.failures).toHaveLength(0);
+    expect(core.getOutput('should_run')).toBe('true');
+  });
 });

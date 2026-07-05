@@ -5,14 +5,17 @@ const { mock } = require('bun:test');
 function createMockCore() {
   const outputs = new Map();
   const infos = [];
+  const warnings = [];
   const failures = [];
   return {
     setOutput: mock((key, value) => outputs.set(key, value)),
     setFailed: mock((msg) => failures.push(msg)),
     info: mock((msg) => infos.push(msg)),
+    warning: mock((msg) => warnings.push(msg)),
     getOutput: (key) => outputs.get(key),
     outputs,
     infos,
+    warnings,
     failures,
   };
 }
