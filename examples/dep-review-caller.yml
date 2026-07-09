@@ -11,11 +11,6 @@
 # `secrets: inherit`) so zizmor-audited repos stay clean. No concurrency
 # block on purpose: a caller sharing the reusable workflow's exact
 # concurrency group causes an opaque 0-job startup_failure.
-#
-# Auto-merge is OFF by default. To let the risk:low, non-major subset auto-merge
-# once the native gate passes, add `with: { enable_auto_merge: "true" }` below
-# AND change `contents: read` to `contents: write`. Do that per repo only after
-# validating AI verdicts on real Renovate PRs.
 
 name: Dep Review
 

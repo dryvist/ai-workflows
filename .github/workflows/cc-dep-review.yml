@@ -7,8 +7,8 @@
 # first-party + trusted minor/patch and opens trusted majors for a human; the
 # untrusted long tail — everything else — lands here.
 #
-# Defense in depth. The DETERMINISTIC native gate is authoritative; the AI is
-# one added signal that CANNOT override it:
+# Defense in depth, two layers. The DETERMINISTIC native gate is authoritative;
+# the AI is one added signal that CANNOT override it:
 #   1. native-gate — actions/dependency-review-action fails closed on vulnerable
 #      or disallowed dependencies, including transitive/lockfile changes. The AI
 #      has no influence over this job.
@@ -17,11 +17,6 @@
 #      risk:low|medium|high label, and writes an advisory that a workflow step
 #      posts as ONE sticky comment. Claude never merges, approves, commits, or
 #      posts the comment itself.
-#   3. auto-merge — OPT-IN (enable_auto_merge, default "false"). Merges only when
-#      the native gate passed AND the AI verdict is risk:low AND the update is not
-#      major. Ships OFF: run in review+label mode first, then enable per repo once
-#      you have validated verdicts on real Renovate PRs (and grant the caller
-#      contents: write).
 #
 # Cost bounds are structural: consumer callers trigger on `pull_request: [opened]`
 # only, check-eligibility skips digest pins / lock-file maintenance / out-of-scope
@@ -57,15 +52,6 @@ on:
         description: "Comma-separated bot logins whose PRs are reviewed"
         type: string
         default: "renovate[bot]"
-      enable_auto_merge:
-        description: >-
-          "true" to auto-merge the risk:low, non-major subset once the native
-          dependency-review gate passes. Default "false" ships review+label only.
-          Flip on per repo AFTER validating AI verdicts on real Renovate PRs, and
-          grant the caller `contents: write`.
-        type: string
-        required: false
-        default: "false"
       fail_on_severity:
         description: >-
           dependency-review-action severity threshold that fails the native gate
@@ -78,11 +64,10 @@ on:
         description: "AI provider API key (org secret); declared so callers can pass it explicitly instead of secrets: inherit"
         required: true
 
-# Reusable-workflow ceiling. contents: write is used ONLY by the opt-in
-# auto-merge job; every other job narrows to contents: read below. A caller that
-# does not enable auto-merge can safely grant only contents: read.
+# Reusable-workflow ceiling. This workflow never merges or pushes commits, so
+# no job needs contents: write; every job narrows further below.
 permissions:
-  contents: write
+  contents: read
   id-token: write
   pull-requests: write
 
@@ -200,35 +185,3 @@ jobs:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
             await run({ github, context, core });
-
-  auto-merge:
-    name: Auto-merge (risk:low subset, opt-in)
-    needs: [check-eligibility, native-gate, review]
-    # ALL must hold: opt-in enabled; not a major; native gate passed; review
-    # completed. The final risk:low check is a fresh, deterministic label read.
-    if: >-
-      inputs.enable_auto_merge == 'true' &&
-      needs.check-eligibility.outputs.update_type != 'major' &&
-      needs.native-gate.result == 'success' &&
-      needs.review.result == 'success'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Merge only if AI verdict is risk:low
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ needs.check-eligibility.outputs.pr_number }}
-        run: |
-          labels=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '.labels[].name')
-          if ! grep -qx 'risk:low' <<<"$labels"; then
-            echo "::notice::AI verdict is not risk:low — leaving for human review."
-            exit 0
-          fi
-          # Direct API squash-merge. platformAutomerge is deliberately NOT used
-          # (GitHub's merge queue stalls; see renovate-presets.json). If branch
-          # protection blocks the merge, leave the PR for a human — do not fail.
-          if ! gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch; then
-            echo "::notice::risk:low + gates green, but merge was blocked (branch protection?) — leaving for a human."
-          fi
