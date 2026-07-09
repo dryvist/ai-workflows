@@ -1,11 +1,13 @@
-# CC Dep Review — the untrusted-tier dependency gate.
+# CC Dep Review — supply-chain defense in depth for dependency-bot PRs.
 #
 # The INVERSE of Layer 3 (docs/PATTERNS.md → "Dependency bot filtering"): every
 # other AI workflow SKIPS renovate/dependabot PRs; this one runs ONLY on them.
-# It is the untrusted-tier reviewer in the org dependency-freshness model
-# (dryvist/.github → SECURITY.md → Dependency Trust): Renovate auto-merges
-# first-party + trusted minor/patch and opens trusted majors for a human; the
-# untrusted long tail — everything else — lands here.
+# It runs on EVERY Renovate/Dependabot PR (not a trust-tier subset), reported
+# under the separate AI Merge Gate. Renovate owns all merging under the org
+# dependency-freshness model (dryvist/.github → SECURITY.md → Dependency
+# Trust): minor/patch auto-merges publisher-agnostically after a 3-day soak +
+# green CI; majors open for review. This workflow NEVER merges: it is a
+# deterministic native gate plus an advisory AI signal.
 #
 # Defense in depth, two layers. The DETERMINISTIC native gate is authoritative;
 # the AI is one added signal that CANNOT override it:
