@@ -110,7 +110,7 @@ runs:
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
       continue-on-error: true
-      uses: actions/checkout@v6
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         repository: dryvist/ai-assistant-instructions
         ref: main

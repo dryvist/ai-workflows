@@ -63,7 +63,7 @@ jobs:
       release_bot_bare: ${{ steps.check.outputs.release_bot_bare }}
     steps:
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
@@ -94,12 +94,12 @@ jobs:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0  # Claude diffs the last tag against HEAD
 
       - name: Checkout ai-workflows
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: |
