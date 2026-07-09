@@ -1,0 +1,37 @@
+# CI Gate — thin wrapper over the dryvist org reusable workflow
+#
+# Delegates markdown lint (and the other standard checks) to the org
+# orchestrator `dryvist/.github/.github/workflows/_ci-gate.yml@main`.
+
+name: CI Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  standard-ci:
+    name: Standard CI
+    permissions:
+      contents: read
+      pull-requests: read
+      # The org gate's queue watchdog cancels stuck sibling jobs via the
+      # Actions API; a called workflow can never exceed the caller's grant, so
+      # `actions: write` must be granted here or the run fails at graph
+      # validation (startup_failure).
+      actions: write
+    uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
+    with:
+      markdown_lint: true
+      filters: |
+        markdown:
+          - '**.md'
+          - '.markdownlint*'
