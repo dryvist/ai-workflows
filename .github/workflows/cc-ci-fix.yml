@@ -71,7 +71,7 @@ jobs:
       attempt: ${{ steps.check-attempts.outputs.attempt }}
     steps:
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
@@ -105,7 +105,7 @@ jobs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
@@ -135,7 +135,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
@@ -165,7 +165,7 @@ jobs:
       failure_logs: ${{ steps.get-logs.outputs.logs }}
     steps:
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: .github/scripts
@@ -199,13 +199,13 @@ jobs:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
 
       - name: Checkout ai-workflows prompts
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
           sparse-checkout: |

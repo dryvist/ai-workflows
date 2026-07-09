@@ -36,7 +36,7 @@ jobs:
     name: Copilot Setup Steps
     runs-on: ${{ inputs.runner_label }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # Installs Nix only. Does NOT validate flakes.
       # Replaced nix-installer-action@v21 (Node.js 20, deprecated June 2026).
