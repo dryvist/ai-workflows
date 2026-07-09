@@ -18,8 +18,9 @@ permissions:
   pull-requests: read
 
 jobs:
-  standard-ci:
-    name: Standard CI
+  # Job id `gate` is the org-canonical caller shape: the required status
+  # check context is `gate / Merge Gate` on every consumer.
+  gate:
     permissions:
       contents: read
       pull-requests: read
@@ -31,6 +32,10 @@ jobs:
     uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
     with:
       markdown_lint: true
+      # Staged: the pre-existing automation surface has ~45 workflow-security
+      # findings (many in gh-aw generated .lock.yml files). Enable once #344
+      # is resolved.
+      zizmor: false
       filters: |
         markdown:
           - '**.md'
