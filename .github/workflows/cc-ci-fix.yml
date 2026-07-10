@@ -24,9 +24,12 @@ on:
         type: string
         default: "5"
       repo_context:
-        description: "Brief description of the repository"
+        description: >-
+          Brief description of the repository. Optional — defaults to the
+          repo's own GitHub description (github.event.repository.description).
         type: string
-        required: true
+        required: false
+        default: ""
       ci_structure:
         description: "Description of CI workflows and what they check"
         type: string
@@ -216,7 +219,7 @@ jobs:
       - name: Render prompt
         id: prompt
         env:
-          REPO_CONTEXT: ${{ inputs.repo_context }}
+          REPO_CONTEXT: ${{ inputs.repo_context || github.event.repository.description }}
           CI_STRUCTURE: ${{ inputs.ci_structure }}
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE

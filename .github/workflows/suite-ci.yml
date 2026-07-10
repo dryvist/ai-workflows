@@ -29,17 +29,23 @@ on:
         required: false
         default: ubuntu-latest
       repo_context:
-        description: "Brief description of the repository"
+        description: >-
+          Brief description of the repository. Optional — defaults to the repo's
+          own GitHub description (github.event.repository.description).
         type: string
-        required: true
+        required: false
+        default: ""
       ci_structure:
         description: "Description of CI workflows and what they check"
         type: string
         required: true
       workflow_name:
-        description: "Name of the CI workflow that failed (for issue creation)"
+        description: >-
+          Name of the CI workflow that failed (for issue creation). Optional —
+          defaults to the triggering workflow's name (github.event.workflow_run.name).
         type: string
-        required: true
+        required: false
+        default: ""
       extra_tools:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string

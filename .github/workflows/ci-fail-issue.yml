@@ -24,9 +24,13 @@ on:
         required: false
         default: ubuntu-latest
       workflow_name:
-        description: "Name of the CI workflow that failed"
+        description: >-
+          Name of the CI workflow that failed. Optional — defaults to the
+          triggering workflow's name (github.event.workflow_run.name, falling
+          back to github.workflow).
         type: string
-        required: true
+        required: false
+        default: ""
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -89,7 +93,7 @@ jobs:
         env:
           COMMIT_SHA: ${{ needs.should-create.outputs.commit_sha }}
           RUN_URL: ${{ needs.should-create.outputs.run_url }}
-          WORKFLOW_NAME: ${{ inputs.workflow_name }}
+          WORKFLOW_NAME: ${{ inputs.workflow_name || github.event.workflow_run.name || github.workflow }}
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fail-issue/create-failure-issue.js');
