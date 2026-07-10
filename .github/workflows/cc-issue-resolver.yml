@@ -18,9 +18,12 @@ on:
         required: false
         default: ubuntu-latest
       repo_context:
-        description: "Brief description of the repository for Claude's context"
+        description: >-
+          Brief description of the repository for Claude's context. Optional —
+          defaults to the repo's GitHub description (github.event.repository.description).
         type: string
-        required: true
+        required: false
+        default: ""
       extra_tools:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
@@ -130,7 +133,7 @@ jobs:
       - name: Render prompt
         id: prompt
         env:
-          REPO_CONTEXT: ${{ inputs.repo_context }}
+          REPO_CONTEXT: ${{ inputs.repo_context || github.event.repository.description }}
           ISSUE_NUMBER: ${{ needs.eligibility-check.outputs.issue_number }}
           ISSUE_TITLE: ${{ needs.eligibility-check.outputs.issue_title }}
           ISSUE_BODY: ${{ needs.eligibility-check.outputs.issue_body }}

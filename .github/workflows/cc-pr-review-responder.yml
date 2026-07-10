@@ -118,7 +118,7 @@ jobs:
         id: prompt
         env:
           PR_NUMBER: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
-          REPO_CONTEXT: ${{ inputs.repo_context }}
+          REPO_CONTEXT: ${{ inputs.repo_context || github.event.repository.description }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/pr-review-responder.md PR_NUMBER REPO_CONTEXT
 
       # Claude only EDITS files + drives reply/resolveReviewThread via `gh api graphql`;
