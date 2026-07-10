@@ -127,7 +127,7 @@ jobs:
       # Claude only JUDGES (read-only + writes the JSON verdict file). It applies no
       # labels — the App-token step below does that so `ai:ready` fires the resolver.
       - name: Execute Claude Code
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # v1.0.170
         with:
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
