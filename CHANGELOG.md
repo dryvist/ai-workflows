@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.31.0](https://github.com/dryvist/ai-workflows/compare/v0.30.3...v0.31.0) (2026-07-12)
+
+
+### Features
+
+* **reusables:** derive repo_context/workflow_name from github.* context ([#346](https://github.com/dryvist/ai-workflows/issues/346)) ([7828ea5](https://github.com/dryvist/ai-workflows/commit/7828ea58ca9a7c3a9ddc6987a0671551bd21524b))
+
+
+### Bug Fixes
+
+* **lint:** clear markdown-lint failures blocking release 0.31.0 ([#349](https://github.com/dryvist/ai-workflows/issues/349)) ([d99dfb0](https://github.com/dryvist/ai-workflows/commit/d99dfb039bc0857df6945dd1e0228edd277b39a0))
+
 ## [0.30.3](https://github.com/dryvist/ai-workflows/compare/v0.30.2...v0.30.3) (2026-07-05)
 
 
