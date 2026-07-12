@@ -4,7 +4,7 @@ All PR-creating prompts must include this footer at the bottom of the PR body.
 
 ## Format
 
-```
+```markdown
 ---
 > **AI Provenance** | Workflow: `${WORKFLOW_NAME}` | [Run ${RUN_ID}](${RUN_URL}) | Event: `${EVENT_NAME}` | Actor: `${TRIGGER_ACTOR}`
 ```
@@ -12,7 +12,7 @@ All PR-creating prompts must include this footer at the bottom of the PR body.
 ## Variables
 
 | Variable | Source | Description |
-|----------|--------|-------------|
+| ---------- | -------- | ------------- |
 | `WORKFLOW_NAME` | `github.workflow` | Name of the calling workflow |
 | `RUN_ID` | `github.run_id` | Numeric run ID |
 | `RUN_URL` | Constructed from `github.server_url`, `github.repository`, `github.run_id` | Link to workflow run |

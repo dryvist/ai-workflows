@@ -11,7 +11,8 @@ Add ai-workflows reusable workflows to your repository using thin caller files.
 
 ## How It Works
 
-Each reusable workflow in this repo exposes `on: workflow_call`. You create a small "thin caller" file in your repo that calls it with `uses:`. The reusable workflow handles all the logic; you just provide triggers, secrets, and permissions.
+Each reusable workflow in this repo exposes `on: workflow_call`. You create a small "thin caller" file in your repo that calls it with `uses:`.
+The reusable workflow handles all the logic; you just provide triggers, secrets, and permissions.
 
 ## Thin Caller Template
 
@@ -33,7 +34,10 @@ jobs:
 
 **Important**: Consumer callers must declare `permissions:` explicitly. CodeQL and branch protection rules may block merges if permissions are missing.
 
-**Versioning**: Always pin `@main`, never a SemVer tag or SHA. `ai-workflows` is a first-party `dryvist/*` reusable workflow, so consumers ride `@main` and pick up fixes the moment they land — no per-repo Renovate PR. SemVer tags still exist (release-please keeps bumping them for the changelog and the per-run resolved-SHA audit trail), but callers do not pin them. The org scanners are configured to allow `@main`; see [CI/CD policy → scanner posture](https://docs.jacobpevans.com/infrastructure/cicd/policy#scanner-posture-for-self-references).
+**Versioning**: Always pin `@main`, never a SemVer tag or SHA. `ai-workflows` is a first-party `dryvist/*` reusable workflow, so consumers ride
+`@main` and pick up fixes the moment they land — no per-repo Renovate PR. SemVer tags still exist (release-please keeps bumping them for the
+changelog and the per-run resolved-SHA audit trail), but callers do not pin them. The org scanners are configured to allow `@main`; see
+[CI/CD policy → scanner posture](https://docs.jacobpevans.com/infrastructure/cicd/policy#scanner-posture-for-self-references).
 
 ---
 
@@ -93,7 +97,8 @@ Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (opt
 
 #### `cc-post-merge-docs-review.yml`
 
-Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
+Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`.
+`push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
 # Required permissions for the dispatch pattern
@@ -108,7 +113,8 @@ See [docs/PATTERNS.md — Post-Merge Dispatch Pattern](PATTERNS.md#post-merge-di
 
 #### `cc-post-merge-tests.yml`
 
-Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`. `push` events are not directly supported by `claude-code-action@v1`.
+Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`.
+`push` events are not directly supported by `claude-code-action@v1`.
 
 ```yaml
 # Required permissions for the dispatch pattern

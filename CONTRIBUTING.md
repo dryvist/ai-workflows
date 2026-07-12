@@ -116,7 +116,8 @@ Never mix programming languages within a file. Each file must contain a single l
 - `.js` files — only JavaScript (extracted scripts)
 - `.sh` files — only shell scripts
 
-**Inline threshold**: Shell commands of 5 lines or fewer may be embedded directly in YAML `run:` steps. Anything longer must be extracted to a `.sh` or `.js` file.
+**Inline threshold**: Shell commands of 5 lines or fewer may be embedded directly in YAML `run:` steps. Anything longer must be extracted to a
+`.sh` or `.js` file.
 
 **Pattern for extracted JS scripts** (`actions/github-script`):
 
@@ -139,12 +140,14 @@ Pass `${{ }}` expression values via `env:` on the step, then read via `process.e
 
 ## Authentication
 
-- `GH_ACTION_AI_API_KEY` (secret) + `GH_ACTION_AI_BASE_URL` (var) — provider-agnostic; all Claude Code workflows reference these generic names, mapped to a real provider at the org level (never reference a provider-specific secret in a workflow)
+- `GH_ACTION_AI_API_KEY` (secret) + `GH_ACTION_AI_BASE_URL` (var) — provider-agnostic; all Claude Code workflows reference these generic names,
+  mapped to a real provider at the org level (never reference a provider-specific secret in a workflow)
 - Write workflows use `use_commit_signing: "true"` (API mode); no SSH key needed
 
 ## Permissions
 
-Workflow-level `permissions:` must be the union of all job-level permissions. Job-level permissions cannot escalate beyond the workflow-level maximum. Consumer repo callers must also declare sufficient permissions.
+Workflow-level `permissions:` must be the union of all job-level permissions. Job-level permissions cannot escalate beyond the workflow-level
+maximum. Consumer repo callers must also declare sufficient permissions.
 
 ## Version Tags
 

@@ -5,14 +5,15 @@
 If you discover a security vulnerability in this project, please report it responsibly.
 
 **Do not open a public issue.** Instead, email the maintainer or use
-[GitHub's private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability).
+[GitHub's private vulnerability reporting](https://github.com/dryvist/ai-workflows/security/advisories/new).
 
 ## Scope
 
 This project contains GitHub Actions reusable workflows that invoke Claude via `claude-code-action@v1`.
 Security concerns include:
 
-- **Prompt injection**: Issue/PR content passed to Claude via prompt templates — an attacker could craft issue titles or PR descriptions to manipulate Claude's behavior
+- **Prompt injection**: Issue/PR content passed to Claude via prompt templates — an attacker could craft issue titles or PR descriptions to
+  manipulate Claude's behavior
 - **Permission escalation**: Workflows requesting broader permissions than needed for their task
 - **Secret exposure**: Accidental leakage of `GH_ACTION_AI_API_KEY`
 - **Fork safety**: The CI Fix workflow has an explicit fork guard to prevent untrusted code checkout in the privileged `workflow_run` context
