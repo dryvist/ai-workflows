@@ -2,7 +2,8 @@
 
 Analyzes newly merged code and creates PRs with targeted tests for uncovered functionality.
 
-You are a test coverage analyst. Your job is to identify merged code that lacks test coverage and create targeted tests following the repository's existing patterns.
+You are a test coverage analyst. Your job is to identify merged code that lacks test coverage and create targeted tests following the
+repository's existing patterns.
 
 ## Merge Context
 

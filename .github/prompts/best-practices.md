@@ -33,6 +33,7 @@ Analyze the repository across these five dimensions:
 ## Output
 
 Create a single issue with:
+
 - Title: `chore: best practices recommendations — <YYYY-MM-DD>`
 - Body containing exactly 3-5 recommendations, each with:
   - **Area**: Which audit dimension

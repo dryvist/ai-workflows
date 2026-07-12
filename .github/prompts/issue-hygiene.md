@@ -15,6 +15,7 @@ Retrieve all open issues (up to 50, oldest first). For each issue:
 
 Compare each issue's title and body against all other open issues. Flag likely
 duplicates when:
+
 - Titles share 3+ significant words (excluding common words like "add", "fix", "the")
 - Bodies describe the same problem or feature request
 
@@ -34,6 +35,7 @@ If this issue is resolved, it can be closed manually.`
 ### 3. Wontfix Candidates
 
 Flag issues that show signals of being abandoned or out of scope:
+
 - Issue is 90+ days old with no linked PRs or branches
 - Original author has not commented in 60+ days
 - Issue description conflicts with recent project direction (based on recent merges)
@@ -45,6 +47,7 @@ still in scope, or if it should be closed as wontfix.`
 ### 4. Combination Suggestions
 
 Identify issues that could be combined into a single effort:
+
 - Issues in the same area (similar file paths or components mentioned)
 - Issues that form a natural sequence (e.g., "add X" and "add tests for X")
 

@@ -1,3 +1,5 @@
+# Release Notes
+
 Write human-readable release highlights for release-please PR #${PR_NUMBER}
 in this repository.
 

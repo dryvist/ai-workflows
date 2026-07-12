@@ -10,7 +10,7 @@ Guidelines for analyzing merged PRs to detect development patterns and find gaps
 ## Direction Categories
 
 | Direction | Signals |
-|-----------|---------|
+| ----------- | --------- |
 | Area expansion | New files, new modules, new directories, feature-prefixed branches |
 | Reliability push | Bug fixes, error handling, retry logic, validation additions |
 | Documentation sprint | README changes, comment additions, guide files, example updates |
@@ -22,7 +22,7 @@ Guidelines for analyzing merged PRs to detect development patterns and find gaps
 Look for these common incomplete patterns:
 
 | Recent Change | Missing Counterpart |
-|---------------|-------------------|
+| --------------- | ------------------- |
 | New feature code | Tests for that feature |
 | New config option | Documentation of that option |
 | New module/component | Integration with existing entry points |

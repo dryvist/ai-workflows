@@ -12,7 +12,7 @@ Guidelines for analyzing, categorizing, and deduplicating GitHub issues.
 Map issues to `type:*` labels based on content, not just keywords:
 
 | Signal | Type |
-|--------|------|
+| -------- | ------ |
 | Error messages, stack traces, "doesn't work", regression | `type:bug` |
 | "Add", "implement", "support for", "would be nice" | `type:feature` |
 | API changes, removal of existing behavior, version bump | `type:breaking` |

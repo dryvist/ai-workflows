@@ -27,7 +27,8 @@ gh workflow run dogfood-ci.yml
 gh run watch
 ```
 
-**Pass condition**: Workflow completes with `conclusion: success`. To verify a provider swap, re-map the `GH_ACTION_AI_*` org values and re-run — no workflow edits needed.
+**Pass condition**: Workflow completes with `conclusion: success`. To verify a provider swap, re-map the `GH_ACTION_AI_*` org values and
+re-run — no workflow edits needed.
 
 ---
 
@@ -155,7 +156,7 @@ gh api -X DELETE repos/JacobPEvans/terraform-proxmox/git/refs/heads/test/ci-fix-
 These fire on cron — verify by checking the most recent run after deployment.
 
 | Workflow | Schedule | Check Command |
-|----------|----------|---------------|
+| ---------- | ---------- | --------------- |
 | Best Practices Recommender | Wed 3am UTC | `gh run list --workflow "Best Practices Recommender"` |
 | cc-Code Simplifier | Daily 4am UTC | `gh run list --workflow "cc-Code Simplifier"` |
 | cc-Next Steps | Daily 5am UTC | `gh run list --workflow "cc-Next Steps"` |
@@ -182,7 +183,7 @@ done
 ## Summary
 
 | Test | Workflows | Pass Condition |
-|------|-----------|----------------|
+| ------ | ----------- | ---------------- |
 | A: Issue Lifecycle | issue-triage, issue-resolver | Labels applied, PR created |
 | C: Post-Merge | post-merge-docs-review, post-merge-tests | Runs triggered (gate jobs execute) |
 | D: CI Fix | ci-fix | Run triggered, fix attempted |

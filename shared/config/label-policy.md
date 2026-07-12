@@ -12,7 +12,7 @@ Canonical source: `JacobPEvans/.github` at `.github/labels.yml`
 ### Type (exactly one)
 
 | Label | Color | When to Apply |
-|-------|-------|---------------|
+| ------- | ------- | --------------- |
 | `type:bug` | `#DC2626` | Something isn't working as expected |
 | `type:feature` | `#3B82F6` | New capability or enhancement |
 | `type:breaking` | `#7C2D12` | Changes that break existing behavior |
@@ -26,7 +26,7 @@ Canonical source: `JacobPEvans/.github` at `.github/labels.yml`
 ### Priority (exactly one)
 
 | Label | Color | Meaning |
-|-------|-------|---------|
+| ------- | ------- | --------- |
 | `priority:critical` | `#B91C1C` | Immediate attention required |
 | `priority:high` | `#EA580C` | Address soon |
 | `priority:medium` | `#F59E0B` | Normal workflow |
@@ -35,7 +35,7 @@ Canonical source: `JacobPEvans/.github` at `.github/labels.yml`
 ### Size (exactly one)
 
 | Label | Color | Effort |
-|-------|-------|--------|
+| ------- | ------- | -------- |
 | `size:xs` | `#D1FAE5` | Under 1 hour |
 | `size:s` | `#A7F3D0` | 1-4 hours |
 | `size:m` | `#6EE7B7` | 1-2 days |
@@ -45,7 +45,7 @@ Canonical source: `JacobPEvans/.github` at `.github/labels.yml`
 ## Workflow Labels
 
 | Label | When to Apply |
-|-------|---------------|
+| ------- | --------------- |
 | `ai:created` | AI-generated issue, needs human approval |
 | `ai:ready` | Human-approved, ready for AI implementation |
 | `ready-for-dev` | Fully shaped, requirements clear |
@@ -54,7 +54,7 @@ Canonical source: `JacobPEvans/.github` at `.github/labels.yml`
 ## Triage Labels
 
 | Label | When to Apply |
-|-------|---------------|
+| ------- | --------------- |
 | `duplicate` | Issue already exists (reference the original) |
 | `invalid` | Not a valid issue |
 | `wontfix` | Will not be addressed |
