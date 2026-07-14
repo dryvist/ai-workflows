@@ -58,7 +58,7 @@ jobs:
 
       - name: Check bot PR ceiling
         id: check
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/check-pr-ceiling.js');
@@ -81,7 +81,7 @@ jobs:
 
       - name: Check if changes are doc-relevant
         id: check
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           OVERRIDE_SHA: ${{ inputs.commit_sha || '' }}
         with:
@@ -106,7 +106,7 @@ jobs:
 
       - name: Check daily run limit
         id: check
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
           WORKFLOW_FILE: ${{ github.workflow_ref }}
@@ -174,13 +174,13 @@ jobs:
 
       - name: Mint PR token
         id: pr-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
       - name: Open PR
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PR_BRANCH: claude/post-merge-docs-review-${{ github.run_id }}
           WORKFLOW_NAME: ${{ github.workflow }}

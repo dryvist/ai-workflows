@@ -144,13 +144,13 @@ jobs:
       # wrapper → shared verified-commit.js; no responder-specific code.
       - name: Mint commit token
         id: commit-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
       - name: Commit fixes to PR branch
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref || steps.pr.outputs.ref }}
           COMMIT_MESSAGE: "fix: address review feedback (AI responder)"
