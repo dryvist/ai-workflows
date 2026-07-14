@@ -40,4 +40,4 @@ jobs:
 
       # Installs Nix only. Does NOT validate flakes.
       # Replaced nix-installer-action@v21 (Node.js 20, deprecated June 2026).
-      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/determinate-nix-action@c70cb8ae92d68c66953db28a26a63db1665bc837 # v3

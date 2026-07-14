@@ -71,7 +71,7 @@ jobs:
 
       - name: Check eligibility
         id: check
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           RELEASE_BOT: ${{ inputs.release_bot }}
           BRANCH_PREFIX: ${{ inputs.branch_prefix }}
@@ -124,7 +124,7 @@ jobs:
           use_commit_signing: "false"
 
       - name: Post highlights comment
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           BODY_FILE: .claude-release-notes.md
           MARKER_MATCH: "<!-- cc-release-notes"

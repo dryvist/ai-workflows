@@ -82,7 +82,7 @@ jobs:
 
       - name: Find associated PR
         id: find-pr
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fix/find-pr.js');
@@ -91,7 +91,7 @@ jobs:
       - name: Check attempt count
         id: check-attempts
         if: steps.find-pr.outputs.pr_number != ''
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PR_NUMBER: ${{ steps.find-pr.outputs.pr_number }}
         with:
@@ -116,7 +116,7 @@ jobs:
 
       - name: Check daily run limit
         id: check
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
           WORKFLOW_FILE: ${{ github.workflow_ref }}
@@ -145,7 +145,7 @@ jobs:
           path: .ai-workflows
 
       - name: Post tracking comment
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PR_NUMBER: ${{ needs.should-fix.outputs.pr_number }}
           ATTEMPT: ${{ needs.should-fix.outputs.attempt }}
@@ -176,7 +176,7 @@ jobs:
 
       - name: Download failure logs
         id: get-logs
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fix/get-failure-logs.js');
@@ -243,13 +243,13 @@ jobs:
       # required_signatures rulesets and re-triggering CI on the PR.
       - name: Mint commit token
         id: commit-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
       - name: Commit fix to PR branch
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           COMMIT_MESSAGE: "fix: resolve CI failure (auto-fix attempt ${{ needs.should-fix.outputs.attempt }})"
@@ -261,7 +261,7 @@ jobs:
 
       - name: Comment on failure
         if: failure()
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

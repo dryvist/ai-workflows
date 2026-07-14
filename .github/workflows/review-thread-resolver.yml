@@ -104,7 +104,7 @@ jobs:
       - name: Mint App token (single repo)
         id: app-token
         if: vars.GH_APP_CLAUDE_BOT_ID != '' && env.APP_KEY != '' && inputs.sweep_repos == ''
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
@@ -112,14 +112,14 @@ jobs:
       - name: Mint App token (org sweep)
         id: app-token-sweep
         if: vars.GH_APP_CLAUDE_BOT_ID != '' && env.APP_KEY != '' && inputs.sweep_repos != ''
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
       - name: Resolve threads
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           BOT_REVIEWERS: ${{ inputs.bot_reviewers }}
           RESOLVE_OUTDATED: ${{ inputs.resolve_outdated }}
