@@ -120,7 +120,7 @@ jobs:
       # issue for Option B). For Option A it writes .claude-pr.md; the steps below open a
       # VERIFIED PR from it. gh issue:* stays allowed for the issue-creation path.
       - name: Execute Claude Code
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # v1.0.170
+        uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1.0.171
         with:
           claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
           allowed_bots: "github-actions"
