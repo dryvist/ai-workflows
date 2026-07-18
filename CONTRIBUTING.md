@@ -23,7 +23,7 @@ Every `.js` script in `.github/scripts/` must have a corresponding test in `test
 ## Adding a New Reusable Workflow
 
 1. Create `.github/workflows/<name>.yml` — the reusable workflow
-2. Create `.github/prompts/<name>.md` — the Claude prompt
+2. Add the prompt to `dryvist/ai-llm-prompts` under `automation/`, release it, and pin the immutable release commit here
 3. If the workflow needs scripts >5 lines, extract to `.github/scripts/<name>/<script>.js`
 
 ### Workflow Template
@@ -56,18 +56,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Checkout ai-workflows
-        uses: actions/checkout@v6
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@v7
         with:
           repository: dryvist/ai-workflows
-          sparse-checkout: |
-            .github/prompts
-            .github/scripts
+          sparse-checkout: .github/scripts
           path: .ai-workflows
+
+      - name: Checkout prompt catalog
+        uses: actions/checkout@v7
+        with:
+          repository: dryvist/ai-llm-prompts
+          ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
+          sparse-checkout: automation/ai-workflows-my-workflow.md
+          sparse-checkout-cone-mode: false
+          path: .ai-llm-prompts
 
       - name: Render prompt
         id: prompt
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/my-workflow.md
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-my-workflow.md
 
       - name: Run Claude
         uses: anthropics/claude-code-action@v1
@@ -102,10 +109,10 @@ For prompts with runtime values, use `render-prompt.sh` with named env vars:
   env:
     MERGE_SHA: ${{ github.sha }}
     REPO_FULL_NAME: ${{ github.repository }}
-  run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/my-workflow.md MERGE_SHA REPO_FULL_NAME
+  run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-my-workflow.md MERGE_SHA REPO_FULL_NAME
 ```
 
-In the prompt file, use `${MERGE_SHA}` and `${REPO_FULL_NAME}` as placeholders.
+In the catalog prompt, use `${MERGE_SHA}` and `${REPO_FULL_NAME}` as placeholders.
 
 ## File Format Separation
 

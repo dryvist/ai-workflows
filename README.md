@@ -119,7 +119,6 @@ with their required permissions.
 
 ```text
 .github/
-  prompts/              # Prompt files (one per workflow)
   scripts/
     render-prompt.sh    # Shared: envsubst + GITHUB_OUTPUT
     best-practices/     # Extracted JS scripts per workflow
@@ -138,20 +137,31 @@ docs/                   # Documentation and verification runbook
 
 All AI workflows use the shared `run-ai-agent` adapter, which selects Claude or
 Codex from `GH_ACTION_AI_AGENT`. Prompts are rendered at runtime via
-`render-prompt.sh` and a sparse checkout of
-this repository's prompts and scripts:
+`render-prompt.sh`; scripts come from this repository and prompt assets come
+from the immutable `dryvist/ai-llm-prompts` catalog:
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     repository: dryvist/ai-workflows
-    sparse-checkout: |
-      .github/prompts
-      .github/scripts
+    sparse-checkout: .github/scripts
     path: .ai-workflows
+- uses: actions/checkout@v7
+  with:
+    repository: dryvist/ai-llm-prompts
+    ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
+    sparse-checkout: automation
+    sparse-checkout-cone-mode: false
+    path: .ai-llm-prompts
 ```
 
+GitHub Agentic Workflows are no longer an active runtime dependency. One
+[historical GH-AW reference template][gh-aw-template] remains in the prompt
+catalog for format archaeology; this repository does not compile or execute it.
+
 ---
+
+[gh-aw-template]: https://github.com/dryvist/ai-llm-prompts/blob/v0.1.0/automation/gh-aw-reference-template.md
 
 ## Contributing
 

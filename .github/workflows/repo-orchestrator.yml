@@ -70,10 +70,17 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          sparse-checkout: |
-            .github/prompts
-            .github/scripts
+          sparse-checkout: .github/scripts
           path: .ai-workflows
+          persist-credentials: false
+      - name: Checkout prompt catalog
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-llm-prompts
+          ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
+          sparse-checkout: automation/ai-workflows-repo-orchestrator.md
+          sparse-checkout-cone-mode: false
+          path: .ai-llm-prompts
           persist-credentials: false
 
       - name: Render prompt
@@ -83,7 +90,7 @@ jobs:
           TARGET_REPOS: ${{ inputs.target_repos }}
           TARGET_REF: ${{ inputs.target_ref }}
           REPOSITORY_OWNER: ${{ github.repository_owner }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/repo-orchestrator.md WORKFLOW_FILE TARGET_REPOS TARGET_REF REPOSITORY_OWNER
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-repo-orchestrator.md WORKFLOW_FILE TARGET_REPOS TARGET_REF REPOSITORY_OWNER
 
       - name: Run AI agent
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main

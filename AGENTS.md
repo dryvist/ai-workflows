@@ -96,16 +96,21 @@ jobs:
 
 ### Cross-repo Checkout
 
-Workflows check out this repo at runtime for scripts and prompts:
+Workflows check out this repo for scripts and the immutable prompt catalog for prompt assets:
 
 ```yaml
-- uses: actions/checkout@v6
+- uses: actions/checkout@v7
   with:
     repository: dryvist/ai-workflows
-    sparse-checkout: |
-      .github/scripts
-      .github/prompts
+    sparse-checkout: .github/scripts
     path: .ai-workflows
+- uses: actions/checkout@v7
+  with:
+    repository: dryvist/ai-llm-prompts
+    ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
+    sparse-checkout: automation/ai-workflows-<name>.md
+    sparse-checkout-cone-mode: false
+    path: .ai-llm-prompts
 ```
 
 ## Workflow Authoring Rules
@@ -116,7 +121,7 @@ Never mix programming languages inline within workflow files. Each file must con
 
 - `.yml` files contain only YAML (workflow configuration)
 - `.js` files contain only JavaScript
-- `.md` files contain prompts (with `${VAR}` placeholders for dynamic values)
+- Prompt Markdown lives in `dryvist/ai-llm-prompts`; this repo references immutable catalog files
 - `.json.template` files contain JSON config templates
 
 **Inline threshold**: Scripts of 5 lines or fewer may be embedded directly in

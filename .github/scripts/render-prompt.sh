@@ -7,11 +7,22 @@ set -euo pipefail
 prompt_file="$1"
 shift
 delimiter="PROMPT_$(openssl rand -hex 8)"
+
+strip_frontmatter() {
+  awk '
+    NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+    in_frontmatter && $0 == "---" { in_frontmatter = 0; next }
+    !in_frontmatter { print }
+    END { if (in_frontmatter) exit 1 }
+  ' "$1"
+}
+
 if [[ $# -gt 0 ]]; then
+  # shellcheck disable=SC2016 # envsubst variable specifications are literal.
   var_spec=$(printf '${%s} ' "$@")
-  rendered=$(envsubst "$var_spec" < "$prompt_file")
+  rendered=$(strip_frontmatter "$prompt_file" | envsubst "$var_spec")
 else
-  rendered=$(envsubst < "$prompt_file")
+  rendered=$(strip_frontmatter "$prompt_file" | envsubst)
 fi
 {
   echo "content<<${delimiter}"
