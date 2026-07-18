@@ -1,57 +1,60 @@
 # Patterns Reference
 
-All workflows in this repository use `anthropics/claude-code-action@v1` with OIDC auth.
-The following patterns are used across the 15 reusable workflows.
+All AI workflows in this repository use the provider-neutral `run-ai-agent`
+adapter. The following patterns are shared by the reusable workflows.
 
 ---
 
 ## Standard Pattern
 
-Used by most workflows. Static prompt, read-only tools.
+Used by most workflows. Static prompt, least-privilege agent access.
 
 **Workflows**: issue-triage, issue-hygiene, issue-sweeper, label-sync, project-router, repo-orchestrator, best-practices, next-steps (scheduled)
 
 **Key elements**:
 
-- `id-token: write` at both workflow-level and job-level permissions
 - Cross-repo checkout of `.github/prompts` and `.github/scripts`
 - `render-prompt.sh` to render the static prompt into a step output
-- `claude-code-action@v1` with `anthropic_api_key:`, `ANTHROPIC_BASE_URL` env (sourced from `vars.GH_ACTION_AI_BASE_URL`), `allowed_bots:`, and `prompt:`
+- `run-ai-agent` with the org selector, both provider credentials, and the
+  narrowest permission profile that can complete the task
 
 ```yaml
 - name: Render prompt
   id: prompt
   run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/<name>.md
 
-- name: Run Claude
-  uses: anthropics/claude-code-action@v1
-  env:
-    ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+- name: Run AI agent
+  uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
   with:
+    agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
     anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+    openai_api_key: ${{ secrets.OPENAI_API_KEY }}
     allowed_bots: "github-actions"
     prompt: ${{ steps.prompt.outputs.content }}
-    claude_args: >-
-      --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*)"
-      --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
+    allowed_tools: "Read,Glob,Grep,LS"
+    permission_profile: read-only
+    claude_model: ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
+    codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
 ```
 
 ---
 
 ## Canonical Instruction Injection Pattern
 
-Gives every CI Claude run the same org-wide baseline instructions a local dev
+Gives every CI agent run the same org-wide baseline instructions a local dev
 machine loads via nix (`dryvist/ai-assistant-instructions`: `AGENTS.md` +
-`agentsmd/rules/`). Implemented once inside the shared `run-claude-code`
-composite action, so **all** Claude workflows inherit it with no per-workflow
+`agentsmd/rules/`). Implemented once inside the shared `run-ai-agent`
+composite action, so **all** AI workflows inherit it with no per-workflow
 edits.
 
-**How it works** (`.github/actions/run-claude-code/action.yml`):
+**How it works** (`.github/actions/run-ai-agent/action.yml`):
 
 1. Sparse-checkout `dryvist/ai-assistant-instructions@main` (floating, stays
    current) into `.ai-instructions`, `continue-on-error: true` (fail-open).
-2. Concatenate `AGENTS.md` + `agentsmd/rules/**/*.md` into `~/.claude/CLAUDE.md`.
-3. `claude-code-action@v1` loads that file as **user memory** by default (its
+2. Deliver the canonical guidance to the native user-instruction location for
+   the selected agent.
+3. `claude-code-action` loads `~/.claude/CLAUDE.md`; Codex loads the delivered
+   `AGENTS.md` from its configured home.
    `settingSources` default is `user`+`project`+`local`), so the content is
    delivered verbatim — no `claude_args` escaping. The consumer repo's own
    `CLAUDE.md` still auto-loads as **project memory** on top, exactly as locally.
@@ -91,8 +94,8 @@ ways to do this that **do not work** in our workflows:
 
 ### The solution
 
-Claude **only edits files** (`use_commit_signing: "false"`, and NO git-write / `gh pr` /
-`gh api` write tools in `--allowedTools`). A workflow step then commits the working-tree diff
+The agent **only edits files** (`use_commit_signing: "false"`, and no git-write /
+`gh pr` / `gh api` write tools). A fresh publisher job then commits the diff
 through the GitHub **`createCommitOnBranch` GraphQL mutation** using a freshly minted
 **JacobPEvans-claude App installation token**. Those commits are **GitHub-VERIFIED** (satisfy
 `required_signatures`), attributed to the bot, and re-trigger CI.
@@ -112,19 +115,22 @@ two shapes:
 ```yaml
 permissions:               # job-level
   contents: write
-  id-token: write
   pull-requests: write
 
 steps:
-  # 1. Claude EDITS ONLY — no git-write, no gh pr/gh api writes. For non-issue
+  # 1. The agent EDITS ONLY — no git-write, no gh pr/gh api writes. For non-issue
   #    workflows it also writes its PR title (first line) + body to `.claude-pr.md`.
-  - name: Run Claude Code
-    uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+  - name: Run AI agent
+    uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
     with:
+      agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
       prompt: ${{ steps.prompt.outputs.content }}
-      model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
+      claude_model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
+      codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
       allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git status:*)"
-      claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      permission_profile: workspace
       use_commit_signing: "false"
 
   # 2. Mint the App token so the commit is VERIFIED + bot-attributed.
@@ -135,7 +141,7 @@ steps:
       app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
       private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
-  # 3. Open the PR from Claude's edits via the shared helper.
+  # 3. Open the PR from the agent's edits via the shared helper.
   - name: Open PR
     uses: actions/github-script@v9
     env:
@@ -280,7 +286,6 @@ on:
 permissions:
   actions: write
   contents: write
-  id-token: write
   pull-requests: write
 jobs:
   dispatch:
@@ -461,7 +466,6 @@ on:
 permissions:
   actions: write
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 jobs:
@@ -550,7 +554,6 @@ on:
     branches: [main]
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: write
 jobs:
@@ -601,8 +604,8 @@ env:
 > **AI Provenance** | Workflow: `${WORKFLOW_NAME}` | [Run ${RUN_ID}](${RUN_URL}) | Event: `${EVENT_NAME}` | Actor: `${TRIGGER_ACTOR}`
 ```
 
-**Why prompt-based** (not a post-step): `claude-code-action@v1` doesn't expose a PR number output, making post-creation API appends fragile.
-The prompt approach fits the existing `render-prompt.sh` + `envsubst` pattern with no additional steps.
+The model writes PR metadata into a bounded handoff file. The fresh publisher
+validates it and appends the provenance footer before creating the PR.
 
 Comment-posting workflows (cc-dep-review) get the same footer from
 `sticky-comment.js` instead, which already knows the PR number — see the
@@ -616,9 +619,9 @@ Comment-only AI workflows (cc-dep-review, cc-release-notes) post exactly ONE mar
 comment per PR and update it in place on re-runs instead of stacking
 duplicates.
 
-**How it works**: Claude only WRITES its output to a file (no `gh pr comment`
-tool access — deterministic posting beats prompting). A final
-`actions/github-script` step runs `.github/scripts/shared/sticky-comment.js`:
+**How it works**: the model only writes its output to a file. An artifact carries
+that file to a fresh publisher job, where `actions/github-script` runs
+`.github/scripts/shared/sticky-comment.js` with write permission:
 
 - `BODY_FILE`: the file Claude wrote; missing/empty file → Claude declined →
   clean no-op (mirrors `pr-from-file.js`).
@@ -704,41 +707,16 @@ in the upstream `githubnext/agentics` repo. Until that ships via a `gh aw upgrad
 ## PR Review Responder Pattern
 
 **Workflow**: `cc-pr-review-responder.yml` (reusable). When a reviewer leaves
-feedback on a PR, Claude evaluates the unresolved review threads, edits code to fix
-the valid points, replies, and resolves them — **never merges**. It delivers the
-substantive part of a `/ship` pass (the `/ship` skill itself is an interactive
-orchestrator that cannot run in CI). It **complements** the non-AI
-`review-thread-resolver`, which cheaply clears *outdated / failed-run* bot threads;
-this handles the threads with real content.
+feedback, the selected agent evaluates current unresolved threads and edits the
+PR checkout, but receives only read permissions.
 
-**Zero custom code by design.** This is the reference example of "reach for the
-event + the action's native behavior + `gh` in the prompt before writing a script."
-An earlier revision used a scheduled sweep with ~250 lines of bespoke JS (GraphQL
-enumeration, staleness scan, reply/resolve mutations, attempt markers, a
-verified-commit wrapper). All of it collapsed into configuration by switching to an
-**event-driven** trigger:
-
-| Job it once did | Now |
-| --- | --- |
-| Enumerate stale PRs across the repo | The **event payload** — a review IS the event; `github.event.pull_request.number` is the PR |
-| Fork guard + own-bot loop guard + attempt cap | One job-level **`if:`** (same-repo head + sender not our bot) |
-| Fetch review threads (GraphQL) | `Bash(gh api graphql)` **in the prompt** |
-| Reply + `resolveReviewThread` | `gh api graphql` **in the prompt** (no native action support for this) |
-| Verified commit | Claude edits only; a step commits via the **shared** `verified-commit.js` (reused `ci-fix/commit-fix.js`) |
-
-**Why NOT native commit here (learned by E2E, 2026-07-03).** `claude-code-action`'s
-docs say `use_commit_signing: "true"` pushes to the PR branch "on open PRs", so the
-first cut relied on it. A live E2E proved it **does not work** when the responder is
-a `workflow_call` reusable triggered by a review event: the action logged
-`base_branch: ""` and committed **nothing**, while Claude still replied and resolved
-the thread — a silent false-positive (thread resolved, fix never landed). The
-open-PR-context branch resolution evidently does not survive the reusable/review-event
-indirection (same class as the `workflow_run` dead-end the Verified Commit Pattern
-documents). So the responder uses the **standard** path: Claude edits + replies +
-resolves; then a `Mint commit token` + `Commit fixes` step lands the working-tree
-edits via the shared `verified-commit.js` (through `ci-fix/commit-fix.js`) — no
-responder-specific code. `app_id`/`app_private_key` on `run-claude-code` still give
-Claude's `gh` the App token needed to resolve bot-authored threads.
+The workflow fetches review threads deterministically into
+`.review-threads.json`. The model writes bounded `.review-actions.json` entries
+containing only a current thread ID, a reply under 1500 characters, and a resolve
+boolean. A fresh publisher re-fetches the threads, rejects stale or unknown IDs,
+lands the bounded patch through `verified-commit.js`, then performs only the typed
+reply and resolution mutations with the GitHub App token. The model never sees
+that token.
 
 **Consumer caller** (`examples/pr-review-responder-caller.yml`): triggers on
 `pull_request_review: [submitted]` + `pull_request_review_comment: [created]`. No
@@ -747,8 +725,7 @@ per-PR group).
 
 **Safety invariants**:
 
-- **Never merges / approves** — the prompt forbids it; `allowed_tools` has no
-  `gh pr merge` / git-write.
+- **Never merges / approves** — no publisher operation supports either action.
 - **Fork guard** — `if:` requires `head.repo.full_name == github.repository`, so a
   fork branch is never checked out with write scope. The dispatch path resolves the
   head **SHA** (a hex OID, not the attacker-influenceable `head.ref`) from the
@@ -756,7 +733,7 @@ per-PR group).
 - **Loop guard** — the bot's own reply is itself a `pull_request_review_comment`
   event; the `if:` excludes our bot logins (`jacobpevans-claude[bot]`,
   `claude[bot]`, `github-actions[bot]`), and `allowed_bots` does not list our bot.
-- **Critical evaluation** — the prompt tells Claude to verify each claim against the
+- **Critical evaluation** — the prompt tells the agent to verify each claim against the
   code and push back with reasoning on wrong/opinionated feedback, and to resolve a
   thread only when genuinely settled.
 - **Trade-off (documented):** dropping the old scheduled sweep drops the ~10-minute

@@ -40,33 +40,32 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 ### Prerequisites
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
-2. One secret + base-URL variable configured at the org (or repo) level:
-   - Secret `GH_ACTION_AI_API_KEY` — your AI provider's API key (required by all workflows)
-   - Variable `GH_ACTION_AI_BASE_URL` — provider base URL (leave empty for direct Anthropic)
+2. The credential for the selected agent configured at the org (or repo) level:
+   - Claude: secret `GH_ACTION_AI_API_KEY`
+   - Codex: secret `OPENAI_API_KEY`
 
 ### Authentication
 
-All workflows reference a single **provider-agnostic** namespace, so you can
-switch providers at the org level without touching any workflow. Configure these
-org (or repo) variables and secret:
+Every AI workflow selects the implementation from one org (or repo) variable:
+`GH_ACTION_AI_AGENT=claude|codex`. It defaults to `claude`, so existing callers
+keep working. Each provider keeps its native credential contract:
 
-1. **Secret**: `GH_ACTION_AI_API_KEY` — your AI provider's API key (set a spend limit at the provider)
-2. **Variable**: `GH_ACTION_AI_BASE_URL` — provider base URL; leave empty for direct Anthropic (`https://api.anthropic.com`)
-3. **Variable**: `GH_ACTION_AI_MODEL` — default model name for your provider
+1. **Variable**: `GH_ACTION_AI_AGENT` — `claude` or `codex`; omitted means `claude`
+2. **Secret**: `GH_ACTION_AI_API_KEY` — Anthropic API key used only by Claude
+3. **Secret**: `OPENAI_API_KEY` — OpenAI API key used only by Codex
+
+Model, endpoint, effort, and Codex CLI version are optional variables. Leaving
+them unset lets each upstream action use its current default.
 
 Set them with the GitHub CLI (org-level shown; drop `--org dryvist` for repo-level):
 
 ```bash
-gh secret   set GH_ACTION_AI_API_KEY   --org dryvist   # paste your key
-gh variable set GH_ACTION_AI_BASE_URL  --org dryvist -b ""                       # empty = direct Anthropic
-gh variable set GH_ACTION_AI_MODEL     --org dryvist -b "claude-sonnet-4-6"
+gh variable set GH_ACTION_AI_AGENT --org dryvist -b "codex"
+gh secret set OPENAI_API_KEY --org dryvist
 ```
 
-Set per-category vars (`GH_ACTION_AI_MODEL_CODE`, `_ISSUES`, `_PLAN`) to tier
-models by task; each falls back to `GH_ACTION_AI_MODEL`. `cc-post-merge-docs-review`
-and `cc-post-merge-tests` require at least `GH_ACTION_AI_MODEL` and fail with a
-clear error when unset. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for
-provider mapping examples and model configuration.
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the complete variable
+contract, optional provider tuning, and explicit-secret caller examples.
 
 ---
 
@@ -83,7 +82,6 @@ on:
     types: [opened]
 permissions:
   contents: read
-  id-token: write
   issues: write
 jobs:
   triage:
@@ -102,7 +100,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 jobs:
@@ -139,8 +136,9 @@ with their required permissions.
 docs/                   # Documentation and verification runbook
 ```
 
-All workflows use `anthropics/claude-code-action@v1` with OIDC auth (`id-token: write`).
-Prompts are rendered at runtime via `render-prompt.sh` and a sparse checkout of
+All AI workflows use the shared `run-ai-agent` adapter, which selects Claude or
+Codex from `GH_ACTION_AI_AGENT`. Prompts are rendered at runtime via
+`render-prompt.sh` and a sparse checkout of
 this repository's prompts and scripts:
 
 ```yaml

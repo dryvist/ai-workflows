@@ -22,33 +22,34 @@ Extract: the problem being solved, files changed, keywords from title/descriptio
 For EACH open issue, compare its title, body, and acceptance criteria against the PR changes.
 Classify each as: RESOLVED (PR fully addresses all criteria), RELATED (partial overlap), or UNRELATED.
 
-## Step 3: Actions (Link Mode — PR is open, mode=opened)
+## Step 3: Classify (Link Mode — PR is open, mode=opened)
 
-For RESOLVED issues:
+For each RESOLVED or RELATED issue, record the classification. For RELATED issues,
+also provide a concise `remaining_work` explanation.
 
-- Edit the PR body to add a "Related Issues" section with `Closes #N` if not already present
-  - Use: `gh pr edit ${PR_NUMBER} --body "...existing body...\n\n## Related Issues\nCloses #N"`
-  - Preserve ALL existing PR body content — only append the new section
-- Comment on the issue: `gh issue comment N --body "This issue is being addressed in #${PR_NUMBER}."`
-  - Only if no comment with `<!-- issue-linker-opened -->` marker already exists on the issue
+## Step 4: Classify (Close Mode — PR is merged, mode=merged)
 
-For RELATED issues:
+Use the same classifications. The trusted publisher decides the deterministic link,
+review, comment, or close operation for the current mode.
 
-- Post a request-changes review: `gh pr review ${PR_NUMBER} --request-changes --body "..."`
-  - Body should explain which issue (#N) is related and what would need to change to fully close it
-  - Include marker `<!-- issue-linker-review #N -->` in the review body
+## Output
 
-## Step 4: Actions (Close Mode — PR is merged, mode=merged)
+Do not modify GitHub. Write exactly one JSON object to `.ai-output/issue-linker.json`:
 
-For RESOLVED issues:
+```json
+{
+  "mode": "${MODE}",
+  "pr_number": ${PR_NUMBER},
+  "issues": [
+    {"number": 123, "classification": "resolved"},
+    {"number": 456, "classification": "related", "remaining_work": "What remains"}
+  ]
+}
+```
 
-- Close with comment: `gh issue close N --comment "Resolved by #${PR_NUMBER}."`
-  - Only if not already closed
-
-For RELATED issues:
-
-- Add informational comment: `gh issue comment N --body "PR #${PR_NUMBER} addressed part of this. Remaining work: <description>"`
-  - Only if no comment with `<!-- issue-linker-merged -->` marker already exists
+Use an empty `issues` array when no issue qualifies. Do not include UNRELATED issues,
+Markdown fences, or extra keys. A separate trusted publisher validates this artifact and
+performs only the operations defined for the current mode.
 
 ## Rules
 
@@ -59,3 +60,4 @@ For RELATED issues:
 - Maximum 10 issues to evaluate per run
 - Never modify issue labels or milestones
 - Never close RELATED issues — only RESOLVED ones
+- Never call GitHub write APIs

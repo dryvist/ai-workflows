@@ -29,7 +29,7 @@ on:
         type: string
         default: ""
       model:
-        description: "Claude model to use (overrides GH_ACTION_AI_MODEL_PLAN and GH_ACTION_AI_MODEL vars)"
+        description: "Selected provider model override"
         type: string
         default: ""
       excluded_labels:
@@ -57,7 +57,6 @@ on:
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 
@@ -103,15 +102,14 @@ jobs:
             await run({ github, context, core });
 
   resolve:
-    name: Claude Resolve
+    name: AI Resolve
     needs: eligibility-check
     if: needs.eligibility-check.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label }}
     permissions:
-      contents: write
-      id-token: write
-      issues: write
-      pull-requests: write
+      contents: read
+      issues: read
+      pull-requests: read
     timeout-minutes: 15
     env:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
@@ -120,6 +118,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Checkout ai-workflows
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -129,6 +128,7 @@ jobs:
             .github/scripts
             .github/prompts
           path: .ai-workflows
+          persist-credentials: false
 
       - name: Render prompt
         id: prompt
@@ -150,23 +150,79 @@ jobs:
       # Claude only EDITS files (use_commit_signing: false). An `issues` event gives
       # claude-code-action no reliable, signature-satisfying way to land a branch + PR
       # itself, so the "Open PR" step below creates the branch + verified commit + PR.
-      - name: Run Claude Code
-        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+      - name: Run AI agent
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
+          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
+          codex_model: ${{ inputs.model || vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          use_commit_signing: "false"
+          permission_profile: workspace
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
+          codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
 
-      # Mint an App token so the branch commit is GitHub-VERIFIED (createCommitOnBranch
-      # web-flow) and the PR/commit are attributed to JacobPEvans-claude[bot].
+      - name: Collect agent patch
+        run: |
+          git add -N -A
+          git reset -q -- .ai-workflows
+          git diff --binary HEAD > agent.patch
+
+      - name: Upload agent patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-resolver-${{ github.run_id }}
+          path: agent.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish resolution PR
+    needs: [eligibility-check, resolve]
+    runs-on: ${{ inputs.runner_label }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout publisher
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Download agent patch
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: issue-resolver-${{ github.run_id }}
+
+      - name: Apply agent patch
+        run: |
+          if [ -s agent.patch ]; then
+            git apply agent.patch
+          fi
+          rm agent.patch
+
+      # Mint an App token so the branch commit is GitHub-VERIFIED.
       - name: Mint PR token
         id: pr-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
       - name: Open PR
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
@@ -184,13 +240,21 @@ jobs:
             const run = require('./.ai-workflows/.github/scripts/issue-resolver/open-pr.js');
             await run({ github, context, core });
 
+  notify-failure:
+    name: Report resolution failure
+    needs: [eligibility-check, resolve, publish]
+    if: failure()
+    runs-on: ${{ inputs.runner_label }}
+    permissions:
+      issues: write
+    steps:
       - name: Comment on failure
-        if: failure()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          ISSUE_NUMBER: ${{ needs.eligibility-check.outputs.issue_number }}
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const issueNumber = ${{ needs.eligibility-check.outputs.issue_number }};
+            const issueNumber = Number(process.env.ISSUE_NUMBER);
             if (!issueNumber) return;
             await github.rest.issues.createComment({
               owner: context.repo.owner,

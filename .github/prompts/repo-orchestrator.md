@@ -7,23 +7,34 @@ to one or more target repositories.
 
 ## Process
 
-1. **Parse inputs**: Read which workflow to dispatch and which repos to target.
+1. **Parse inputs**:
+   - Workflow: `${WORKFLOW_FILE}`
+   - Target repositories: `${TARGET_REPOS}`
+   - Git ref: `${TARGET_REF}`
 
 2. **Resolve target repos**: If `target-repos` is `all`, list all non-archived repos
-   in the JacobPEvans organization. Otherwise, split the comma-separated list.
+   in the `${REPOSITORY_OWNER}` organization. Otherwise, split the comma-separated list.
 
 3. **Validate**: For each target repo, verify the requested workflow exists
    (either locally or available via import).
 
-4. **Dispatch**: Trigger the workflow on each target repo.
-   Include a correlation ID for tracing: `orchestrator-<timestamp>`.
+4. **Select**: Produce the validated repository names. Do not trigger workflows yourself.
 
-5. **Report**: Summarize which repos received the dispatch, any failures,
-   and the correlation ID for follow-up.
+## Output
+
+Write exactly one JSON object to `.ai-output/repo-orchestrator.json`:
+
+```json
+{"action":"dispatch","repositories":["repo-one","repo-two"]}
+```
+
+Use repository names without an owner. If the request is invalid or no repository is
+eligible, write `{"action":"none"}`. Do not include Markdown fences or extra keys. A
+separate trusted publisher validates the requested workflow, ref, repository scope, archive
+state, and 25-dispatch limit before dispatching with a correlation ID.
 
 ## Rules
 
 - Never dispatch to archived repositories.
 - Never dispatch more than 25 workflows in a single run.
-- Always include the correlation ID in dispatch payloads.
-- Log all dispatches for auditability.
+- Never call GitHub write APIs.

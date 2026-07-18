@@ -15,8 +15,8 @@ jobs:
   review:
     permissions:
       contents: read
-      id-token: write
       pull-requests: write
     uses: ./.github/workflows/cc-dep-review.yml
     secrets:
       GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

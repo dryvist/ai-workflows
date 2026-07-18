@@ -62,7 +62,6 @@ on:
 # that needed it was removed; the resolver's 5-PR/24h ceiling is the hard cap.
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 
@@ -100,14 +99,15 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
-      id-token: write
-      issues: write
+      issues: read
     timeout-minutes: 10
     env:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Checkout ai-workflows
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -117,6 +117,7 @@ jobs:
             .github/prompts
             .github/scripts
           path: .ai-workflows
+          persist-credentials: false
 
       - name: Render prompt
         id: prompt
@@ -126,26 +127,60 @@ jobs:
 
       # Claude only JUDGES (read-only + writes the JSON verdict file). It applies no
       # labels — the App-token step below does that so `ai:ready` fires the resolver.
-      - name: Execute Claude Code
-        uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1.0.171
+      - name: Run AI agent
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
+          codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"
-          use_commit_signing: "false"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Read,Glob,Grep,LS,Write,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
-            --model ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
+          permission_profile: workspace
+          allowed_tools: "Read,Glob,Grep,LS,Write,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"
 
-      # Mint an App token so labels are applied by JacobPEvans-claude[bot]. An App
-      # installation token DOES trigger workflows, so applying `ai:ready` fires the
-      # consumer's issue-auto-resolve.yml (issues: labeled) — the bridge to resolution.
+      - name: Upload triage verdict
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backlog-sweep-${{ github.run_id }}
+          path: .backlog-sweep.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Apply backlog triage
+    needs: sweep
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout publisher
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Download triage verdict
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backlog-sweep-${{ github.run_id }}
+
+      # An App installation token triggers the consumer's issues:labeled workflow.
       - name: Mint App token
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-issues: write
 
       - name: Apply triage labels
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9

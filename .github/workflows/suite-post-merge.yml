@@ -35,7 +35,6 @@ on:
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: write
-  id-token: write
   pull-requests: write
 
 jobs:
