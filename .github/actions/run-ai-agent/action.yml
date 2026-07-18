@@ -1,0 +1,197 @@
+name: Run AI agent
+description: Run the selected AI coding agent with a common, least-privilege interface.
+
+inputs:
+  agent:
+    description: AI agent to run. Supported values are claude and codex.
+    required: false
+    default: claude
+  prompt:
+    description: Rendered prompt content sent to the selected agent.
+    required: true
+  claude_model:
+    description: Optional Claude model override. An empty value uses the provider default.
+    required: false
+    default: ""
+  codex_model:
+    description: Optional Codex model override. An empty value uses the provider default.
+    required: false
+    default: ""
+  model:
+    description: Deprecated compatibility alias for claude_model.
+    required: false
+    default: ""
+  allowed_tools:
+    description: >-
+      Claude allowed-tools expression. Codex authorization is controlled by
+      permission_profile instead.
+    required: false
+    default: ""
+  claude_args:
+    description: Additional arguments passed to Claude Code.
+    required: false
+    default: ""
+  codex_args:
+    description: Additional arguments passed to Codex.
+    required: false
+    default: ""
+  anthropic_api_key:
+    description: Anthropic API key used when agent is claude.
+    required: false
+    default: ""
+  claude_code_oauth_token:
+    description: >-
+      Deprecated compatibility alias for anthropic_api_key. The value is sent
+      to Claude as an Anthropic API key, not as an OAuth token.
+    required: false
+    default: ""
+  openai_api_key:
+    description: OpenAI API key used when agent is codex.
+    required: false
+    default: ""
+  openai_responses_api_endpoint:
+    description: Optional Responses API endpoint override for Codex.
+    required: false
+    default: ""
+  responses_api_endpoint:
+    description: Deprecated compatibility alias for openai_responses_api_endpoint.
+    required: false
+    default: ""
+  openai_effort:
+    description: Optional Codex reasoning-effort override.
+    required: false
+    default: ""
+  effort:
+    description: Deprecated compatibility alias for openai_effort.
+    required: false
+    default: ""
+  codex_version:
+    description: Optional Codex CLI version override.
+    required: false
+    default: ""
+  permission_profile:
+    description: Codex permission profile. Accepts read-only, workspace, or an explicit profile name.
+    required: false
+    default: read-only
+  working_directory:
+    description: Optional Codex working directory. An empty value uses the repository root.
+    required: false
+    default: ""
+  allowed_bots:
+    description: Comma-separated trusted bot logins that may invoke the provider action.
+    required: false
+    default: github-actions
+  allowed_users:
+    description: Comma-separated GitHub users Codex may allow in addition to repository writers.
+    required: false
+    default: ""
+  inject_instructions:
+    description: >-
+      Whether to load the canonical dryvist agent instructions into both
+      providers' user-level instruction locations.
+    required: false
+    default: "true"
+
+outputs:
+  agent:
+    description: Agent that ran.
+    value: ${{ inputs.agent }}
+  result:
+    description: >-
+      Normalized provider result. This is Claude structured output when
+      available, otherwise the Claude execution artifact path, or the final
+      Codex message.
+    value: ${{ steps.claude.outputs.structured_output || steps.claude.outputs.execution_file || steps.codex.outputs['final-message'] }}
+  structured_output:
+    description: Claude structured output, when the prompt requests a JSON schema.
+    value: ${{ steps.claude.outputs.structured_output }}
+  execution_file:
+    description: Claude execution artifact path, when Claude ran.
+    value: ${{ steps.claude.outputs.execution_file }}
+  branch_name:
+    description: Branch created by Claude Code, when applicable.
+    value: ${{ steps.claude.outputs.branch_name }}
+  final_message:
+    description: Final Codex message, when Codex ran.
+    value: ${{ steps.codex.outputs['final-message'] }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate agent configuration
+      id: prepare
+      shell: bash
+      env:
+        AGENT: ${{ inputs.agent }}
+        ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+        CLAUDE_ARGS: ${{ inputs.claude_args }}
+        CLAUDE_MODEL: ${{ inputs.claude_model || inputs.model }}
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        PERMISSION_PROFILE: ${{ inputs.permission_profile }}
+      run: '"$GITHUB_ACTION_PATH/prepare.sh" validate'
+
+    - name: Checkout canonical agent instructions
+      if: inputs.inject_instructions == 'true'
+      continue-on-error: true
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      with:
+        repository: dryvist/ai-assistant-instructions
+        ref: main
+        sparse-checkout: |
+          AGENTS.md
+          agentsmd/rules
+        path: .ai-instructions
+        persist-credentials: false
+
+    - name: Install canonical agent instructions
+      if: inputs.inject_instructions == 'true'
+      shell: bash
+      env:
+        CODEX_HOME: ${{ runner.temp }}/codex-home
+        INSTRUCTION_SOURCE: ${{ github.workspace }}/.ai-instructions
+      run: '"$GITHUB_ACTION_PATH/prepare.sh" inject'
+
+    - name: Remove canonical instructions checkout
+      if: always()
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/prepare.sh" cleanup'
+
+    - name: Run Claude Code
+      id: claude
+      if: inputs.agent == 'claude'
+      uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1
+      with:
+        # Supplying the job-scoped token prevents Claude Code Action from
+        # exchanging OIDC for its own write-capable GitHub App token.
+        github_token: ${{ github.token }}
+        anthropic_api_key: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+        allowed_bots: ${{ inputs.allowed_bots }}
+        use_commit_signing: "false"
+        prompt: ${{ inputs.prompt }}
+        claude_args: ${{ steps.prepare.outputs.claude-args }}
+
+    # Keep Codex last: drop-sudo permanently removes sudo for the rest of the job.
+    - name: Run Codex
+      id: codex
+      if: inputs.agent == 'codex'
+      uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
+      env:
+        # Read operations such as `gh issue view` use the job-scoped token.
+        # Agent jobs must keep this token read-only; publishers run separately.
+        GH_TOKEN: ${{ github.token }}
+      with:
+        prompt: ${{ inputs.prompt }}
+        openai-api-key: ${{ inputs.openai_api_key }}
+        responses-api-endpoint: ${{ inputs.openai_responses_api_endpoint || inputs.responses_api_endpoint }}
+        working-directory: ${{ inputs.working_directory }}
+        permission-profile: ${{ steps.prepare.outputs.permission-profile }}
+        model: ${{ inputs.codex_model }}
+        effort: ${{ inputs.openai_effort || inputs.effort }}
+        codex-version: ${{ inputs.codex_version }}
+        codex-args: ${{ inputs.codex_args }}
+        codex-home: ${{ runner.temp }}/codex-home
+        safety-strategy: drop-sudo
+        allow-users: ${{ inputs.allowed_users }}
+        allow-bots: ${{ inputs.allowed_bots != '' && 'true' || 'false' }}
+        allow-bot-users: ${{ inputs.allowed_bots }}
