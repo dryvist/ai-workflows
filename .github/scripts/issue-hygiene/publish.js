@@ -38,10 +38,12 @@ function parse(file) {
     }
     if (action.kind === 'merged_pr') {
       positiveInteger(action.pr_number, `actions[${index}].pr_number`);
-      if (typeof action.pr_title !== 'string' || action.pr_title.trim() !== action.pr_title ||
-          action.pr_title.length === 0 || action.pr_title.length > 256 || /[\r\n]/.test(action.pr_title)) {
+      if (typeof action.pr_title !== 'string') {
         throw new Error(`actions[${index}].pr_title is invalid`);
       }
+      action.pr_title = action.pr_title.trim().replace(/[\r\n]+/g, ' ');
+      if (action.pr_title.length === 0) throw new Error(`actions[${index}].pr_title is invalid`);
+      if (action.pr_title.length > 256) action.pr_title = `${action.pr_title.slice(0, 253)}...`;
     }
     if (action.kind === 'wontfix' &&
         (!Number.isInteger(action.age_days) || action.age_days < 90 || action.age_days > 10000)) {

@@ -55,10 +55,12 @@ inject() {
   mkdir -p "$HOME/.claude" "$CODEX_HOME"
   {
     cat "$source_file"
-    while IFS= read -r rule; do
-      printf '\n'
-      cat "$rule"
-    done < <(find "$INSTRUCTION_SOURCE/agentsmd/rules" -type f -name '*.md' -print | sort)
+    if [[ -d "$INSTRUCTION_SOURCE/agentsmd/rules" ]]; then
+      while IFS= read -r rule; do
+        printf '\n'
+        cat "$rule"
+      done < <(find "$INSTRUCTION_SOURCE/agentsmd/rules" -type f -name '*.md' -print | sort)
+    fi
   } | tee "$HOME/.claude/CLAUDE.md" > "$CODEX_HOME/AGENTS.md"
 }
 

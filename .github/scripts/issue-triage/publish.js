@@ -49,10 +49,13 @@ function parse(file) {
       (!AI_READY_TYPES.has(typeLabels[0]) || value.labels.includes('duplicate'))) {
     throw new Error('ai:ready is not allowed for this type or a duplicate');
   }
-  if (typeof value.comment !== 'string' || value.comment.trim() !== value.comment ||
-      value.comment.length === 0 || value.comment.length > 1200 ||
+  if (typeof value.comment !== 'string') {
+    throw new Error('comment must be a string');
+  }
+  value.comment = value.comment.trim();
+  if (value.comment.length === 0 || value.comment.length > 1200 ||
       value.comment.split(/\s+/).length > 200) {
-    throw new Error('comment must be a non-empty, trimmed response of at most 200 words');
+    throw new Error('comment must be a non-empty response of at most 200 words');
   }
   return value;
 }

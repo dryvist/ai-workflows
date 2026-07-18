@@ -45,4 +45,15 @@ describe('issue-hygiene publisher', () => {
     expect(core.failures).toHaveLength(1);
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
   });
+
+  it('normalizes and bounds PR titles before constructing comments', async () => {
+    fs.writeFileSync(file, JSON.stringify({ actions: [
+      { kind: 'merged_pr', issue_number: 21, pr_number: 44, pr_title: `  ${'x'.repeat(260)}\nnext  ` },
+    ] }));
+    await publish({ github, context, core });
+    const comment = github.rest.issues.createComment.mock.calls[0][0].body;
+    expect(comment).not.toContain('\n');
+    expect(comment).toContain(`${'x'.repeat(253)}...`);
+    expect(core.failures).toHaveLength(0);
+  });
 });

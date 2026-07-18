@@ -52,6 +52,17 @@ describe('issue-triage publisher', () => {
     expect(github.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it('trims a bounded comment before publishing', async () => {
+    fs.writeFileSync(file, JSON.stringify({
+      issue_number: 42,
+      labels: ['type:docs', 'size:xs', 'priority:low'],
+      comment: '  Triage result.\n',
+    }));
+    await publish({ github, context, core });
+    expect(github.rest.issues.createComment.mock.calls[0][0].body).toBe('Triage result.');
+    expect(core.failures).toHaveLength(0);
+  });
+
   it('enforces a specifically dispatched issue number', async () => {
     process.env.EXPECTED_ISSUE_NUMBER = '7';
     fs.writeFileSync(file, JSON.stringify({
