@@ -46,6 +46,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: feat/codex-action
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -70,6 +71,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: feat/codex-action
           sparse-checkout: .github/scripts
           path: .ai-workflows
 
@@ -117,7 +119,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/best-practices.md
 
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@feat/codex-action
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
@@ -158,6 +160,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: feat/codex-action
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
