@@ -1,118 +1,95 @@
-# Authentication & API Providers
+# Authentication and agent selection
 
-All workflows use [`anthropics/claude-code-action@v1`](https://github.com/anthropics/claude-code-action), which accepts an API key via the
-`anthropic_api_key` input. Every workflow references a single **provider-agnostic** namespace — `GH_ACTION_AI_*` — so you can switch providers,
-endpoints, or models at the GitHub **org level** without editing any workflow.
+All reusable AI workflows call one shared `run-ai-agent` adapter. Set
+`GH_ACTION_AI_AGENT` to select the implementation for every inheriting repository:
 
-## How Authentication Works
-
-The `claude-code-action` action needs two things to talk to an AI model:
-
-1. **An API key** — passed via the `anthropic_api_key` input, sourced from secret `GH_ACTION_AI_API_KEY`
-2. **A base URL** — set via the `ANTHROPIC_BASE_URL` environment variable, sourced from variable `GH_ACTION_AI_BASE_URL`
-
-When `GH_ACTION_AI_BASE_URL` is empty, the action talks directly to Anthropic (`https://api.anthropic.com`). Point it at a router (OpenRouter,
-Chutes, a proxy) and the action sends requests there instead — the key authenticates with whatever endpoint the URL names.
-
-## The `GH_ACTION_AI_*` Namespace
-
-Configure these as GitHub **org** (or repo) secrets/variables. Workflows never name a provider directly — you map the generic names to a real
-provider's values, and can re-map them at any time with zero workflow changes.
-
-| Name | Kind | Maps to | Notes |
-| ------ | ------ | --------- | ------- |
-| `GH_ACTION_AI_API_KEY` | Secret | `anthropic_api_key:` | Your provider's API key. Required. |
-| `GH_ACTION_AI_BASE_URL` | Variable | `ANTHROPIC_BASE_URL` env | Provider endpoint. Leave **empty** for direct Anthropic. |
-| `GH_ACTION_AI_MODEL` | Variable | `--model` | Global default model name. |
-| `GH_ACTION_AI_MODEL_CODE` | Variable | `--model` | Code generation tier (falls back to `GH_ACTION_AI_MODEL`). |
-| `GH_ACTION_AI_MODEL_ISSUES` | Variable | `--model` | Issue management tier (falls back to `GH_ACTION_AI_MODEL`). |
-| `GH_ACTION_AI_MODEL_PLAN` | Variable | `--model` | Deep planning tier (falls back to `GH_ACTION_AI_MODEL`). |
-
-Model names are not sensitive — set them as variables, not secrets.
-
-### Swapping Providers (examples)
-
-The same workflows run unchanged against any of these — you only change the org-level values:
-
-| Provider | `GH_ACTION_AI_API_KEY` | `GH_ACTION_AI_BASE_URL` | Example `GH_ACTION_AI_MODEL` |
-| ---------- | ------------------------ | -------------------------- | ------------------------------ |
-| **Direct Anthropic** | `sk-ant-…` | *(empty)* | `claude-sonnet-4` |
-| **OpenRouter** | OpenRouter key | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4` |
-| **Chutes.ai** | Chutes key | Chutes endpoint | provider-specific name |
-
-Set a spend limit at the provider (OpenRouter per-key daily cap, Chutes flat subscription,
-[Anthropic usage limits](https://console.anthropic.com/settings/limits)) — this repo no longer hard-codes a free-tier fallback.
-
-## Why Not `CLAUDE_CODE_OAUTH_TOKEN`?
-
-The Claude Code subscription is cheaper per-token, but using a subscription token in **unattended CI** (no human in the loop) **violates the
-[Claude Code Terms of Service](https://www.anthropic.com/legal/terms)** and risks an account ban.
-
-| | OAuth Token (subscription) | API Key (`GH_ACTION_AI_API_KEY`) |
+| Value | Action | Credential |
 | --- | --- | --- |
-| **Intended use** | Interactive CLI sessions | Programmatic access |
-| **Unattended CI** | Prohibited by ToS | Allowed |
-| **Cost control** | Per-subscription | Per-key spend limits |
-| **Account risk** | Ban possible | None |
+| `claude` (default) | `anthropics/claude-code-action` | `GH_ACTION_AI_API_KEY` |
+| `codex` | `openai/codex-action` | `OPENAI_API_KEY` |
 
-API access via a standard key (direct Anthropic or any router) is purpose-built for programmatic use — no ToS concerns.
+The credentials stay separate. The adapter validates and passes only the secret
+for the selected agent. Changing `GH_ACTION_AI_AGENT` is therefore the only
+switch required by callers that use `secrets: inherit`.
 
-## Model Configuration
+## Required configuration
 
-### Precedence Chain
+Configure these as GitHub organization or repository variables and secrets:
 
-Workflows resolve the model by category precedence — **not** provider fallback:
+| Name | Kind | Required when | Purpose |
+| --- | --- | --- | --- |
+| `GH_ACTION_AI_AGENT` | Variable | Optional | `claude` or `codex`; defaults to `claude` |
+| `GH_ACTION_AI_API_KEY` | Secret | Claude selected | Anthropic API key |
+| `OPENAI_API_KEY` | Secret | Codex selected | OpenAI API key |
 
-```text
-inputs.model → GH_ACTION_AI_MODEL_{CATEGORY} → GH_ACTION_AI_MODEL
-     |                    |                            |
-  Caller override    Per-task tier var          Global default var
+An explicit-secret caller must forward both credentials so changing the selector
+does not require another workflow edit:
+
+```yaml
+jobs:
+  run:
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main
+    secrets:
+      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
 
-There is no hard-coded model fallback. If nothing is set, the action receives an empty `--model` and uses its own default.
+Callers that use `secrets: inherit` need no change after both organization
+secrets are available to the repository.
 
-**Exceptions** — `cc-post-merge-docs-review` and `cc-post-merge-tests` validate up front and fail with a clear `::error::` when no model
-variable is set. Configure at least `GH_ACTION_AI_MODEL` to enable them.
+## Optional Claude configuration
 
-### Categories
+Existing Claude variables remain supported:
 
-| Variable | Tier | Used by |
-| ---------- | ------ | --------- |
-| `GH_ACTION_AI_MODEL` | Global default | label-sync, best-practices, repo-orchestrator, next-steps, cc-post-merge-docs-review |
-| `GH_ACTION_AI_MODEL_CODE` | Code generation | cc-ci-fix, cc-code-simplifier, cc-post-merge-tests |
-| `GH_ACTION_AI_MODEL_ISSUES` | Issue management | issue-triage, issue-hygiene, issue-sweeper, issue-linker |
-| `GH_ACTION_AI_MODEL_PLAN` | Deep planning | cc-issue-resolver |
+| Name | Purpose |
+| --- | --- |
+| `GH_ACTION_AI_BASE_URL` | Anthropic-compatible endpoint; empty uses the upstream default |
+| `GH_ACTION_AI_MODEL` | Global Claude model override |
+| `GH_ACTION_AI_MODEL_CODE` | Code-task override |
+| `GH_ACTION_AI_MODEL_ISSUES` | Issue-task override |
+| `GH_ACTION_AI_MODEL_PLAN` | Planning-task override |
+| `GH_ACTION_AI_MODEL_REVIEW` | Review-task override |
 
-### Quick Setup
+No model identifier is hard-coded. If no applicable model variable is set, the
+upstream action chooses its default.
 
-**Minimal** (one variable, all workflows enabled):
+## Optional Codex configuration
 
-```text
-GH_ACTION_AI_API_KEY  = <your key>        # secret
-GH_ACTION_AI_BASE_URL = <empty>           # direct Anthropic
-GH_ACTION_AI_MODEL    = claude-sonnet-4
-```
+| Name | Maps to |
+| --- | --- |
+| `GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT` | `responses-api-endpoint` |
+| `GH_ACTION_AI_CODEX_MODEL` | `model` |
+| `GH_ACTION_AI_CODEX_EFFORT` | `effort` |
+| `GH_ACTION_AI_CODEX_VERSION` | `codex-version` |
 
-**Tiered** (cost-optimize by task):
+Leave these variables empty to use the Codex Action defaults. This avoids
+coupling inherited workflows to model or CLI identifiers that change over time.
 
-```text
-GH_ACTION_AI_MODEL        = claude-haiku-4
-GH_ACTION_AI_MODEL_PLAN   = claude-opus-4
-GH_ACTION_AI_MODEL_CODE   = claude-sonnet-4
-GH_ACTION_AI_MODEL_ISSUES = claude-sonnet-4
-```
+## Security boundary
 
-## Testing Your Setup
+The adapter runs Codex with `drop-sudo` and an explicit read-only or workspace
+permission profile. AI jobs receive read-only GitHub permissions. Workflows that
+publish comments, labels, commits, or pull requests perform that operation in a
+fresh deterministic publisher job with only the minimum GitHub permission and,
+where required, the existing GitHub App identity.
 
-After creating the `GH_ACTION_AI_*` org vars/secret, verify auth end-to-end with the dogfood CI loop or any dispatchable workflow:
+Do not give a model an App token or a write-capable `GITHUB_TOKEN`. Treat issue
+bodies, pull-request descriptions, comments, and repository files as untrusted
+prompt input.
+
+## Verify both agents
+
+Run the same dogfood workflow once per selector value:
 
 ```bash
-# Dispatch the dogfood CI suite (exercises a real claude-code-action run):
+gh variable set GH_ACTION_AI_AGENT --org dryvist -b claude
 gh workflow run dogfood-ci.yml --repo dryvist/ai-workflows
-gh run watch
+gh run watch --repo dryvist/ai-workflows
+
+gh variable set GH_ACTION_AI_AGENT --org dryvist -b codex
+gh workflow run dogfood-ci.yml --repo dryvist/ai-workflows
+gh run watch --repo dryvist/ai-workflows
 ```
 
-A green run confirms the action authenticated with whatever provider `GH_ACTION_AI_*` currently points at. To switch providers, re-map the org
-values and re-run — no workflow edits needed.
-
-For full end-to-end workflow testing (issue lifecycle, CI fix, etc.), see [VERIFICATION.md](VERIFICATION.md).
+A successful run for each value proves that selection, credential forwarding,
+prompt rendering, and the provider-specific adapter path are wired correctly.

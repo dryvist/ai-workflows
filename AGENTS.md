@@ -36,7 +36,8 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
 
 ### Workflow Types
 
-**All AI workflows use `claude-code-action@v1`** with OIDC auth (`id-token: write`).
+**All AI workflows use the shared `run-ai-agent` adapter.** The adapter selects
+Claude or Codex from `GH_ACTION_AI_AGENT` and defaults to Claude.
 Non-AI utility workflows (`notify-ai-pr`, `ci-fail-issue`,
 `review-thread-resolver`) use plain `actions/github-script` — see
 docs/PATTERNS.md "Non-AI Utility Workflow Pattern".
@@ -45,9 +46,10 @@ docs/PATTERNS.md "Non-AI Utility Workflow Pattern".
 - Static prompts: most workflows
 - Dynamic prompts (ci-fix, post-merge-tests, post-merge-docs-review): `render-prompt.sh` with named env vars
 - Write workflows (code-simplifier, next-steps, post-merge-*, ci-fix,
-  issue-resolver, pr-review-responder): Claude only EDITS files (`use_commit_signing: "false"`, no
-  git-write/`gh pr`/`gh api` write tools); a workflow step lands a GitHub-VERIFIED
-  commit/PR via `createCommitOnBranch` (shared `scripts/shared/verified-commit.js`).
+  issue-resolver, pr-review-responder): the selected agent only edits files and
+  writes typed handoffs (no git or GitHub mutations). A fresh publisher job
+  lands a GitHub-VERIFIED commit/PR via `createCommitOnBranch` (shared
+  `scripts/shared/verified-commit.js`).
   This is mandatory — native `use_commit_signing` cannot target a branch on our
   workflow_run/issues/schedule/dispatch triggers. See docs/PATTERNS.md
   "Verified Commit & PR Pattern".
@@ -57,8 +59,8 @@ docs/PATTERNS.md "Non-AI Utility Workflow Pattern".
 `repository_dispatch`, `schedule`, `workflow_run`. `push` is NOT supported —
 post-merge workflows use the dispatch pattern (see `docs/PATTERNS.md`).
 
-**Bot guard**: All `claude-code-action@v1` steps include
-`allowed_bots: "github-actions"` to allow dispatch-triggered runs (which set
+**Bot guard**: All agent steps allow the `github-actions` bot for
+dispatch-triggered runs (which set
 `github.actor` to `github-actions[bot]`). Cost control is handled by
 consumer-level daily dispatch limits, not by blocking bots at the workflow
 level. See `docs/PATTERNS.md` for the Bot Guard and AI Dispatch patterns.
@@ -84,7 +86,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 jobs:
@@ -152,19 +153,20 @@ queue runs instead.
 
 ### Authentication
 
-All Claude Code workflows reference a single **provider-agnostic** namespace so
-the provider can be swapped at the GitHub org level with zero workflow edits:
+All AI workflows select their implementation with org/repo variable
+`GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Keep the credentials
+separate: Claude uses `GH_ACTION_AI_API_KEY`; Codex uses `OPENAI_API_KEY`.
+Explicit-secret callers forward both so the selector is the only switch.
 
-- Secret `GH_ACTION_AI_API_KEY` → action input `anthropic_api_key:`
-- Var `GH_ACTION_AI_BASE_URL` → `ANTHROPIC_BASE_URL` env (empty → the action
-  defaults to `https://api.anthropic.com`)
-- Vars `GH_ACTION_AI_MODEL` / `_CODE` / `_ISSUES` / `_PLAN` → `--model`
-  (category precedence: a category var falls back to `GH_ACTION_AI_MODEL`)
+Provider tuning stays optional. Claude uses `GH_ACTION_AI_BASE_URL` and the
+existing `GH_ACTION_AI_MODEL*` variables. Codex uses
+`GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT`, `GH_ACTION_AI_CODEX_MODEL`,
+`GH_ACTION_AI_CODEX_EFFORT`, and `GH_ACTION_AI_CODEX_VERSION`. Never hard-code
+model IDs. See `docs/AUTHENTICATION.md`.
 
-Point these org-level vars/secrets at any provider's real key, URL, and model
-names. Never reference a provider-specific secret name in a workflow. See
-`docs/AUTHENTICATION.md` for provider mapping examples and why OAuth tokens are
-not used.
+Agent jobs must not receive a write-capable GitHub token or App token. Publish
+comments, labels, commits, and PRs deterministically from a fresh job with the
+minimum required permissions.
 
 ### Version Tags for Actions
 

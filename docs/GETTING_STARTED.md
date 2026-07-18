@@ -5,9 +5,10 @@ Add ai-workflows reusable workflows to your repository using thin caller files.
 ## Prerequisites
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
-2. One secret + base-URL variable configured at the org (or repo) level:
-   - Secret `GH_ACTION_AI_API_KEY` — your AI provider's API key (required by all workflows; see [README — Authentication](../README.md#authentication))
-   - Variable `GH_ACTION_AI_BASE_URL` — provider base URL (leave empty for direct Anthropic)
+2. Select an agent with variable `GH_ACTION_AI_AGENT` (`claude` or `codex`;
+   omitted means `claude`) and configure its secret:
+   - Claude: `GH_ACTION_AI_API_KEY`
+   - Codex: `OPENAI_API_KEY`
 
 ## How It Works
 
@@ -24,7 +25,6 @@ on:
     types: [<event>]
 permissions:
   contents: read           # minimum needed by this workflow
-  id-token: write          # required for OIDC auth
   issues: write            # add what this workflow needs
 jobs:
   run:
@@ -55,7 +55,6 @@ on:
     types: [opened]
 permissions:
   contents: read
-  id-token: write
   issues: write
 ```
 
@@ -69,7 +68,6 @@ on:
     types: [opened]
 permissions:
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 ```
@@ -88,7 +86,6 @@ on:
 permissions:
   actions: read
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 ```
@@ -98,14 +95,13 @@ Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (opt
 #### `cc-post-merge-docs-review.yml`
 
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`.
-`push` events are not directly supported by `claude-code-action@v1`.
+The common provider-neutral contract retains the existing dispatch boundary.
 
 ```yaml
 # Required permissions for the dispatch pattern
 permissions:
   actions: write   # required for gh workflow run
   contents: write
-  id-token: write
   pull-requests: write
 ```
 
@@ -114,14 +110,13 @@ See [docs/PATTERNS.md — Post-Merge Dispatch Pattern](PATTERNS.md#post-merge-di
 #### `cc-post-merge-tests.yml`
 
 Triggered via the dispatch pattern — consumer caller listens on `push: branches: [main]` and re-dispatches as `workflow_dispatch`.
-`push` events are not directly supported by `claude-code-action@v1`.
+The common provider-neutral contract retains the existing dispatch boundary.
 
 ```yaml
 # Required permissions for the dispatch pattern
 permissions:
   actions: write   # required for gh workflow run
   contents: write
-  id-token: write
   pull-requests: write
 ```
 
@@ -139,7 +134,6 @@ on:
     types: [opened, ready_for_review]
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 ```
@@ -161,7 +155,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 ```
@@ -177,7 +170,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-  id-token: write
   pull-requests: write
 ```
 
@@ -192,7 +184,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 ```
@@ -208,7 +199,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 ```
@@ -224,7 +214,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-  id-token: write
   issues: write
 ```
 
@@ -239,7 +228,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 ```
@@ -254,7 +242,6 @@ on:
 permissions:
   actions: write
   contents: read
-  id-token: write
 ```
 
 ---

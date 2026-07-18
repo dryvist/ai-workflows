@@ -1,13 +1,13 @@
 # Verification Runbook
 
-This document describes how to verify all 15 workflows are operational after deployment.
+This document describes how to verify all 17 AI workflows are operational after deployment.
 Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps below.
 
 ## Prerequisites
 
 - `gh` CLI authenticated with sufficient scopes
 - All consumer repos updated to `@v0.5.0`
-- Configured: secret `GH_ACTION_AI_API_KEY` + variable `GH_ACTION_AI_BASE_URL` (empty for direct Anthropic), mapped to your provider
+- Configured: `GH_ACTION_AI_AGENT` and the selected agent's secret
 
 ## Consumer Repos
 
@@ -19,16 +19,16 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 
 ## Quick Auth Check
 
-The fastest way to verify the `GH_ACTION_AI_*` namespace authenticates. No PR or issue needed.
+The fastest way to verify the selected agent authenticates. No PR or issue needed.
 
 ```bash
-# Dispatch the dogfood CI suite (runs a real claude-code-action step):
+# Dispatch the dogfood CI suite (runs the selected agent):
 gh workflow run dogfood-ci.yml
 gh run watch
 ```
 
-**Pass condition**: Workflow completes with `conclusion: success`. To verify a provider swap, re-map the `GH_ACTION_AI_*` org values and
-re-run — no workflow edits needed.
+**Pass condition**: Workflow completes with `conclusion: success`. Change
+`GH_ACTION_AI_AGENT` and re-run to verify the other agent without editing a workflow.
 
 ---
 
