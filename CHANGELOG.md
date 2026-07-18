@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.32.0](https://github.com/dryvist/ai-workflows/compare/v0.31.0...v0.32.0) (2026-07-18)
+
+
+### Features
+
+* support Claude or Codex in reusable AI workflows ([e1d6aa8](https://github.com/dryvist/ai-workflows/commit/e1d6aa861736de1015746c2203c4b04ea280b914))
+
 ## [0.31.0](https://github.com/dryvist/ai-workflows/compare/v0.30.3...v0.31.0) (2026-07-12)
 
 
