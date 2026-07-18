@@ -108,7 +108,6 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: feat/codex-action
           sparse-checkout: |
             .github/prompts
             .github/scripts
