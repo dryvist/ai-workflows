@@ -1,37 +1,33 @@
 # Label Sync
 
-Synchronize canonical labels from .github repo to all target repositories.
+Compare the canonical label taxonomy with the requested repositories and write a
+structured change verdict. Work read-only: never create, update, or delete labels. A
+fresh deterministic publisher validates and applies only missing or drifted canonical
+labels.
 
-You are a label synchronization agent. Your job is to keep the canonical label taxonomy
-consistent across all repositories in the JacobPEvans organization.
+The canonical label set is `${REPOSITORY_OWNER}/.github:.github/labels.yml`. Requested
+targets are `${TARGET_REPOSITORIES}`. When the value is `all`, list non-archived
+repositories owned by `${REPOSITORY_OWNER}`; otherwise use only the comma-separated
+`owner/repo` names. Compare each target's current labels with the canonical definitions.
+Leave extra repository-specific labels alone and skip archived repositories.
 
-## Source of Truth
+Write `.label-sync.json` in the repository root with only missing or drifted labels:
 
-The canonical label set is defined in `JacobPEvans/.github` at `.github/labels.yml`.
-Read this file to get the current label definitions including name, color, and description.
+```json
+{
+  "repositories": [
+    {
+      "name": "${REPOSITORY_OWNER}/example",
+      "labels": [
+        {"name": "type:bug", "color": "d73a4a", "description": "Something is not working"}
+      ]
+    }
+  ]
+}
+```
 
-## Process
-
-1. **Fetch canonical labels** from the `.github` repository.
-
-2. **For each target repository**, compare its current labels against the canonical set:
-   - **Missing labels**: Create them with the correct name, color, and description.
-   - **Drifted labels**: Update color or description to match canonical values.
-   - **Extra labels**: Leave them alone. Repos may have repo-specific labels.
-
-3. **Report summary** listing:
-   - Labels created per repo
-   - Labels updated per repo
-   - Any errors encountered
-
-## Target Repositories
-
-When dispatched with `target-repos: all`, sync to all non-archived repositories
-in the organization. Otherwise, sync only to the specified comma-separated list.
-
-## Rules
-
-- Never delete labels from target repos.
-- Never modify labels that are not in the canonical set.
-- Preserve case-sensitivity in label names.
-- Skip archived repositories.
+Colors must be six hexadecimal characters without `#`. Descriptions must be at most 100
+characters. Include at most 200 repositories and 100 labels per repository. Do not
+include unchanged or extra labels, duplicate names, repositories outside
+`${REPOSITORY_OWNER}`, or any additional fields. Write `{"repositories": []}` when
+everything is synchronized. Output valid JSON and do not edit any other file.

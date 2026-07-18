@@ -28,7 +28,6 @@ on:
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: write
-  id-token: write
   issues: write
   pull-requests: write
 
@@ -92,16 +91,17 @@ jobs:
     if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
-      contents: write
-      id-token: write
-      issues: write
-      pull-requests: write
+      contents: read
+      issues: read
+      pull-requests: read
     timeout-minutes: 15
     env:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Checkout ai-workflows
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -111,42 +111,90 @@ jobs:
             .github/prompts
             .github/scripts
           path: .ai-workflows
+          persist-credentials: false
 
       - name: Render prompt
         id: prompt
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/next-steps.md
 
-      # Verified Commit & PR Pattern (docs/PATTERNS.md): Claude only edits (and may create an
-      # issue for Option B). For Option A it writes .claude-pr.md; the steps below open a
-      # VERIFIED PR from it. gh issue:* stays allowed for the issue-creation path.
-      - name: Execute Claude Code
-        uses: anthropics/claude-code-action@e90deca47693f9457b72f2b53c17d7c445a87342 # v1.0.171
+      - name: Run AI agent
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
+          codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"
-          use_commit_signing: "false"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh issue:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh search:*)"
-            --model ${{ vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL }}
+          codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
+          permission_profile: workspace
+          allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh search:*)"
 
-      - name: Mint PR token
-        id: pr-token
+      - name: Capture proposed patch
+        run: git diff --binary -- . ':(exclude).ai-output/**' > .ai-output/changes.patch
+
+      - name: Upload next-steps artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-steps-${{ github.run_id }}
+          path: |
+            .ai-output/next-steps.json
+            .ai-output/next-steps-pr.md
+            .ai-output/changes.patch
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-next-step:
+    name: Publish next step
+    needs: analyze
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout trusted publisher
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Download next-steps artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: next-steps-${{ github.run_id }}
+          path: .ai-output
+
+      - name: Mint publisher token
+        id: publisher-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
           private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
-      - name: Open PR
+      - name: Publish validated next step
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          PR_BRANCH: claude/next-steps-${{ github.run_id }}
+          PR_BRANCH: ai/next-steps-${{ github.run_id }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
           TRIGGER_ACTOR: ${{ github.triggering_actor }}
         with:
-          github-token: ${{ steps.pr-token.outputs.token }}
+          github-token: ${{ steps.publisher-token.outputs.token }}
           script: |
-            const run = require('./.ai-workflows/.github/scripts/shared/pr-from-file.js');
+            const run = require('./.ai-workflows/.github/scripts/next-steps/publish-result.js');
             await run({ github, context, core });

@@ -1,40 +1,33 @@
 # Issue Sweeper
 
-Weekly scan of open issues. Comments on progress, closes resolved issues with PR links.
+Review open issues and write a structured status verdict. Work read-only: never comment,
+close, label, or otherwise mutate GitHub. A fresh deterministic publisher job validates
+the verdict and performs only the typed actions below.
 
-You are an issue completeness analyst. Your job is to review every open issue in this
-repository and determine its current status.
+For each open issue, search pull requests that reference it, branches named for it, and
+commit messages from the last 30 days. Classify it only when one of these applies:
 
-## Process
+- `resolved`: a merged PR directly references the issue.
+- `in_progress_pr`: an open PR references the issue.
+- `in_progress_branch`: an active branch exists for the issue.
+- `stale`: no linked PR, branch, or commit and no activity for 30+ days.
 
-For each open issue:
+Check existing comments and omit an in-progress or stale action when the same status was
+already posted. Never resolve an issue without a directly referencing merged PR.
 
-1. **Check for linked PRs**: Search for pull requests that reference this issue number
-   (`#<number>` in title, body, or commits). Check if any are merged.
+Write `.issue-sweeper.json` in the repository root:
 
-2. **Check for branches**: Look for branches named after the issue
-   (e.g., `feat/issue-42`, `fix/42-description`).
+```json
+{
+  "actions": [
+    {"kind": "resolved", "issue_number": 10, "pr_number": 50},
+    {"kind": "in_progress_pr", "issue_number": 11, "pr_number": 51},
+    {"kind": "in_progress_branch", "issue_number": 12, "branch_name": "feat/issue-12"},
+    {"kind": "stale", "issue_number": 13}
+  ]
+}
+```
 
-3. **Check recent commits**: Search commit messages from the last 30 days for references
-   to this issue number.
-
-4. **Classify the issue**:
-
-   - **Resolved**: A merged PR references this issue. Close the issue with a comment
-     linking the PR(s) that resolved it. Use format:
-     `Resolved by #<pr-number>. Closing automatically.`
-
-   - **In Progress**: An open PR or active branch exists. Comment with current status:
-     `In progress: PR #<number> is open (or branch <name> exists).`
-     Do not comment if you already commented with the same status previously.
-
-   - **Stale**: No linked PRs, no branches, no commit references, and no activity in
-     30+ days. Comment:
-     `This issue has had no activity for 30+ days. Is this still relevant?`
-     Do not comment if a stale comment was already posted.
-
-## Rules
-
-- Never close an issue unless a merged PR directly references it.
-- Never duplicate comments. Check existing comments before posting.
-- Process issues in order of oldest first.
+Each issue may appear at most once. Use exactly the fields shown for its kind, include at
+most 100 actions, and add no extra fields. Write `{"actions": []}` when no action is
+needed. Output valid JSON and do not edit any other file.

@@ -24,7 +24,6 @@ on:
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: read
-  id-token: write
   issues: write
   pull-requests: read
 
@@ -37,8 +36,7 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
-      id-token: write
-      issues: write
+      issues: read
       pull-requests: read
     timeout-minutes: 5
     env:
@@ -46,6 +44,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
 
       - name: Checkout ai-workflows
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -55,22 +55,74 @@ jobs:
             .github/prompts
             .github/scripts
           path: .ai-workflows
+          persist-credentials: false
 
       - name: Render prompt
         id: prompt
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-hygiene.md
 
-      # Use run-claude-code (mints a JacobPEvans-claude App token) instead of the
-      # raw action's OIDC exchange: that exchange 401s ("no write access") on
-      # private repos where the App has write but the OIDC identity does not.
-      - name: Run Claude Code
-        uses: dryvist/ai-workflows/.github/actions/run-claude-code@main
+      - name: Run AI agent
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
+          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
-          allowed_tools: "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(gh pr:*),Bash(gh search:*)"
-          claude_code_oauth_token: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
-          app_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
-          use_commit_signing: "false"
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
+          permission_profile: workspace
+          allowed_tools: >-
+            Read,Glob,Grep,LS,Write,
+            Bash(gh issue view:*),Bash(gh issue list:*),
+            Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh search:*)
+          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
+          codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"
+
+      - name: Upload hygiene result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-hygiene-${{ github.run_id }}
+          path: .issue-hygiene.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish issue hygiene
+    needs: hygiene
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout publisher
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts/issue-hygiene
+          path: .ai-workflows-publisher
+          persist-credentials: false
+
+      - name: Download hygiene result
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: issue-hygiene-${{ github.run_id }}
+
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-issues: write
+
+      - name: Publish hygiene result
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          RESULT_FILE: .issue-hygiene.json
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const publish = require('./.ai-workflows-publisher/.github/scripts/issue-hygiene/publish.js');
+            await publish({ github, context, core });

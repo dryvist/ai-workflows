@@ -32,15 +32,30 @@ Analyze the repository across these five dimensions:
 
 ## Output
 
-Create a single issue with:
+Do not create or modify anything on GitHub. Write exactly one JSON object to
+`.ai-output/best-practices.json`. A separate trusted publisher validates the file and
+creates the issue.
 
-- Title: `chore: best practices recommendations — <YYYY-MM-DD>`
-- Body containing exactly 3-5 recommendations, each with:
-  - **Area**: Which audit dimension
-  - **Finding**: What was observed
-  - **Recommendation**: Specific action to take
-  - **Impact**: Low / Medium / High
-- Apply the `type:chore` label
+When recommendations should be published:
+
+```json
+{
+  "action": "create_issue",
+  "date": "YYYY-MM-DD",
+  "recommendations": [
+    {
+      "area": "CI/CD Patterns",
+      "finding": "What was observed",
+      "recommendation": "Specific action to take",
+      "impact": "Medium"
+    }
+  ]
+}
+```
+
+Use only the five audit-area names above and `Low`, `Medium`, or `High` for impact.
+When a recent duplicate exists or no recommendations should be published, write
+`{"action":"none"}` instead. Do not include Markdown fences or extra keys in the file.
 
 ## Rules
 
@@ -49,4 +64,4 @@ Create a single issue with:
 - Do not duplicate recommendations from open best-practices issues
 - Check existing open issues with "best practices recommendations" in the title
   before creating a new one — skip if one from the last 14 days exists
-- Never create PRs, only issues
+- Never create PRs or call GitHub write APIs

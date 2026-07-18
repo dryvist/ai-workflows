@@ -12,7 +12,6 @@ on:
         default: ""
 permissions:
   contents: write
-  id-token: write
   pull-requests: write
 jobs:
   respond:
@@ -21,4 +20,5 @@ jobs:
       repo_context: "Reusable AI agent workflows for GitHub Actions; consumer repos call these with thin callers."
     secrets:
       GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
