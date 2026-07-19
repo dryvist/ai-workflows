@@ -59,7 +59,10 @@ Pass GitHub Actions expression values (`${{ }}`) via `env:` on the step, then re
 
 ## Prompt Files
 
-Prompts live in `dryvist/ai-llm-prompts` under `automation/` with `${VAR}` placeholders. Workflows pin an immutable catalog commit and render with `.github/scripts/render-prompt.sh`, which strips OKF frontmatter before `envsubst`.
+Prompts live in `dryvist/ai-llm-prompts` under `automation/` with `${VAR}`
+placeholders. Workflows pin an immutable catalog commit and render with
+`.github/scripts/render-prompt.sh`, which strips OKF frontmatter before
+`envsubst`.
 
 ## Authentication
 
