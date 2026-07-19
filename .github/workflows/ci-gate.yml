@@ -32,9 +32,7 @@ jobs:
     uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
     with:
       markdown_lint: true
-      # Staged: the pre-existing automation surface has ~45 workflow-security
-      # findings (many in gh-aw generated .lock.yml files). Enable once #344
-      # is resolved.
+      # Staged until the remaining reusable workflows pass the shared security policy.
       zizmor: false
       filters: |
         markdown:

@@ -113,17 +113,24 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          sparse-checkout: |
-            .github/prompts
-            .github/scripts
+          sparse-checkout: .github/scripts
           path: .ai-workflows
+          persist-credentials: false
+      - name: Checkout prompt catalog
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-llm-prompts
+          ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
+          sparse-checkout: automation/ai-workflows-issue-backlog-sweep.md
+          sparse-checkout-cone-mode: false
+          path: .ai-llm-prompts
           persist-credentials: false
 
       - name: Render prompt
         id: prompt
         env:
           MAX_ISSUES: ${{ inputs.max_issues || '5' }}
-        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-workflows/.github/prompts/issue-backlog-sweep.md MAX_ISSUES
+        run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-issue-backlog-sweep.md MAX_ISSUES
 
       # Claude only JUDGES (read-only + writes the JSON verdict file). It applies no
       # labels — the App-token step below does that so `ai:ready` fires the resolver.
