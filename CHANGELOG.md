@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.33.0](https://github.com/dryvist/ai-workflows/compare/v0.32.0...v0.33.0) (2026-07-19)
+
+
+### Features
+
+* **prompts:** consume central catalog and retire GH-AW ([#354](https://github.com/dryvist/ai-workflows/issues/354)) ([9144bb5](https://github.com/dryvist/ai-workflows/commit/9144bb5f537d5f0a0d4e42d0e898047130b14e8b))
+
 ## [0.32.0](https://github.com/dryvist/ai-workflows/compare/v0.31.0...v0.32.0) (2026-07-18)
 
 
