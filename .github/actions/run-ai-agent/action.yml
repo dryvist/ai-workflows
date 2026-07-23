@@ -94,8 +94,8 @@ inputs:
 
 outputs:
   agent:
-    description: Agent that ran.
-    value: ${{ inputs.agent }}
+    description: Agent that ran (after any openai_api_key fallback to claude).
+    value: ${{ steps.prepare.outputs.effective-agent }}
   result:
     description: >-
       Normalized provider result. This is Claude structured output when
@@ -159,7 +159,7 @@ runs:
 
     - name: Run Claude Code
       id: claude
-      if: inputs.agent == 'claude'
+      if: steps.prepare.outputs.effective-agent == 'claude'
       uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1
       with:
         # Supplying the job-scoped token prevents Claude Code Action from
@@ -174,7 +174,7 @@ runs:
     # Keep Codex last: drop-sudo permanently removes sudo for the rest of the job.
     - name: Run Codex
       id: codex
-      if: inputs.agent == 'codex'
+      if: steps.prepare.outputs.effective-agent == 'codex'
       uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
       env:
         # Read operations such as `gh issue view` use the job-scoped token.
