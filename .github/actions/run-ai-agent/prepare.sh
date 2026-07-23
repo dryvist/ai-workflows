@@ -7,6 +7,14 @@ validate() {
     read-only|workspace) permission_profile=":$permission_profile" ;;
   esac
 
+  # ponytail: a caller (e.g. GH_ACTION_AI_AGENT var) can request codex without
+  # ever wiring OPENAI_API_KEY through. Fall back to claude rather than fail
+  # every consumer repo; escalate for real if claude's key is also missing.
+  if [[ "$AGENT" == "codex" && -z "$OPENAI_API_KEY" ]]; then
+    echo "::warning::codex requested but openai_api_key is missing; falling back to claude"
+    AGENT=claude
+  fi
+
   case "$AGENT" in
     claude)
       if [[ -z "$ANTHROPIC_API_KEY" ]]; then
@@ -31,6 +39,7 @@ validate() {
   esac
 
   echo "permission-profile=$permission_profile" >> "$GITHUB_OUTPUT"
+  echo "effective-agent=$AGENT" >> "$GITHUB_OUTPUT"
 
   local args="$CLAUDE_ARGS"
   local quoted
