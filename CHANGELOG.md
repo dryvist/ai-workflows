@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.33.1](https://github.com/dryvist/ai-workflows/compare/v0.33.0...v0.33.1) (2026-07-23)
+
+
+### Bug Fixes
+
+* **run-ai-agent:** fall back to claude when codex has no openai_api_key ([#358](https://github.com/dryvist/ai-workflows/issues/358)) ([6e10b39](https://github.com/dryvist/ai-workflows/commit/6e10b39408d8fffbdd24da24621ec56501c3862f))
+
 ## [0.33.0](https://github.com/dryvist/ai-workflows/compare/v0.32.0...v0.33.0) (2026-07-19)
 
 
