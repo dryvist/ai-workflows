@@ -160,7 +160,7 @@ runs:
     - name: Run Claude Code
       id: claude
       if: steps.prepare.outputs.effective-agent == 'claude'
-      uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1
+      uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
       with:
         # Supplying the job-scoped token prevents Claude Code Action from
         # exchanging OIDC for its own write-capable GitHub App token.
