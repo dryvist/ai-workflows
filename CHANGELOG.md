@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.34.0](https://github.com/dryvist/ai-workflows/compare/v0.33.1...v0.34.0) (2026-08-01)
+
+
+### Features
+
+* **post-merge-docs-review:** support draft PRs and per-caller prompt notes ([#362](https://github.com/dryvist/ai-workflows/issues/362)) ([1de2cb7](https://github.com/dryvist/ai-workflows/commit/1de2cb7469b375146b1b664b74fa6a40d19142d9))
+
 ## [0.33.1](https://github.com/dryvist/ai-workflows/compare/v0.33.0...v0.33.1) (2026-07-23)
 
 
