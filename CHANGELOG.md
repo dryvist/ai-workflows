@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.35.0](https://github.com/dryvist/ai-workflows/compare/v0.34.0...v0.35.0) (2026-08-01)
+
+
+### Features
+
+* **workflows:** declare explicit secrets contracts on 3 more reusable workflows ([#364](https://github.com/dryvist/ai-workflows/issues/364)) ([bde7526](https://github.com/dryvist/ai-workflows/commit/bde75264e035c5d7b30e0b5c0bfc54733c8b97cb))
+
 ## [0.34.0](https://github.com/dryvist/ai-workflows/compare/v0.33.1...v0.34.0) (2026-08-01)
 
 
