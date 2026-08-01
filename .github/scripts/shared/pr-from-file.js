@@ -41,5 +41,6 @@ module.exports = async ({ github, context, core }) => {
     title,
     body: `${body}\n\n${provenance}`,
     extraExcludes: [prFile],
+    draft: process.env.PR_DRAFT === 'true',
   });
 };

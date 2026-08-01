@@ -75,4 +75,15 @@ describe('pr-from-file', () => {
     expect(github.rest.pulls.create).not.toHaveBeenCalled();
     expect(core.getOutput('opened')).toBe('false');
   });
+
+  it('opens a draft PR when PR_DRAFT=true, ready otherwise', async () => {
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'one\ntwo\n');
+    fs.writeFileSync(path.join(dir, '.claude-pr.md'), 'docs: fix stale reference\n\nBody.');
+    process.env.PR_DRAFT = 'true';
+
+    await runIn(dir, { github, context, core });
+
+    expect(github.rest.pulls.create.mock.calls[0][0].draft).toBe(true);
+    delete process.env.PR_DRAFT;
+  });
 });
