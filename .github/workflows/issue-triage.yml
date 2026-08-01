@@ -16,6 +16,13 @@ on:
         description: "Issue number to triage (dispatch pattern; 0 = from event payload)"
         type: string
         default: "0"
+    secrets:
+      GH_ACTION_AI_API_KEY:
+        required: false
+      OPENAI_API_KEY:
+        required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        required: false
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
