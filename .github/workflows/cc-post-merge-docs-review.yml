@@ -27,6 +27,16 @@ on:
         description: 'Override commit SHA for workflow_dispatch callers'
         required: false
         type: string
+      draft_prs:
+        description: "Open the resulting PR as a draft instead of ready-for-review"
+        type: string
+        default: "false"
+      extra_prompt_instructions:
+        description: >-
+          Extra instructions appended after the catalog prompt — e.g. telling
+          the agent to fill the calling repo's PULL_REQUEST_TEMPLATE.md.
+        type: string
+        default: ""
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -166,7 +176,10 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
-          prompt: ${{ steps.prompt.outputs.content }}
+          prompt: |
+            ${{ steps.prompt.outputs.content }}
+
+            ${{ inputs.extra_prompt_instructions }}
           claude_model: ${{ vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh search:*)"
@@ -237,6 +250,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PR_BRANCH: claude/post-merge-docs-review-${{ github.run_id }}
+          PR_DRAFT: ${{ inputs.draft_prs }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}
