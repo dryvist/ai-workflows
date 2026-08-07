@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.35.1](https://github.com/dryvist/ai-workflows/compare/v0.35.0...v0.35.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **run-ai-agent:** fall back to claude when codex fails at runtime ([#367](https://github.com/dryvist/ai-workflows/issues/367)) ([7c02164](https://github.com/dryvist/ai-workflows/commit/7c02164d8cb65fd18b3c322c31e21d1878e95ee4))
+
 ## [0.35.0](https://github.com/dryvist/ai-workflows/compare/v0.34.0...v0.35.0) (2026-08-01)
 
 
