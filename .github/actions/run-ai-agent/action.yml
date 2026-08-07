@@ -94,8 +94,12 @@ inputs:
 
 outputs:
   agent:
-    description: Agent that ran (after any openai_api_key fallback to claude).
-    value: ${{ steps.prepare.outputs.effective-agent }}
+    description: >-
+      Agent that ran. Reflects a prepare-time fallback (openai_api_key
+      missing) or a runtime fallback (codex ran but failed, e.g. exhausted
+      provider quota) to claude.
+    value: >-
+      ${{ steps.codex.outcome == 'failure' && steps.claude.outcome == 'success' && 'claude (codex fallback)' || steps.prepare.outputs.effective-agent }}
   result:
     description: >-
       Normalized provider result. This is Claude structured output when
@@ -157,24 +161,16 @@ runs:
       shell: bash
       run: '"$GITHUB_ACTION_PATH/prepare.sh" cleanup'
 
-    - name: Run Claude Code
-      id: claude
-      if: steps.prepare.outputs.effective-agent == 'claude'
-      uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
-      with:
-        # Supplying the job-scoped token prevents Claude Code Action from
-        # exchanging OIDC for its own write-capable GitHub App token.
-        github_token: ${{ github.token }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
-        allowed_bots: ${{ inputs.allowed_bots }}
-        use_commit_signing: "false"
-        prompt: ${{ inputs.prompt }}
-        claude_args: ${{ steps.prepare.outputs.claude-args }}
-
-    # Keep Codex last: drop-sudo permanently removes sudo for the rest of the job.
+    # Codex runs first (when selected) for two reasons: its drop-sudo safety
+    # strategy permanently removes sudo for the rest of the job, and a failed
+    # Codex run (e.g. exhausted provider quota) needs Claude to still be able
+    # to run afterward as a fallback — continue-on-error keeps that failure
+    # from stopping the job here. If Claude's own key is unavailable or also
+    # fails, the Claude step below fails for real and the job fails honestly.
     - name: Run Codex
       id: codex
       if: steps.prepare.outputs.effective-agent == 'codex'
+      continue-on-error: true
       uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
       env:
         # Read operations such as `gh issue view` use the job-scoped token.
@@ -195,3 +191,19 @@ runs:
         allow-users: ${{ inputs.allowed_users }}
         allow-bots: ${{ inputs.allowed_bots != '' && 'true' || 'false' }}
         allow-bot-users: ${{ inputs.allowed_bots }}
+
+    - name: Run Claude Code
+      id: claude
+      if: >-
+        steps.prepare.outputs.effective-agent == 'claude' ||
+        steps.codex.outcome == 'failure'
+      uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
+      with:
+        # Supplying the job-scoped token prevents Claude Code Action from
+        # exchanging OIDC for its own write-capable GitHub App token.
+        github_token: ${{ github.token }}
+        anthropic_api_key: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+        allowed_bots: ${{ inputs.allowed_bots }}
+        use_commit_signing: "false"
+        prompt: ${{ inputs.prompt }}
+        claude_args: ${{ steps.prepare.outputs.claude-args }}
