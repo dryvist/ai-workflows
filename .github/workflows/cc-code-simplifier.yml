@@ -1,7 +1,16 @@
 # Code Simplifier
 #
 # Simplifies recently modified code for clarity, consistency, and maintainability while
-# preserving exact functionality. Opens a focused PR with the refinements.
+# preserving exact functionality.
+#
+# Two providers:
+#   claude (default) - an agent edits the tree and a focused PR is opened.
+#   router           - a cheap/local model served through a self-hosted
+#                      OpenAI-compatible router reads the pull request diff and
+#                      posts ONE sticky advisory comment. It never edits a file
+#                      and never pushes. Router or model failures post
+#                      "simplifier unavailable: <reason>" and the job still
+#                      succeeds. Never make the router job a required check.
 #
 # This is a reusable workflow that can be called from other repositories.
 
@@ -22,6 +31,55 @@ on:
         description: "Max workflow runs per day (0 to disable)"
         type: string
         default: "5"
+      provider:
+        description: >-
+          claude (default) runs the editing agent and opens a PR. router runs a
+          read-only first pass on the router and posts a sticky advisory comment.
+        type: string
+        required: false
+        default: claude
+      model:
+        description: >-
+          Router ROLE alias to call in router mode (e.g. subagent, cheap).
+          Always an alias the router resolves - never a vendor model id.
+        type: string
+        required: false
+        default: subagent
+      max_diff_kb:
+        description: "Truncate the diff sent to the model at this many KiB"
+        type: number
+        required: false
+        default: 200
+      max_tokens:
+        description: "Completion token ceiling for the router call"
+        type: number
+        required: false
+        default: 1500
+      base_url_var_name:
+        description: >-
+          Name of the Actions variable holding the router's OpenAI-compatible
+          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
+        type: string
+        required: false
+        default: LLM_ROUTER_BASE_URL
+    secrets:
+      # Declaring any secret ends the implicit "inherit is the only contract"
+      # state, so the claude-mode secrets are declared too - all optional, so a
+      # caller using `secrets: inherit` is unaffected.
+      GH_ACTION_AI_API_KEY:
+        description: "Anthropic API key for the claude-mode agent"
+        required: false
+      OPENAI_API_KEY:
+        description: "OpenAI API key for the claude-mode agent's codex backend"
+        required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: "Private key of the App that opens the claude-mode PR"
+        required: false
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router virtual key (never the router master key). When absent
+          router mode posts "simplifier unavailable" and succeeds.
+        required: false
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -31,12 +89,13 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: code-simplifier-${{ github.repository }}
+  group: code-simplifier-${{ github.repository }}-${{ github.event.pull_request.number || 'repo-wide' }}
   cancel-in-progress: false
 
 jobs:
   check-pr-ceiling:
     name: Check bot PR ceiling
+    if: inputs.provider != 'router'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
@@ -60,6 +119,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
+    if: inputs.provider != 'router'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     # No actions:read requirement — the check fails open if it cannot list runs,
     # so callers need not grant actions:read (which they omit and startup-fail on).
@@ -87,7 +147,10 @@ jobs:
 
   simplify:
     needs: [check-pr-ceiling, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+    if: >-
+      inputs.provider != 'router' &&
+      needs.check-pr-ceiling.outputs.allowed == 'true' &&
+      needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
@@ -156,6 +219,7 @@ jobs:
   publish:
     name: Publish simplification PR
     needs: simplify
+    if: inputs.provider != 'router'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
@@ -208,3 +272,68 @@ jobs:
           script: |
             const run = require('./.ai-workflows/.github/scripts/shared/pr-from-file.js');
             await run({ github, context, core });
+
+  router-review:
+    name: Router simplification review
+    if: >-
+      inputs.provider == 'router' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Collect diff and changed files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+        run: bash .ai-workflows/.github/scripts/code-simplifier/collect.sh
+
+      - name: Request simplification findings
+        env:
+          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          REPO: ${{ github.repository }}
+        run: bash .ai-workflows/.github/scripts/code-simplifier/request.sh
+
+      - name: Render comment body
+        env:
+          MODEL: ${{ inputs.model }}
+        run: bash .ai-workflows/.github/scripts/code-simplifier/render.sh
+
+      - name: Post sticky comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          BODY_FILE: .code-simplifier.md
+          MARKER_MATCH: "<!-- code-simplifier -->"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });
+
+      - name: Job summary
+        run: cat .code-simplifier.md >> "$GITHUB_STEP_SUMMARY"
