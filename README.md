@@ -32,6 +32,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `pr-issue-linker.yml` | `pull_request` | On PR open/close | Auto-links PRs to referenced issues via Development sidebar |
 | `project-router.yml` | `workflow_call` | On issue/PR events | Routes items to GitHub Projects with smart field assignment |
 | `repo-orchestrator.yml` | `workflow_call` | On-demand | Hub-and-spoke multi-repo workflow dispatcher |
+| `repo-hygiene-digest.yml` | `workflow_call` | Nightly (consumer) | Read-only branch, PR, and promotion digest; model writes only the summary |
 | `review-thread-resolver.yml` | `workflow_call` | Hourly org sweep (hub) | Resolves outdated/failed bot review threads that block merges — no AI tokens |
 
 ---

@@ -1,0 +1,13 @@
+name: Dogfood Repository Hygiene Digest
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+jobs:
+  repo-hygiene-digest:
+    uses: ./.github/workflows/repo-hygiene-digest.yml
+    secrets: inherit
