@@ -1,0 +1,134 @@
+# Thread Triage
+#
+# Advisory triage of the unresolved review threads on a pull request, by a
+# cheap model served through a self-hosted OpenAI-compatible router. Each
+# thread is classified outdated | addressed | needs-code | needs-human and the
+# verdicts are rendered as one sticky comment.
+#
+# Why: the premium-model responder and the resolve-pr-threads skill both begin
+# by reading every unresolved thread to decide which ones still matter. That
+# first pass is classification, not authorship, so it belongs on the cheap
+# router role.
+#
+# Advisory only: it never resolves a thread, never replies in one, and never
+# edits code. Router or model failures post "triage unavailable: <reason>" and
+# the job still succeeds. Only workflow bugs fail it. Never make it a required
+# check.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Thread Triage
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job on. Defaults to
+          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
+      model:
+        description: >-
+          Router ROLE alias to call (e.g. cheap, judge, subagent). Always an
+          alias the router resolves — never a vendor model id.
+        type: string
+        required: false
+        default: cheap
+      max_threads:
+        description: "Triage at most this many unresolved threads"
+        type: number
+        required: false
+        default: 20
+      max_tokens:
+        description: "Completion token ceiling for the triage call"
+        type: number
+        required: false
+        default: 1200
+      base_url_var_name:
+        description: >-
+          Name of the Actions variable holding the router's OpenAI-compatible
+          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
+        type: string
+        required: false
+        default: LLM_ROUTER_BASE_URL
+    secrets:
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router virtual key (never the router master key). When absent
+          the workflow posts "triage unavailable" and succeeds.
+        required: false
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: thread-triage-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    name: Triage review threads
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    # Fork guard: same-repo PR heads only, so no secret is exposed to a fork.
+    # Loop guard: our own bots' replies are themselves review-comment events.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.login != 'jacobpevans-claude[bot]' &&
+      github.event.sender.login != 'claude[bot]' &&
+      github.event.sender.login != 'github-actions[bot]'
+    timeout-minutes: 10
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Collect unresolved review threads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MAX_THREADS: ${{ inputs.max_threads }}
+        run: bash .ai-workflows/.github/scripts/thread-triage/collect.sh
+
+      - name: Request triage
+        env:
+          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          REPO: ${{ github.repository }}
+        run: bash .ai-workflows/.github/scripts/thread-triage/request.sh
+
+      - name: Render comment body
+        env:
+          MODEL: ${{ inputs.model }}
+        run: bash .ai-workflows/.github/scripts/thread-triage/render.sh
+
+      - name: Post sticky comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          BODY_FILE: .thread-triage.md
+          MARKER_MATCH: "<!-- thread-triage -->"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });
+
+      - name: Job summary
+        run: cat .thread-triage.md >> "$GITHUB_STEP_SUMMARY"
