@@ -1,0 +1,238 @@
+name: Documentation Publisher
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: "Curate the private projection or publish it"
+        type: string
+        required: true
+      implementation_ref:
+        description: "Full ai-workflows commit SHA used to load scripts"
+        type: string
+        required: true
+      runner_label:
+        description: "Self-hosted runner label"
+        type: string
+        default: self-hosted
+      source_root:
+        type: string
+        default: src/content/docs
+      projection_root:
+        type: string
+        default: src/content/docs/d/public
+      manifest_path:
+        type: string
+        default: .publisher/manifest.yml
+      site_template_path:
+        type: string
+        default: .publisher/site-template.json
+      denylist_path:
+        type: string
+        default: .publisher/private-denylist.txt
+      base_sha:
+        description: "Private source base SHA considered by curation"
+        type: string
+        default: ""
+      local_ai_endpoint:
+        type: string
+        default: http://127.0.0.1:4000/v1/chat/completions
+      local_ai_allowed_hosts:
+        description: "Comma-separated exact endpoint host allowlist"
+        type: string
+        default: localhost,127.0.0.1,::1
+      local_ai_model:
+        type: string
+        required: true
+      private_app_id:
+        type: string
+        default: ""
+      public_app_id:
+        type: string
+        default: ""
+      public_repository_owner:
+        type: string
+        default: dryvist
+      public_repository_name:
+        type: string
+        default: docs
+      public_base_branch:
+        type: string
+        default: main
+      draft_public_pr:
+        type: boolean
+        default: false
+    secrets:
+      DOCS_LOCAL_AI_API_KEY:
+        required: false
+      DOCS_PRIVATE_APP_PRIVATE_KEY:
+        required: false
+      DOCS_PUBLIC_APP_PRIVATE_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-publisher-${{ github.repository }}-${{ inputs.mode }}
+  cancel-in-progress: false
+
+jobs:
+  curate:
+    if: inputs.mode == 'curate'
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 30
+    steps:
+      - name: Validate pinned implementation
+        env:
+          IMPLEMENTATION_REF: ${{ inputs.implementation_ref }}
+        run: grep -Eq '^[0-9a-f]{40}$' <<<"$IMPLEMENTATION_REF"
+      - name: Checkout private documentation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout publisher implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ inputs.implementation_ref }}
+          sparse-checkout: |
+            .github/scripts
+            package.json
+            bun.lock
+          path: .ai-workflows
+          persist-credentials: false
+      - name: Install publisher dependencies
+        working-directory: .ai-workflows
+        run: bun install --frozen-lockfile
+      - name: Curate private public projection
+        env:
+          DOCS_LOCAL_AI_API_KEY: ${{ secrets.DOCS_LOCAL_AI_API_KEY }}
+          DOCS_BASE_SHA: ${{ inputs.base_sha }}
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js curate
+          --source "${{ inputs.source_root }}"
+          --projection "${{ inputs.projection_root }}"
+          --manifest "${{ inputs.manifest_path }}"
+          --endpoint "${{ inputs.local_ai_endpoint }}"
+          --allowed-hosts "${{ inputs.local_ai_allowed_hosts }}"
+          --model "${{ inputs.local_ai_model }}"
+      - name: Validate curated projection
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js convert
+          --repository .
+          --source "${{ inputs.projection_root }}"
+          --manifest "${{ inputs.manifest_path }}"
+          --template "${{ inputs.site_template_path }}"
+          --output "$RUNNER_TEMP/docs-public"
+      - name: Scan curated output
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan
+          --source "$RUNNER_TEMP/docs-public"
+          --denylist "${{ inputs.denylist_path }}"
+      - name: Run gitleaks
+        run: gitleaks detect --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
+      - name: Mint private projection token
+        id: private-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ inputs.private_app_id }}
+          private-key: ${{ secrets.DOCS_PRIVATE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Open private projection PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          PR_BRANCH: docs-publisher/projection-${{ github.run_id }}
+          PR_TITLE: "docs: update public projection"
+          PR_BODY: "Updates the curated public projection and publisher manifest."
+        with:
+          github-token: ${{ steps.private-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/docs-publisher/open-pr.js');
+            await run({ github, context, core });
+
+  publish-public:
+    if: inputs.mode == 'publish'
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 15
+    steps:
+      - name: Validate pinned implementation
+        env:
+          IMPLEMENTATION_REF: ${{ inputs.implementation_ref }}
+        run: grep -Eq '^[0-9a-f]{40}$' <<<"$IMPLEMENTATION_REF"
+      - name: Checkout private projection
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Checkout publisher implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ inputs.implementation_ref }}
+          sparse-checkout: |
+            .github/scripts
+            package.json
+            bun.lock
+          path: .ai-workflows
+          persist-credentials: false
+      - name: Install publisher dependencies
+        working-directory: .ai-workflows
+        run: bun install --frozen-lockfile
+      - name: Build deterministic Mintlify projection
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js convert
+          --repository .
+          --source "${{ inputs.projection_root }}"
+          --manifest "${{ inputs.manifest_path }}"
+          --template "${{ inputs.site_template_path }}"
+          --output "$RUNNER_TEMP/docs-public"
+      - name: Scan public output
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan
+          --source "$RUNNER_TEMP/docs-public"
+          --denylist "${{ inputs.denylist_path }}"
+      - name: Run gitleaks
+        run: gitleaks detect --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
+      - name: Mint public publisher token
+        id: public-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ inputs.public_app_id }}
+          private-key: ${{ secrets.DOCS_PUBLIC_APP_PRIVATE_KEY }}
+          owner: ${{ inputs.public_repository_owner }}
+          repositories: ${{ inputs.public_repository_name }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Checkout public documentation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ inputs.public_repository_owner }}/${{ inputs.public_repository_name }}
+          ref: ${{ inputs.public_base_branch }}
+          token: ${{ steps.public-token.outputs.token }}
+          path: public-docs
+          persist-credentials: false
+      - name: Synchronize generated files
+        run: >-
+          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js sync
+          --source "$RUNNER_TEMP/docs-public"
+          --checkout public-docs
+      - name: Open public documentation PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          PUBLISHER_CHECKOUT: public-docs
+          TARGET_REPOSITORY: ${{ inputs.public_repository_owner }}/${{ inputs.public_repository_name }}
+          BASE_BRANCH: ${{ inputs.public_base_branch }}
+          PR_BRANCH: docs-publisher/public-${{ github.run_id }}
+          PR_TITLE: "docs: publish generated documentation"
+          PR_BODY: >-
+            Docs-Publisher-Source: ${{ github.repository }}@${{ github.sha }}
+
+            Publishes the generated Mintlify documentation projection.
+          PR_DRAFT: ${{ inputs.draft_public_pr }}
+        with:
+          github-token: ${{ steps.public-token.outputs.token }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/docs-publisher/open-pr.js');
+            await run({ github, context, core });

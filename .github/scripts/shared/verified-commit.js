@@ -91,9 +91,10 @@ async function commitToBranch({ github, context, core, branch, message, extraExc
 
 // Shape 2: create a new branch off the checked-out HEAD, verified-commit the diff,
 // and open a PR. Returns { opened, pr } (opened: false when there were no changes).
-async function openPr({ github, context, core, branch, title, body, baseBranch, extraExcludes, draft }) {
+async function openPr({ github, context, core, branch, title, body, baseBranch, extraExcludes, draft, repoWithOwner }) {
   if (!branch || !title) { core.setFailed('openPr: branch and title are required'); return { opened: false }; }
-  const { owner, repo } = context.repo;
+  const [owner, repo] = repoWithOwner ? repoWithOwner.split('/') : [context.repo.owner, context.repo.repo];
+  if (!owner || !repo) { core.setFailed('openPr: repoWithOwner must be owner/repo'); return { opened: false }; }
   const base = baseBranch || context.payload.repository?.default_branch || 'main';
   const changes = stageChanges(extraExcludes);
   if (!changes) { core.info('No file changes — no PR to open.'); core.setOutput('opened', 'false'); return { opened: false }; }
