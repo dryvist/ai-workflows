@@ -20,7 +20,7 @@ describe('docs publisher', () => {
     const root = temp();
     const projection = path.join(root, 'src/content/docs/d/public');
     const output = path.join(root, 'out');
-    write(path.join(projection, 'index.mdx'), `---\ntitle: Start\nsidebar:\n  label: Begin\n---\nimport { Aside, LinkCard } from '@astrojs/starlight/components';\n\n<Aside type="caution">Keep this safe.</Aside>\n\n<LinkCard title="Next" href="./next" />\n\n[Next](./next.mdx)\n`);
+    write(path.join(projection, 'index.mdx'), `---\ntitle: Start\nsidebar:\n  label: Begin\n---\nimport { Aside, LinkCard } from '@astrojs/starlight/components';\n\n<Aside type="caution">Keep this safe.</Aside>\n\n<LinkCard title="Next" href="./next" />\n\n[Next](/d/public/next.mdx)\n`);
     write(path.join(projection, 'next.mdx'), '---\ntitle: Next\n---\n\nDone.\n');
     write(path.join(root, 'public/assets/logo.svg'), '<svg/>\n');
     write(path.join(root, '.publisher/manifest.yml'), JSON.stringify({ version: 1, files: [{ source: 'index.mdx', destination: 'index.mdx' }, { source: 'next.mdx', destination: 'next.mdx' }], assets: [{ source: 'public/assets/logo.svg', destination: 'logo.svg' }], navigation: { pages: ['index', 'next'] } }));

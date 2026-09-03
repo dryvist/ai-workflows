@@ -27,9 +27,6 @@ on:
       site_template_path:
         type: string
         default: .publisher/site-template.json
-      denylist_path:
-        type: string
-        default: .publisher/private-denylist.txt
       base_sha:
         description: "Private source base SHA considered by curation"
         type: string
@@ -69,6 +66,8 @@ on:
         required: false
       DOCS_PUBLIC_APP_PRIVATE_KEY:
         required: false
+      GITLEAKS_PRIVATE_CONFIG:
+        required: true
 
 permissions:
   contents: read
@@ -127,12 +126,15 @@ jobs:
           --template "${{ inputs.site_template_path }}"
           --output "$RUNNER_TEMP/docs-public"
       - name: Scan curated output
-        run: >-
-          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan
-          --source "$RUNNER_TEMP/docs-public"
-          --denylist "${{ inputs.denylist_path }}"
-      - name: Run gitleaks
-        run: gitleaks detect --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
+        run: bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan --source "$RUNNER_TEMP/docs-public"
+      - name: Run private gitleaks policy
+        env:
+          GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+        run: |
+          config="$RUNNER_TEMP/gitleaks.toml"
+          trap 'rm -f "$config"' EXIT
+          printf '%s' "$GITLEAKS_PRIVATE_CONFIG" > "$config"
+          gitleaks detect --config "$config" --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
       - name: Mint private projection token
         id: private-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
@@ -189,12 +191,15 @@ jobs:
           --template "${{ inputs.site_template_path }}"
           --output "$RUNNER_TEMP/docs-public"
       - name: Scan public output
-        run: >-
-          bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan
-          --source "$RUNNER_TEMP/docs-public"
-          --denylist "${{ inputs.denylist_path }}"
-      - name: Run gitleaks
-        run: gitleaks detect --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
+        run: bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan --source "$RUNNER_TEMP/docs-public"
+      - name: Run private gitleaks policy
+        env:
+          GITLEAKS_PRIVATE_CONFIG: ${{ secrets.GITLEAKS_PRIVATE_CONFIG }}
+        run: |
+          config="$RUNNER_TEMP/gitleaks.toml"
+          trap 'rm -f "$config"' EXIT
+          printf '%s' "$GITLEAKS_PRIVATE_CONFIG" > "$config"
+          gitleaks detect --config "$config" --source "$RUNNER_TEMP/docs-public" --no-git --redact --exit-code 1
       - name: Mint public publisher token
         id: public-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3

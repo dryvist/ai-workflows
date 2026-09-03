@@ -136,7 +136,9 @@ function rewriteAndValidateLinks(tree, visit, sourceFile, sourceRoot, destinatio
     if (!localTarget(node.url)) return;
     const bare = splitTarget(node.url);
     if (!bare) return;
-    const sourceTarget = path.resolve(path.dirname(sourceFile), bare);
+    const sourceTarget = bare.startsWith('/d/public/')
+      ? path.resolve(sourceRoot, bare.slice('/d/public/'.length))
+      : path.resolve(path.dirname(sourceFile), bare);
     if (!isWithin(sourceRoot, sourceTarget)) fail(`relative reference escapes projection root: ${node.url}`);
     if (node.type === 'image') {
       if (!fs.existsSync(sourceTarget) || !fs.statSync(sourceTarget).isFile()) fail(`missing image asset: ${node.url}`);
