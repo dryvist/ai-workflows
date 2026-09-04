@@ -33,6 +33,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `project-router.yml` | `workflow_call` | On issue/PR events | Routes items to GitHub Projects with smart field assignment |
 | `repo-orchestrator.yml` | `workflow_call` | On-demand | Hub-and-spoke multi-repo workflow dispatcher |
 | `review-thread-resolver.yml` | `workflow_call` | Hourly org sweep (hub) | Resolves outdated/failed bot review threads that block merges — no AI tokens |
+| `thread-triage.yml` | `workflow_call` | On PR review (consumer) | Cheap model classifies each unresolved review thread; one sticky advisory comment |
 
 ---
 
