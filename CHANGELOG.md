@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.37.0](https://github.com/dryvist/ai-workflows/compare/v0.36.0...v0.37.0) (2026-09-04)
+
+
+### Features
+
+* **code-simplifier:** add router provider mode with advisory sticky comment ([92de4ea](https://github.com/dryvist/ai-workflows/commit/92de4ea4283b10b80e69793e9d169c5d92732e02))
+* **docs-drift:** post-merge docs-drift detector on the router ([23fbf04](https://github.com/dryvist/ai-workflows/commit/23fbf048b139c44a63bdf8b9cc727734264a6546))
+* **local-review:** add router-backed advisory PR review workflow ([9be6d16](https://github.com/dryvist/ai-workflows/commit/9be6d166b388c2d9c3812318aabb005e71375082))
+* **repo-hygiene-digest:** nightly read-only branch, PR, and promotion digest ([dfe5dac](https://github.com/dryvist/ai-workflows/commit/dfe5dac840dd88a08a6dbe360cb9d14e9152a442))
+* **thread-triage:** classify unresolved review threads via the router ([11224bf](https://github.com/dryvist/ai-workflows/commit/11224bfb54385688865b4660f4328e0e6ec114e0))
+
 ## [0.36.0](https://github.com/dryvist/ai-workflows/compare/v0.35.1...v0.36.0) (2026-09-04)
 
 
