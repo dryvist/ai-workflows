@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.36.0](https://github.com/dryvist/ai-workflows/compare/v0.35.1...v0.36.0) (2026-09-04)
+
+
+### Features
+
+* **workflows:** add secure docs publisher ([d231b72](https://github.com/dryvist/ai-workflows/commit/d231b72958c0d3e8ecd540224d7fecdbd4f5b4ef))
+* **workflows:** add secure docs publisher ([028f0b4](https://github.com/dryvist/ai-workflows/commit/028f0b48f742fd7bd046527931ef9b760c6f586c))
+
+
+### Bug Fixes
+
+* **workflows:** install bun dependencies before running tests ([f794775](https://github.com/dryvist/ai-workflows/commit/f794775978f46286409423a1c18434aeb706e188))
+* **workflows:** scan publisher output with private policy ([61a4bdc](https://github.com/dryvist/ai-workflows/commit/61a4bdc419c052bb9a4ba75ca81d9056b9bc7337))
+
 ## [0.35.1](https://github.com/dryvist/ai-workflows/compare/v0.35.0...v0.35.1) (2026-08-07)
 
 
