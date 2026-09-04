@@ -1,0 +1,191 @@
+# Docs Drift
+#
+# Post-merge documentation drift detector. On a push to the default branch it
+# compares the merged diff against the documentation that mentions it and lists
+# the documented behaviours the change contradicts or leaves undocumented.
+#
+# It never edits a file. The output is a job summary, a `docs-drift.md`
+# artifact, and — when the push came from a merged pull request — one sticky
+# comment on that pull request so the author sees it.
+#
+# Advisory only: a router outage, a model error, or unparseable output records
+# the reason and the job still succeeds. Only workflow bugs fail it. Never make
+# this a required check.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Docs Drift
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job on. Defaults to
+          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
+      model:
+        description: >-
+          Router ROLE alias to call (e.g. cheap, judge, subagent). Always an
+          alias the router resolves — never a vendor model id.
+        type: string
+        required: false
+        default: cheap
+      docs_globs:
+        description: >-
+          Comma-separated documentation globs to consider. Only the files that
+          mention the change are sent to the model.
+        type: string
+        required: false
+        default: README.md,AGENTS.md,CLAUDE.md,docs/**/*.md
+      max_diff_kb:
+        description: "Truncate the merged diff at this many KiB"
+        type: number
+        required: false
+        default: 150
+      max_docs_kb:
+        description: "Ceiling on the total size of the documentation sent"
+        type: number
+        required: false
+        default: 200
+      max_tokens:
+        description: "Completion token ceiling for the drift call"
+        type: number
+        required: false
+        default: 1500
+      base_url_var_name:
+        description: >-
+          Name of the Actions variable holding the router's OpenAI-compatible
+          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
+        type: string
+        required: false
+        default: LLM_ROUTER_BASE_URL
+    secrets:
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router virtual key (never the router master key). When absent
+          the workflow records "router credential not configured" and succeeds.
+        required: false
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: docs-drift-${{ github.repository }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    name: Docs drift
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    outputs:
+      pr_number: ${{ steps.pr.outputs.number }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Collect diff and related docs
+        env:
+          DOCS_GLOBS: ${{ inputs.docs_globs }}
+          MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+          MAX_DOCS_KB: ${{ inputs.max_docs_kb }}
+        run: bash .ai-workflows/.github/scripts/docs-drift/collect.sh
+
+      - name: Request drift report
+        env:
+          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          REPO: ${{ github.repository }}
+        run: bash .ai-workflows/.github/scripts/docs-drift/request.sh
+
+      - name: Render report
+        env:
+          MODEL: ${{ inputs.model }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: bash .ai-workflows/.github/scripts/docs-drift/render.sh
+
+      - name: Job summary
+        run: cat docs-drift.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-drift-${{ github.run_id }}
+          path: docs-drift.md
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Find the merged pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          number="$(gh pr list --search "$COMMIT_SHA" --state merged \
+            --limit 1 --json number --jq '.[0].number // ""' || true)"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          if [ -n "$number" ]; then
+            echo "Merged pull request #$number."
+          else
+            echo "No merged pull request for this push - skipping the comment."
+          fi
+
+  comment:
+    name: Comment on the merged PR
+    needs: drift
+    if: needs.drift.outputs.pr_number != ''
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 10
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Download report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: docs-drift-${{ github.run_id }}
+
+      - name: Post sticky comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          BODY_FILE: docs-drift.md
+          MARKER_MATCH: "<!-- docs-drift -->"
+          PR_NUMBER: ${{ needs.drift.outputs.pr_number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });
