@@ -1,6 +1,8 @@
 name: Dogfood Code Simplifier
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # --- DISABLED AUTOMATIC TRIGGERS (restore by uncommenting) ---
   # schedule:
   #   - cron: "0 4 * * *"
@@ -11,5 +13,16 @@ permissions:
   pull-requests: write
 jobs:
   simplify:
+    if: github.event_name != 'pull_request'
     uses: dryvist/ai-workflows/.github/workflows/cc-code-simplifier.yml@main
+    secrets: inherit
+
+  # Router mode is read-only and PR-scoped, so it dogfoods on this repo's own
+  # pull requests. Local ref on purpose: the PR's own version of the workflow
+  # is what should run.
+  router-review:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/cc-code-simplifier.yml
+    with:
+      provider: router
     secrets: inherit
