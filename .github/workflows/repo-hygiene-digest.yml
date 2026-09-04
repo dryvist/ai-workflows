@@ -1,0 +1,135 @@
+# Repository Hygiene Digest
+#
+# Read-only nightly digest of branch, pull request, and promotion state across
+# one or more repositories. Every fact is computed with `gh` reads under the
+# default token; nothing is created, deleted, merged, or pushed.
+#
+# A model is used only to write a short natural-language summary of facts that
+# were already computed. With no router credential the summary is skipped and
+# the digest is posted with facts only.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Repository Hygiene Digest
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          GitHub Actions runner label to run the job on. Defaults to
+          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+        type: string
+        required: false
+        default: ubuntu-latest
+      repos:
+        description: >-
+          Comma-separated owner/name list to report on. Defaults to the
+          calling repository.
+        type: string
+        required: false
+        default: ""
+      model:
+        description: >-
+          Router ROLE alias used ONLY to summarise the computed facts (e.g.
+          cheap, judge). Always an alias the router resolves — never a vendor
+          model id.
+        type: string
+        required: false
+        default: cheap
+      slack:
+        description: "Post the digest to Slack when a webhook secret is present"
+        type: boolean
+        required: false
+        default: false
+      stale_days:
+        description: "A branch with no pull request is stale after this many days"
+        type: number
+        required: false
+        default: 30
+      max_tokens:
+        description: "Completion token ceiling for the summary call"
+        type: number
+        required: false
+        default: 400
+      base_url_var_name:
+        description: >-
+          Name of the Actions variable holding the router's OpenAI-compatible
+          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
+        type: string
+        required: false
+        default: LLM_ROUTER_BASE_URL
+    secrets:
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router virtual key (never the router master key). When absent
+          the digest is posted without the summary.
+        required: false
+      GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION:
+        description: "Slack incoming webhook. Only used when the slack input is true."
+        required: false
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: repo-hygiene-digest-${{ github.repository }}
+  cancel-in-progress: true
+
+jobs:
+  digest:
+    name: Repository hygiene digest
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    timeout-minutes: 15
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Collect hygiene facts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOS: ${{ inputs.repos != '' && inputs.repos || github.repository }}
+          STALE_DAYS: ${{ inputs.stale_days }}
+        run: bash .ai-workflows/.github/scripts/repo-hygiene/collect.sh
+
+      - name: Summarise the facts
+        env:
+          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          REPO: ${{ github.repository }}
+        run: bash .ai-workflows/.github/scripts/repo-hygiene/summarize.sh
+
+      - name: Render digest
+        run: bash .ai-workflows/.github/scripts/repo-hygiene/render.sh
+
+      - name: Job summary
+        run: cat repo-hygiene-digest.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: repo-hygiene-digest
+          path: repo-hygiene-digest.md
+          if-no-files-found: error
+
+      - name: Post to Slack
+        if: inputs.slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .ai-workflows/.github/scripts/repo-hygiene/slack.sh

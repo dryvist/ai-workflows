@@ -1,0 +1,30 @@
+query ($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
+    refs(refPrefix: "refs/heads/", first: 100, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+      nodes {
+        name
+        target {
+          ... on Commit {
+            committedDate
+            associatedPullRequests(first: 5) {
+              nodes { number state }
+            }
+          }
+        }
+      }
+    }
+    pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number
+        title
+        isDraft
+        createdAt
+        author { __typename login }
+        mergeable
+        reviewThreads(first: 50) { nodes { isResolved } }
+        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+      }
+    }
+  }
+}
