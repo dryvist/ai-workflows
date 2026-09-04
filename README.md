@@ -22,6 +22,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `issue-backlog-sweep.yml` | `workflow_call` | Weekly (consumer) | Labels the oldest untriaged issues so `ai:ready` ones enter the resolver |
 | `issue-sweeper.yml` | `workflow_call` | Mon 6am UTC | Scans open issues, comments on progress, closes resolved |
 | `issue-triage.yml` | `issues: [opened]` | On issue open | Categorizes, deduplicates, and labels new issues |
+| `local-review.yml` | `workflow_call` | On PR (consumer) | Cheap/local model reviews the diff against a repo checklist; one sticky advisory comment |
 | `label-sync.yml` | `workflow_call` | On-demand | Syncs a canonical label set into target repositories |
 | `cc-next-steps.yml` | `workflow_call` | Daily 5am UTC | Analyzes merge momentum, suggests next logical action |
 | `notify-ai-pr.yml` | `pull_request` | On bot PR open | Posts Slack notification to a configured channel when an AI agent opens a PR |
