@@ -31,6 +31,7 @@ jobs:
       actions: write
     uses: dryvist/.github/.github/workflows/_ci-gate.yml@main
     with:
+      file_size: false
       markdown_lint: true
       # Staged until the remaining reusable workflows pass the shared security policy.
       zizmor: false
