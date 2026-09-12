@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.38.0](https://github.com/dryvist/ai-workflows/compare/v0.37.0...v0.38.0) (2026-09-12)
+
+
+### Features
+
+* **pr-agent:** run PR-Agent on the router with a retry-then-fail contract ([53e565c](https://github.com/dryvist/ai-workflows/commit/53e565c536df185fdf7294f6c5d34335dfbca8d2))
+* **pr-agent:** run PR-Agent on the router with a retry-then-fail contract ([ac98c2b](https://github.com/dryvist/ai-workflows/commit/ac98c2b5395b40d55b8df884bbe799468c5b27c1))
+
+
+### Bug Fixes
+
+* **ci:** copy the org markdownlint config and assert the scripts ref ([3036afb](https://github.com/dryvist/ai-workflows/commit/3036afb488678092689a729a35bde0897f63534a))
+* **workflows:** take the scripts ref from an input, not job_workflow_sha ([6f7b0ad](https://github.com/dryvist/ai-workflows/commit/6f7b0ad20b95f386a9570700c17220f25c5cf2e1))
+
 ## [0.37.0](https://github.com/dryvist/ai-workflows/compare/v0.36.0...v0.37.0) (2026-09-04)
 
 
