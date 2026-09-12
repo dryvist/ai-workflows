@@ -28,8 +28,6 @@ const prompts = {
   'issue-linker': 'c2c1538ee7589205792d6656a9309b2d933b317f93dff226186600683c4d56eb',
   'issue-sweeper': 'acaac1c7a73bb628db85c9f4dfc7322b50cc9625a0d4a16eebb76fdee663e574',
   'issue-triage': '4cc1472a88e0320c15688584ddbb96d50f1d9e5c9da57adcbba3bbe17aaf5187',
-  'label-sync': '535a66019a35c091cfc64422bafe38673c0fd39e4897ef87bb2faf1014a2daab',
-  'repo-orchestrator': '2c387aaa07070637b17a8b5833b601e207d93b7bf7fa740143e1a3c8abb0ef97',
 };
 
 function promptBody(markdown) {

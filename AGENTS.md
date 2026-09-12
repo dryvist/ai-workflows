@@ -23,12 +23,12 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     issue-backlog-sweep/
     issue-linker/
     issue-resolver/
-    notification/
     post-merge-docs-review/
     post-merge-tests/
+    pr-agent/
     release-notes/
     review-thread-resolver/
-    shared/
+    shared/                         # incl. router-chat.sh, wait-for-router.sh
     verification/
   workflows/
     *.yml                           # Pure YAML workflow definitions (no embedded content)
@@ -36,11 +36,26 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
 
 ### Workflow Types
 
-**All AI workflows use the shared `run-ai-agent` adapter.** The adapter selects
-Claude or Codex from `GH_ACTION_AI_AGENT` and defaults to Claude.
-Non-AI utility workflows (`notify-ai-pr`, `ci-fail-issue`,
-`review-thread-resolver`) use plain `actions/github-script` — see
-docs/PATTERNS.md "Non-AI Utility Workflow Pattern".
+There are three families, and they do not share a credential contract:
+
+1. **Agentic workflows** use the shared `run-ai-agent` adapter, which selects
+   Claude or Codex from `GH_ACTION_AI_AGENT` and defaults to Claude. These are
+   the workflows that edit a tree and open a pull request.
+2. **`pr-agent.yml`** runs PR-Agent against the model router for PR-scoped
+   review, code suggestions and descriptions. Its prompts live in the consumer
+   repository's own `.pr_agent.toml`; see docs/pr-agent.md.
+3. **Router workflows** (`thread-triage`, `docs-drift`, `repo-hygiene-digest`)
+   make one chat completion through `scripts/shared/router-chat.sh`. They take
+   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
+   to a `self-hosted` runner, because only such a runner reaches the router.
+
+A router workflow that cannot reach the router WAITS with exponential backoff
+and then FAILS on the job timeout. Never restore a skip-and-succeed path: a
+green check that did no work is what these replaced.
+
+Non-AI utility workflows (`ci-fail-issue`, `review-thread-resolver`) use plain
+`actions/github-script` — see docs/PATTERNS.md "Non-AI Utility Workflow
+Pattern".
 
 - Prompts rendered via `render-prompt.sh` + step output (envsubst)
 - Static prompts: most workflows
@@ -70,12 +85,6 @@ level. See `docs/PATTERNS.md` for the Bot Guard and AI Dispatch patterns.
 standardized provenance footer in every PR body. See `docs/PATTERNS.md` for the
 AI Provenance Pattern.
 
-**Slack notifications**: `notify-ai-pr.yml` is a reusable workflow that
-consumer repos call on `pull_request: opened`. It filters for `claude[bot]`-
-authored PRs and posts to `#github-automation` via Slack Incoming Webhook.
-Requires `GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION` secret (synced via
-secrets-sync).
-
 ### Consumer Repo Caller Pattern
 
 ```yaml
@@ -98,10 +107,15 @@ jobs:
 
 Workflows check out this repo for scripts and the immutable prompt catalog for prompt assets:
 
+The scripts checkout pins `ref: ${{ github.job_workflow_sha }}` — the commit of
+the reusable workflow itself. Without it a pull request's own workflow runs the
+default branch's scripts, so a script change is untested until after it merges.
+
 ```yaml
 - uses: actions/checkout@v7
   with:
     repository: dryvist/ai-workflows
+    ref: ${{ github.job_workflow_sha }}
     sparse-checkout: .github/scripts
     path: .ai-workflows
 - uses: actions/checkout@v7
@@ -156,9 +170,17 @@ Never use `cancel-in-progress: true` in AI workflows. Cancelling an
 in-progress run wastes tokens — always use `cancel-in-progress: false` to
 queue runs instead.
 
+A caller must not declare a `concurrency:` block that repeats the reusable
+workflow's own group. A caller sharing the exact group produces an opaque
+zero-job `startup_failure` that appears nowhere in the API.
+
+Router workflows group per REPOSITORY, not per pull request: during an outage
+each waiting job holds a runner slot, and one repository must not be able to
+park the whole shared pool.
+
 ### Authentication
 
-All AI workflows select their implementation with org/repo variable
+Agentic workflows select their implementation with org/repo variable
 `GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Keep the credentials
 separate: Claude uses `GH_ACTION_AI_API_KEY`; Codex uses `OPENAI_API_KEY`.
 Explicit-secret callers forward both so the selector is the only switch.
@@ -168,6 +190,12 @@ existing `GH_ACTION_AI_MODEL*` variables. Codex uses
 `GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT`, `GH_ACTION_AI_CODEX_MODEL`,
 `GH_ACTION_AI_CODEX_EFFORT`, and `GH_ACTION_AI_CODEX_VERSION`. Never hard-code
 model IDs. See `docs/AUTHENTICATION.md`.
+
+`pr-agent.yml` and the router workflows use a different contract, because the
+router speaks the OpenAI protocol rather than Anthropic's: secrets
+`LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The base URL is a
+secret, not a variable — a run log prints each step's environment verbatim, and
+these repositories are public.
 
 Agent jobs must not receive a write-capable GitHub token or App token. Publish
 comments, labels, commits, and PRs deterministically from a fresh job with the

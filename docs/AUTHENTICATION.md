@@ -77,6 +77,32 @@ Do not give a model an App token or a write-capable `GITHUB_TOKEN`. Treat issue
 bodies, pull-request descriptions, comments, and repository files as untrusted
 prompt input.
 
+## Router-backed workflows
+
+`pr-agent.yml` and the router workflows (`thread-triage`, `docs-drift`,
+`repo-hygiene-digest`) do not use the adapter above. They speak the OpenAI
+protocol to the org's model router, so they take their own pair:
+
+| Name | Kind | Holds |
+| --- | --- | --- |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1` |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI, never the master key |
+
+Both are required, and both are secrets. The base URL is a secret rather than a
+variable because a run log prints each step's environment verbatim and these
+repositories are public; the workflows also register the URL and its bare host
+with `::add-mask::` before the first request, since a connection error names the
+host in a string Actions would not otherwise mask.
+
+Two consequences worth stating plainly:
+
+- These workflows need a runner that can reach the router, so `runner_label`
+  defaults to `self-hosted`. On a GitHub-hosted runner they would review
+  nothing.
+- A router outage makes the job wait with exponential backoff and then fail on
+  the job timeout. There is no skip-and-succeed path. Do not make any of them a
+  required check.
+
 ## Verify both agents
 
 Run the same dogfood workflow once per selector value:

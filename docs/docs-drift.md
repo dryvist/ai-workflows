@@ -1,42 +1,48 @@
 # Docs Drift
 
-`docs-drift.yml` runs after a merge to the default branch and asks a cheap or
-local model, served through a self-hosted OpenAI-compatible router, which
-documented behaviours the merged change contradicts or leaves undocumented.
+`docs-drift.yml` runs after a merge to the default branch and asks a cheap
+model, served through the org's OpenAI-compatible model router, which documented
+behaviours the merged change contradicts or leaves undocumented.
 
 It **never edits a file**. The output is a job summary, a `docs-drift.md`
 artifact, and — when the push came from a merged pull request — one sticky
 comment on that pull request so the author sees it while the change is fresh.
 
-It is **advisory**. A router outage, a model error, or unparseable model output
-records the reason and the job still succeeds. Only a bug in the workflow itself
-fails it. Never make it a required check.
-
-This is the router-backed counterpart to `cc-post-merge-docs-review.yml`, which
+It is the router-backed counterpart to `cc-post-merge-docs-review.yml`, which
 runs a full coding agent and opens a fix PR. Drift detection is a read-only
 question a small model answers, so it does not need one.
+
+## Failure contract
+
+Not advisory. If the router is unreachable the job waits — exponential backoff
+from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
+out. A wrong key, base URL or model alias fails in seconds instead of waiting.
+
+`runner_label` defaults to `self-hosted` because the router is only reachable
+from inside the estate; a GitHub-hosted runner would review nothing. Never make
+this a required check — a failure should be visible without blocking a merge.
+
 
 ## Inputs
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `ubuntu-latest` | Runner label for the job |
+| `runner_label` | `self-hosted` | Runner label for the job |
 | `model` | `cheap` | Router **role alias** to call — never a vendor model id |
 | `docs_globs` | `README.md,AGENTS.md,CLAUDE.md,docs/**/*.md` | Documentation considered |
 | `max_diff_kb` | `150` | The merged diff is truncated to this many KiB |
 | `max_docs_kb` | `200` | Ceiling on the total size of the documentation sent |
 | `max_tokens` | `1500` | Completion token ceiling |
-| `base_url_var_name` | `LLM_ROUTER_BASE_URL` | Name of the Actions variable holding the router base URL |
 
 ## Configuration
 
 | Name | Kind | Holds |
 | --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions variable | The router's OpenAI-compatible base URL, ending in `/v1` |
-| `LLM_ROUTER_API_KEY` | Actions secret | A scoped router key. Never the router's master key. |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1`. A secret: run logs print step environments. |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI. Never the router's master key. |
 
-With either missing, the report reads `Drift check unavailable: router
-credential not configured` and the job exits successfully.
+Both are required. With either missing the job fails immediately, naming the
+one that did not arrive.
 
 ## Which documentation gets sent
 
@@ -79,6 +85,7 @@ jobs:
   docs-drift:
     uses: dryvist/ai-workflows/.github/workflows/docs-drift.yml@main
     secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
 ```
 
@@ -94,5 +101,5 @@ On a repository whose default branch is not `main`, name that branch instead.
 - The diff and the selected documentation are sent to the configured router and
   nowhere else. Point it only at a router you trust with the repository's
   source.
-- Requests carry `x-litellm-tags` and `x-langfuse-trace-name` headers so runs
-  group in the router's own observability.
+- Requests carry an `x-langfuse-trace-name` header so runs group in the
+  router's own observability. Spend is attributed by the calling key itself.

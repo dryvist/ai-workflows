@@ -1,0 +1,145 @@
+# PR Agent
+#
+# Runs PR-Agent's review, improve and describe tools against the org's
+# OpenAI-compatible model router. Per-repository prompt customisation — the
+# review checklist, what "simplify" means here, which files to ignore — lives
+# in the consumer's own `.pr_agent.toml`, so this workflow carries wiring only.
+#
+# Two contracts worth knowing before you call it:
+#
+# 1. It runs on a runner that can reach the router. The default runner label is
+#    the shared self-hosted pool; a GitHub-hosted runner cannot reach the
+#    router and would review nothing.
+# 2. A router outage makes the job WAIT (exponential backoff, five-minute cap)
+#    and then FAIL when timeout-minutes runs out. It never reports success
+#    having reviewed nothing. Do not make it a required check.
+#
+# PR-Agent is invoked as its published container through the CLI it documents,
+# not as a container action: this pool passes the Docker socket through without
+# a host-identical work directory, so a container action receives an empty
+# workspace and no event payload. The CLI needs neither — it reads the pull
+# request over the API.
+#
+# Every expression that carries repository content (the branch name, the pull
+# request URL) is passed through `env:` and read as a shell variable, never
+# interpolated into a command.
+
+name: PR Agent
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          Runner label for the job. Must be a runner that can reach the model
+          router.
+        type: string
+        required: false
+        default: self-hosted
+      model:
+        description: >-
+          Router ROLE alias to call (e.g. cheap, subagent). Always an alias the
+          router resolves — never a vendor model id.
+        type: string
+        required: false
+        default: cheap
+      fallback_model:
+        description: >-
+          Router role alias to retry on once the first model errors. Must be an
+          alias the calling key is allowed to reach.
+        type: string
+        required: false
+        default: subagent
+      max_tokens:
+        description: >-
+          Input context the alias can be assumed to hold, for PR-Agent's own
+          diff-trimming arithmetic (custom_model_max_tokens).
+        type: number
+        required: false
+        default: 32000
+      review:
+        description: "Run the review tool: verdicts on the diff as one sticky comment."
+        type: boolean
+        required: false
+        default: true
+      improve:
+        description: "Run the improve tool: code suggestions on the diff."
+        type: boolean
+        required: false
+        default: false
+      describe:
+        description: >-
+          Run the describe tool. It REWRITES the pull request title and body,
+          so leave it off wherever something else owns the body (release-please,
+          a provenance footer).
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        description: >-
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
+        required: true
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router key for CI (never the router's master key).
+        required: true
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: read
+  pull-requests: write
+
+# Per REPOSITORY, not per pull request: during a router outage each waiting job
+# holds a runner slot, so one repository must not be able to park the whole
+# shared pool. cancel-in-progress stays false — a queued review is cheap, a
+# cancelled one wasted the wait.
+concurrency:
+  group: pr-agent-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  pr-agent:
+    name: PR Agent
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    # Fork guard: same-repo heads only, so no fork sees the router key.
+    # Draft pull requests are skipped — review them when they are ready.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 60
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ github.job_workflow_sha }}
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Wait for the router
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
+
+      - name: Run PR-Agent
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          JOB_TOKEN: ${{ github.token }}
+          MODEL: ${{ inputs.model }}
+          FALLBACK_MODEL: ${{ inputs.fallback_model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+          CONFIG_BRANCH: ${{ github.head_ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUN_REVIEW: ${{ inputs.review }}
+          RUN_IMPROVE: ${{ inputs.improve }}
+          RUN_DESCRIBE: ${{ inputs.describe }}
+        run: bash .ai-workflows/.github/scripts/pr-agent/run.sh

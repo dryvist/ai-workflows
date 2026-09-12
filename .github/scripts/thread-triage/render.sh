@@ -8,10 +8,6 @@ out=.thread-triage.md
   echo
   if [ -f triage.empty ]; then
     echo "No unresolved review threads."
-  elif [ -f triage.error ]; then
-    echo "triage unavailable: $(cat triage.error)"
-    echo
-    echo "_Advisory only - this does not block the pull request._"
   else
     echo "| Thread | File | Verdict | Reason |"
     echo "| --- | --- | --- | --- |"

@@ -10,8 +10,17 @@ token; the workflow never creates, deletes, merges, or pushes anything. Acting
 on the digest stays a human decision.
 
 A model is used for one thing only: a five-line plain-prose summary of facts
-that were already computed. With no router credential the summary is skipped
-and the digest is posted with facts only, and the job still succeeds.
+that were already computed.
+
+## Failure contract
+
+Not advisory. If the router is unreachable the job waits — exponential backoff
+from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
+out. A wrong key, base URL or model alias fails in seconds instead of waiting.
+
+`runner_label` defaults to `self-hosted` because the router is only reachable
+from inside the estate; a GitHub-hosted runner would review nothing. Never make
+this a required check — a failure should be visible without blocking a merge.
 
 ## What it computes
 
@@ -36,20 +45,19 @@ request has already been merged or closed.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `ubuntu-latest` | Runner label for the job |
+| `runner_label` | `self-hosted` | Runner label for the job |
 | `repos` | the calling repository | Comma-separated `owner/name` list |
 | `model` | `cheap` | Router **role alias** for the summary — never a vendor model id |
 | `slack` | `false` | Post the digest to Slack when the webhook secret is present |
 | `stale_days` | `30` | Age at which a pull-request-less branch counts as stale |
 | `max_tokens` | `400` | Completion token ceiling for the summary |
-| `base_url_var_name` | `LLM_ROUTER_BASE_URL` | Name of the Actions variable holding the router base URL |
 
 ## Configuration
 
 | Name | Kind | Holds |
 | --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions variable | The router's OpenAI-compatible base URL, ending in `/v1` |
-| `LLM_ROUTER_API_KEY` | Actions secret | A scoped router key. Never the router's master key. |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1`. A secret: run logs print step environments. |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI. Never the router's master key. |
 | `GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION` | Actions secret | Slack incoming webhook, used only when `slack` is true |
 
 ## Output
