@@ -1,0 +1,183 @@
+# Policy Gate
+#
+# Scores a pull request's diff against a fixed five-check rubric (DRY,
+# native-first, disclosure, missing-test, token-budget) through the org's
+# model router, and posts one sticky PR comment with the verdict.
+#
+# Advisory by default: it never fails the job unless the caller passes
+# `blocking: true`. The `policy-gate-override` label skips the router call
+# entirely, posts a neutral comment, and publishes one audit line to the
+# ntfy hub instead - an escape hatch that is visible, not silent.
+#
+# Same router contract as docs-drift.yml: a router outage makes the job
+# WAIT (exponential backoff) and then FAIL when timeout-minutes runs out.
+# It needs a runner that can reach the router. Never make it a required
+# check while `blocking` is false - an advisory check has nothing to
+# require.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Policy Gate
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          Runner label for the job. Must be a runner that can reach the model
+          router.
+        type: string
+        required: false
+        default: self-hosted
+      scripts_ref:
+        description: >-
+          Commit or ref of dryvist/ai-workflows to take the scripts from.
+          Defaults to its default branch. A dogfood caller in this repository
+          passes the pull request head SHA so the pull request exercises its
+          own scripts.
+        type: string
+        required: false
+        default: ""
+      model:
+        description: >-
+          Router ROLE alias to call. Always an alias the router resolves -
+          never a vendor model id.
+        type: string
+        required: false
+        default: cheap
+      max_diff_kb:
+        description: "Truncate the pull request diff at this many KiB"
+        type: number
+        required: false
+        default: 150
+      max_tokens:
+        description: "Completion token ceiling for the rubric call"
+        type: number
+        required: false
+        default: 1500
+      blocking:
+        description: >-
+          When false (the default, advisory rollout), a failing check posts
+          the comment and still exits 0. When true, a failing check fails
+          the job - unless `policy-gate-override` is on the pull request.
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        description: >-
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
+        required: true
+      LLM_ROUTER_API_KEY:
+        description: Scoped router virtual key (never the router master key).
+        required: true
+      NTFY_BASE_URL:
+        description: >-
+          Base URL of the ntfy hub the override escape hatch publishes one
+          audit line to (topic "ai"). Optional: the publish step is skipped,
+          not failed, when this is absent.
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: policy-gate-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Policy gate
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Check for the override label
+        id: override
+        env:
+          HAS_OVERRIDE: >-
+            ${{ contains(github.event.pull_request.labels.*.name, 'policy-gate-override') }}
+        run: |
+          echo "has_override=$HAS_OVERRIDE" >> "$GITHUB_OUTPUT"
+          [ "$HAS_OVERRIDE" = "true" ] && touch override.flag || true
+
+      - name: Collect the diff and file sizes
+        if: steps.override.outputs.has_override != 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+        run: bash .ai-workflows/.github/scripts/policy-gate/collect.sh
+
+      - name: Request the rubric verdict
+        if: steps.override.outputs.has_override != 'true'
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+        run: bash .ai-workflows/.github/scripts/policy-gate/request.sh
+
+      - name: Render the verdict
+        id: render
+        env:
+          MODEL: ${{ inputs.model }}
+        run: bash .ai-workflows/.github/scripts/policy-gate/render.sh
+
+      - name: Post sticky comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          BODY_FILE: policy-gate.md
+          MARKER_MATCH: "<!-- policy-gate -->"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_ACTOR: ${{ github.triggering_actor }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/sticky-comment.js');
+            await run({ github, context, core });
+
+      - name: Publish the override audit line
+        if: steps.override.outputs.has_override == 'true'
+        env:
+          BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ACTOR: ${{ github.triggering_actor }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "NTFY_BASE_URL not configured; skipping the audit publish."
+            exit 0
+          fi
+          echo "::add-mask::$BASE_URL"
+          host="${BASE_URL#*://}"; host="${host%%/*}"
+          [ -n "$host" ] && echo "::add-mask::$host" && echo "::add-mask::${host%%:*}"
+          curl -sS --max-time 30 -X POST "${BASE_URL%/}/ai" \
+            -H "Title: policy-gate-override used" \
+            --data "$ACTOR overrode the policy gate on $PR_URL" || true
+
+      - name: Enforce the verdict
+        if: inputs.blocking && steps.override.outputs.has_override != 'true'
+        run: |
+          if [ "$(cat policy-gate.exit)" = "1" ]; then
+            echo "::error::Policy gate failed at least one check; see the pull request comment."
+            exit 1
+          fi

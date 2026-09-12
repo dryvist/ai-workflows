@@ -27,6 +27,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `cc-post-merge-docs-review.yml` | `workflow_call` (dispatch pattern) | On merge | Reviews documentation after merges, creates fix PRs |
 | `cc-post-merge-tests.yml` | `workflow_call` (dispatch pattern) | On merge | Analyzes merged code, creates draft PRs with targeted tests |
 | `cc-pr-review-responder.yml` | `pull_request_review*` | On PR review (consumer) | Fixes valid review feedback, replies, resolves threads (never merges) |
+| `policy-gate.yml` | `workflow_call` | On PR (consumer) | Cheap model scores the diff against a fixed 5-check rubric; advisory sticky comment |
 | `pr-agent.yml` | `workflow_call` | On PR (consumer) | PR-Agent review, improve and describe on the router; prompts in the consumer's `.pr_agent.toml` |
 | `project-router.yml` | `workflow_call` | On issue/PR events | Routes items to GitHub Projects with smart field assignment |
 | `repo-hygiene-digest.yml` | `workflow_call` | Nightly (consumer) | Read-only branch, PR, and promotion digest; model writes only the summary |
