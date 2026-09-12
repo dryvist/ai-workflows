@@ -1,0 +1,18 @@
+name: Dogfood Policy Gate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  # Local ref on purpose: the pull request's own version of the workflow is
+  # what should run, same reason dogfood-pr-agent.yml does it.
+  policy-gate:
+    uses: ./.github/workflows/policy-gate.yml
+    with:
+      scripts_ref: ${{ github.event.pull_request.head.sha }}
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+      NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}

@@ -80,8 +80,8 @@ prompt input.
 ## Router-backed workflows
 
 `pr-agent.yml` and the router workflows (`thread-triage`, `docs-drift`,
-`repo-hygiene-digest`) do not use the adapter above. They speak the OpenAI
-protocol to the org's model router, so they take their own pair:
+`repo-hygiene-digest`, `policy-gate`) do not use the adapter above. They speak
+the OpenAI protocol to the org's model router, so they take their own pair:
 
 | Name | Kind | Holds |
 | --- | --- | --- |
@@ -102,6 +102,12 @@ Two consequences worth stating plainly:
 - A router outage makes the job wait with exponential backoff and then fail on
   the job timeout. There is no skip-and-succeed path. Do not make any of them a
   required check.
+
+`policy-gate.yml` is advisory by default (its `blocking` input defaults to
+`false`): a failing check posts a sticky comment and still exits 0. The
+`policy-gate-override` label on a pull request skips the router call entirely
+and, if the optional `NTFY_BASE_URL` secret is configured, publishes one
+audit line to the ntfy hub's `ai` topic instead of failing silently.
 
 ## Verify both agents
 
