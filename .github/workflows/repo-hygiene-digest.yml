@@ -23,6 +23,17 @@ on:
         type: string
         required: false
         default: self-hosted
+      scripts_ref:
+        description: >-
+          Commit or ref of dryvist/ai-workflows to take the scripts from.
+          Defaults to its default branch, which is what a consumer wants.
+          `github.job_workflow_sha` is not used: it is empty whenever the
+          workflow is reached through another reusable workflow. A dogfood
+          caller in this repository passes the pull request head SHA so the
+          pull request exercises its own scripts.
+        type: string
+        required: false
+        default: ""
       repos:
         description: >-
           Comma-separated owner/name list to report on. Defaults to the
@@ -61,9 +72,8 @@ on:
         required: true
       LLM_ROUTER_API_KEY:
         description: >-
-          Scoped router virtual key (never the router master key). When absent
-          the digest is posted without the summary.
-        required: false
+          Scoped router key for CI (never the router's master key).
+        required: true
       GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION:
         description: "Slack incoming webhook. Only used when the slack input is true."
         required: false
@@ -89,20 +99,11 @@ jobs:
       actions: read
     timeout-minutes: 60
     steps:
-      # `github.job_workflow_sha` is empty when a reusable workflow is reached
-      # through another reusable workflow, and an empty `ref:` silently checks
-      # out the default branch — which would run scripts this workflow was not
-      # tested with. Fail instead.
-      - name: Assert the scripts ref resolved
-        env:
-          SCRIPTS_REF: ${{ github.job_workflow_sha }}
-        run: test -n "$SCRIPTS_REF"
-
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ github.job_workflow_sha }}
+          ref: ${{ inputs.scripts_ref }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false

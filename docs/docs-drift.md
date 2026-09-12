@@ -22,7 +22,6 @@ out. A wrong key, base URL or model alias fails in seconds instead of waiting.
 from inside the estate; a GitHub-hosted runner would review nothing. Never make
 this a required check — a failure should be visible without blocking a merge.
 
-
 ## Inputs
 
 | Input | Default | Meaning |
