@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.39.0](https://github.com/dryvist/ai-workflows/compare/v0.38.0...v0.39.0) (2026-09-12)
+
+
+### Features
+
+* **policy-gate:** add advisory PR policy-gate reusable workflow ([#384](https://github.com/dryvist/ai-workflows/issues/384)) ([ea3f010](https://github.com/dryvist/ai-workflows/commit/ea3f0107b94982271d4b532cc02829864736485e))
+
 ## [0.38.0](https://github.com/dryvist/ai-workflows/compare/v0.37.0...v0.38.0) (2026-09-12)
 
 
