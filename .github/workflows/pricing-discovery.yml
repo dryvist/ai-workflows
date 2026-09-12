@@ -1,0 +1,140 @@
+# Pricing Discovery
+#
+# Weekly OpenRouter + models.dev pricing/context/ZDR/availability sweep
+# against ansible-proxmox-ai's model registry (llm-models.d/*.yml). Never a
+# hot edit: a price/context change on an already-registered id becomes one PR
+# against `develop` touching only that field; a delisting, a lost ZDR
+# provider, or a new candidate becomes one Vikunja task (project 48) for a
+# human decision — nothing is ever auto-added to the registry.
+#
+# ZDR gate: a new candidate is probed live against OpenRouter directly (not
+# through the internal LiteLLM router — there is no deployment to route
+# through yet for an id not in the registry) with the same
+# `provider: {zdr: true, data_collection: deny}` shape a registered ZDR entry
+# already renders. The result is reported in the Vikunja task; nothing here
+# ever promotes a candidate into the registry on its own.
+#
+# This is a reusable workflow that can be called from other repositories.
+
+name: Pricing Discovery
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: Runner label. Needs outbound HTTPS; no GPU or Mac required.
+        type: string
+        required: false
+        default: self-hosted
+      registry_ref:
+        description: ansible-proxmox-ai ref to read/diff the registry against.
+        type: string
+        required: false
+        default: develop
+      scripts_ref:
+        description: Commit or ref of dryvist/ai-workflows to take the scripts from.
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: >-
+          Print the PR and Vikunja task bodies as a job summary; open nothing,
+          file nothing, edit nothing.
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pricing-discovery-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Discover
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 30
+    steps:
+      # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr.js), so it
+      # must be empty (default branch) or a full commit SHA — never a
+      # branch/tag name a future write-access change could re-point to
+      # untrusted content. Same shape as docs-publisher.yml's
+      # `implementation_ref` validation. `registry_ref` is only ever parsed
+      # as YAML data, never executed, so a branch name is fine there — still
+      # restricted to a safe ref character set as defense in depth.
+      - name: Validate refs before checkout
+        env:
+          SCRIPTS_REF: ${{ inputs.scripts_ref }}
+          REGISTRY_REF: ${{ inputs.registry_ref }}
+        run: |
+          grep -Eq '^$|^[0-9a-f]{40}$' <<<"$SCRIPTS_REF"
+          grep -Eq '^[A-Za-z0-9._/-]+$' <<<"$REGISTRY_REF"
+
+      - name: Checkout the model registry (read-write target)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ansible-proxmox-ai
+          ref: ${{ inputs.registry_ref }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
+          sparse-checkout: |
+            .github/scripts
+            package.json
+            bun.lock
+          path: .ai-workflows
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install script dependencies
+        working-directory: .ai-workflows
+        run: bun install --frozen-lockfile
+
+      - name: Discover, diff, and (unless dry-run) apply mechanical edits
+        env:
+          REGISTRY_DIR: llm-models.d
+          DRY_RUN: ${{ inputs.dry_run }}
+          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
+        run: bun .ai-workflows/.github/scripts/pricing-discovery/run.js
+
+      - name: Job summary (always — this is the "one dry run" evidence too)
+        run: |
+          {
+            echo '## Pricing discovery'
+            if [ -f pr-body.md ]; then echo; echo '### Proposed PR body'; echo; cat pr-body.md; fi
+            if [ -f vikunja-body.md ]; then echo; echo '### Proposed Vikunja task body'; echo; cat vikunja-body.md; fi
+            if [ ! -f pr-body.md ] && [ ! -f vikunja-body.md ]; then echo; echo 'Nothing changed.'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mint an ansible-proxmox-ai-scoped token
+        if: ${{ !inputs.dry_run }}
+        run: |
+          eval "$(openbao-github-creds claim dryvist/ansible-proxmox-ai)"
+          echo "::add-mask::${GITHUB_TOKEN}"
+          echo "PROXMOX_AI_TOKEN=${GITHUB_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: Open the pricing PR (App-signed, satisfies required_signatures)
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          REGISTRY_REF: ${{ inputs.registry_ref }}
+        with:
+          github-token: ${{ env.PROXMOX_AI_TOKEN }}
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/pricing-discovery/open-pr.js');
+            await run({ github, context, core });
+
+      - name: File the Vikunja review task, if one was proposed
+        if: ${{ !inputs.dry_run }}
+        env:
+          VIKUNJA_URL: ${{ env.VIKUNJA_URL }}
+          VIKUNJA_API_TOKEN: ${{ env.VIKUNJA_API_TOKEN }}
+        run: bash .ai-workflows/.github/scripts/pricing-discovery/act.sh
