@@ -203,20 +203,6 @@ permissions:
   pull-requests: read
 ```
 
-#### `label-sync.yml`
-
-Syncs canonical labels from `.github` repo.
-
-```yaml
-on:
-  schedule:
-    - cron: "0 5 * * 0"    # Sun 5am UTC
-  workflow_dispatch:
-permissions:
-  contents: read
-  issues: write
-```
-
 #### `cc-next-steps.yml`
 
 Daily momentum analyzer, creates issues or PRs with suggested next actions.
@@ -230,18 +216,6 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
-```
-
-#### `repo-orchestrator.yml`
-
-On-demand multi-repo workflow dispatcher.
-
-```yaml
-on:
-  workflow_dispatch:
-permissions:
-  actions: write
-  contents: read
 ```
 
 ---

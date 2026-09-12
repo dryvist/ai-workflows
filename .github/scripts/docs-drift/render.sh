@@ -8,8 +8,6 @@ out=docs-drift.md
   echo
   if [ -f drift.skip ]; then
     echo "No drift check run: $(cat drift.skip)."
-  elif [ -f drift.error ]; then
-    echo "Drift check unavailable: $(cat drift.error)."
   elif [ "$(jq '.items | length' drift.json)" = "0" ]; then
     printf '%s\n' "$(jq -r '.summary // "The documentation still matches this change."' drift.json)"
   else

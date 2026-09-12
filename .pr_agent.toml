@@ -1,0 +1,32 @@
+# PR-Agent configuration for this repository.
+#
+# Read over the API by the `pr-agent.yml` workflow, from the pull request's own
+# head branch, so a change here is exercised by the pull request that makes it.
+# Anything the workflow sets through the environment wins over this file, so
+# prompts live here and wiring lives there.
+
+[pr_reviewer]
+extra_instructions = """
+Answer each point below for this diff, citing the hunk you relied on. Say
+nothing about a point the diff does not touch.
+
+- Is every third-party `uses:` pinned to a full commit SHA with a version comment?
+- Does every `actions/checkout` set `persist-credentials: false`?
+- Do workflows that read a secret run only for same-repo pull request heads, and
+  never on `pull_request_target`?
+- Are job `permissions:` explicit and the minimum the job needs?
+- Does the diff add a credential, token, hostname, or address literal?
+- Does an expression carrying repository content (a branch name, title, or body)
+  reach a `run:` block by interpolation instead of through `env:`?
+- Does new logic duplicate a helper that already exists under
+  `.github/scripts/shared/`?
+- Does a workflow report success on a path where it did no work?
+- Does changed behaviour update `README.md` and the workflow's own doc page?
+"""
+
+[pr_code_suggestions]
+extra_instructions = """
+Suggest simplifications only: reuse an existing helper, collapse a repeated
+block, delete unreachable code, shorten logic that is equivalent. Do not hunt
+for bugs and do not propose new abstractions.
+"""

@@ -9,4 +9,6 @@ permissions:
 jobs:
   docs-drift:
     uses: ./.github/workflows/docs-drift.yml
-    secrets: inherit
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

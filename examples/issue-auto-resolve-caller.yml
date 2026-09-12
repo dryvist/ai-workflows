@@ -18,7 +18,7 @@
 #   - var     GH_ACTION_AI_MODEL_PLAN         e.g. "claude-opus-4-8" (resolver model)
 #   - var     GH_APP_CLAUDE_BOT_ID            GitHub App id (bot attribution)
 #   - secret  GH_APP_CLAUDE_BOT_PRIVATE_KEY   GitHub App private key (PEM)
-#   - label   ai:ready + type:*/size:*/priority:* present in the repo (see label-sync)
+#   - label   ai:ready + type:*/size:*/priority:* present in the repo
 
 name: Issue Auto-Resolve (Claude)
 

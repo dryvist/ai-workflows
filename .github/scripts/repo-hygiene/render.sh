@@ -15,9 +15,6 @@ out="${OUT_FILE:-repo-hygiene-digest.md}"
     echo
     cat summary.txt
     echo
-  elif [ -s summary.error ]; then
-    echo "_Summary unavailable: $(cat summary.error)._"
-    echo
   fi
 
   jq -r '

@@ -10,4 +10,7 @@ permissions:
 jobs:
   repo-hygiene-digest:
     uses: ./.github/workflows/repo-hygiene-digest.yml
-    secrets: inherit
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+      GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION: ${{ secrets.GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION }}

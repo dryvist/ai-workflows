@@ -1,8 +1,8 @@
 # Thread Triage
 
-`thread-triage.yml` asks a cheap model, served through a self-hosted
-OpenAI-compatible router, to classify every unresolved review thread on a pull
-request. The verdicts are rendered as one sticky comment that is updated in
+`thread-triage.yml` asks a cheap model, served through the org's
+OpenAI-compatible model router, to classify every unresolved review thread on a
+pull request. The verdicts are rendered as one sticky comment that is updated in
 place as reviews come in.
 
 It exists to take a specific job off the premium models. Both the
@@ -11,11 +11,18 @@ read every unresolved thread and decide which ones still matter. That first
 pass is classification, not authorship, so it belongs on the cheap router role;
 the premium model then starts from the shortlist.
 
-It is **advisory**, and deliberately inert. It never resolves a thread, never
-replies in one, and never edits code. A router outage, a model error, or
-unparseable model output posts `triage unavailable: <reason>` and the job still
-succeeds. Only a bug in the workflow itself fails it. Never make it a required
-check.
+It is deliberately inert: it never resolves a thread, never replies in one,
+and never edits code.
+
+## Failure contract
+
+Not advisory. If the router is unreachable the job waits — exponential backoff
+from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
+out. A wrong key, base URL or model alias fails in seconds instead of waiting.
+
+`runner_label` defaults to `self-hosted` because the router is only reachable
+from inside the estate; a GitHub-hosted runner would review nothing. Never make
+this a required check — a failure should be visible without blocking a merge.
 
 ## Verdicts
 
@@ -34,21 +41,20 @@ quietly dropped.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `ubuntu-latest` | Runner label for the job |
+| `runner_label` | `self-hosted` | Runner label for the job |
 | `model` | `cheap` | Router **role alias** to call — never a vendor model id |
 | `max_threads` | `20` | Triage at most this many unresolved threads |
 | `max_tokens` | `1200` | Completion token ceiling |
-| `base_url_var_name` | `LLM_ROUTER_BASE_URL` | Name of the Actions variable holding the router base URL |
 
 ## Configuration
 
 | Name | Kind | Holds |
 | --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions variable | The router's OpenAI-compatible base URL, ending in `/v1` |
-| `LLM_ROUTER_API_KEY` | Actions secret | A scoped router key. Never the router's master key. |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1`. A secret: run logs print step environments. |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI. Never the router's master key. |
 
-With either missing, the workflow posts `triage unavailable: router credential
-not configured` and exits successfully.
+Both are required. With either missing the job fails immediately, naming the
+one that did not arrive.
 
 ## Calling it
 
@@ -66,6 +72,7 @@ jobs:
   thread-triage:
     uses: dryvist/ai-workflows/.github/workflows/thread-triage.yml@main
     secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
 ```
 
@@ -87,5 +94,5 @@ identifier cannot be mistaken for a real thread.
   needs.
 - Thread bodies and the diff go to the configured router and nowhere else.
   Point it only at a router you trust with the repository's source.
-- Requests carry `x-litellm-tags` and `x-langfuse-trace-name` headers so runs
-  group in the router's own observability.
+- Requests carry an `x-langfuse-trace-name` header so runs group in the
+  router's own observability. Spend is attributed by the calling key itself.

@@ -5,8 +5,9 @@
 # default token; nothing is created, deleted, merged, or pushed.
 #
 # A model is used only to write a short natural-language summary of facts that
-# were already computed. With no router credential the summary is skipped and
-# the digest is posted with facts only.
+# were already computed. It needs a runner that can reach the router: an outage
+# makes the job wait with exponential backoff and then fail, rather than post a
+# digest that quietly lost its summary.
 #
 # This is a reusable workflow that can be called from other repositories.
 
@@ -17,11 +18,22 @@ on:
     inputs:
       runner_label:
         description: >-
-          GitHub Actions runner label to run the job on. Defaults to
-          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+          Runner label for the job. Must be a runner that can reach the model
+          router.
         type: string
         required: false
-        default: ubuntu-latest
+        default: self-hosted
+      scripts_ref:
+        description: >-
+          Commit or ref of dryvist/ai-workflows to take the scripts from.
+          Defaults to its default branch, which is what a consumer wants.
+          `github.job_workflow_sha` is not used: it is empty whenever the
+          workflow is reached through another reusable workflow. A dogfood
+          caller in this repository passes the pull request head SHA so the
+          pull request exercises its own scripts.
+        type: string
+        required: false
+        default: ""
       repos:
         description: >-
           Comma-separated owner/name list to report on. Defaults to the
@@ -52,19 +64,16 @@ on:
         type: number
         required: false
         default: 400
-      base_url_var_name:
-        description: >-
-          Name of the Actions variable holding the router's OpenAI-compatible
-          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
-        type: string
-        required: false
-        default: LLM_ROUTER_BASE_URL
     secrets:
+      LLM_ROUTER_BASE_URL:
+        description: >-
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
+        required: true
       LLM_ROUTER_API_KEY:
         description: >-
-          Scoped router virtual key (never the router master key). When absent
-          the digest is posted without the summary.
-        required: false
+          Scoped router key for CI (never the router's master key).
+        required: true
       GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION:
         description: "Slack incoming webhook. Only used when the slack input is true."
         required: false
@@ -78,22 +87,23 @@ permissions:
 
 concurrency:
   group: repo-hygiene-digest-${{ github.repository }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   digest:
     name: Repository hygiene digest
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
       contents: read
       pull-requests: read
       actions: read
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
@@ -107,7 +117,7 @@ jobs:
 
       - name: Summarise the facts
         env:
-          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
           API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
           MODEL: ${{ inputs.model }}
           MAX_TOKENS: ${{ inputs.max_tokens }}

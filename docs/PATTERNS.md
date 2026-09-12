@@ -9,7 +9,7 @@ adapter. The following patterns are shared by the reusable workflows.
 
 Used by most workflows. Static prompt, least-privilege agent access.
 
-**Workflows**: issue-triage, issue-hygiene, issue-sweeper, label-sync, project-router, repo-orchestrator, best-practices, next-steps (scheduled)
+**Workflows**: issue-triage, issue-hygiene, issue-sweeper, project-router, best-practices, next-steps (scheduled)
 
 **Key elements**:
 
@@ -370,7 +370,7 @@ Supports comma-separated logins or `*` to allow all bots.
 
 ### Layer 3: Dependency bot filtering (`if:` guards)
 
-PR-triggered workflows (issue-linker, pr-issue-linker) add `if:` guards on their first job
+PR-triggered workflows (issue-linker) add `if:` guards on their first job
 to skip runs triggered by dependency bots (Renovate, Dependabot) and the Claude GitHub App.
 This produces a clean **skipped** (grey) status instead of a **failed** (red) status.
 
@@ -700,45 +700,12 @@ per-PR group).
 
 ---
 
-## Slack Notification Pattern
-
-Consumer repos receive real-time Slack alerts in `#github-automation` when Claude opens a PR.
-
-**Workflow**: `notify-ai-pr.yml` (reusable)
-**Filter**: Only fires for PRs authored by `claude[bot]`
-
-**Consumer caller** (added to each repo):
-
-```yaml
-name: AI PR Notification
-on:
-  pull_request:
-    types: [opened]
-permissions:
-  pull-requests: read
-jobs:
-  notify:
-    uses: dryvist/ai-workflows/.github/workflows/notify-ai-pr.yml@main
-    secrets: inherit
-```
-
-**Required secret**: `GH_SLACK_WEBHOOK_URL_GITHUB_AUTOMATION` (Slack Incoming Webhook URL for `#github-automation`, synced from Doppler via secrets-sync)
-
-**Message content** (Slack Block Kit):
-
-- Header: "AI-Created PR Opened"
-- PR title + link
-- Provenance fields: Workflow, Event, Actor, Run link (extracted from PR body footer)
-
-**Implementation**: Extracted script at `.github/scripts/notification/send-slack-pr-notify.js`.
-Parses the AI Provenance footer from the PR body using regex to populate the Slack message fields.
-
 ## Non-AI Utility Workflow Pattern
 
 Not every reusable workflow needs Claude. When the job is deterministic
 (GraphQL mutations, notifications, labeling), a plain `actions/github-script`
 workflow is cheaper, faster, and immune to AI-token limits. Current members:
-`notify-ai-pr.yml`, `ci-fail-issue.yml`, `review-thread-resolver.yml`.
+`ci-fail-issue.yml`, `review-thread-resolver.yml`.
 
 **Review Thread Resolver** (`review-thread-resolver.yml`) exists because the
 org branch ruleset enforces `required_review_thread_resolution`: bot reviewers

@@ -8,8 +8,9 @@
 # artifact, and — when the push came from a merged pull request — one sticky
 # comment on that pull request so the author sees it.
 #
-# Advisory only: a router outage, a model error, or unparseable output records
-# the reason and the job still succeeds. Only workflow bugs fail it. Never make
+# A router outage makes the job WAIT (exponential backoff, five-minute cap) and
+# then FAIL when timeout-minutes runs out; it never reports success having
+# checked nothing. It needs a runner that can reach the router. Do not make
 # this a required check.
 #
 # This is a reusable workflow that can be called from other repositories.
@@ -21,11 +22,22 @@ on:
     inputs:
       runner_label:
         description: >-
-          GitHub Actions runner label to run the job on. Defaults to
-          ubuntu-latest. Pass a RunsOn label to opt into self-hosted runners.
+          Runner label for the job. Must be a runner that can reach the model
+          router.
         type: string
         required: false
-        default: ubuntu-latest
+        default: self-hosted
+      scripts_ref:
+        description: >-
+          Commit or ref of dryvist/ai-workflows to take the scripts from.
+          Defaults to its default branch, which is what a consumer wants.
+          `github.job_workflow_sha` is not used: it is empty whenever the
+          workflow is reached through another reusable workflow. A dogfood
+          caller in this repository passes the pull request head SHA so the
+          pull request exercises its own scripts.
+        type: string
+        required: false
+        default: ""
       model:
         description: >-
           Router ROLE alias to call (e.g. cheap, judge, subagent). Always an
@@ -55,14 +67,12 @@ on:
         type: number
         required: false
         default: 1500
-      base_url_var_name:
-        description: >-
-          Name of the Actions variable holding the router's OpenAI-compatible
-          /v1 base URL. Defaults to LLM_ROUTER_BASE_URL.
-        type: string
-        required: false
-        default: LLM_ROUTER_BASE_URL
     secrets:
+      LLM_ROUTER_BASE_URL:
+        description: >-
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
+        required: true
       LLM_ROUTER_API_KEY:
         description: >-
           Scoped router virtual key (never the router master key). When absent
@@ -82,10 +92,10 @@ concurrency:
 jobs:
   drift:
     name: Docs drift
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
       contents: read
-    timeout-minutes: 10
+    timeout-minutes: 60
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
     steps:
@@ -99,6 +109,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
@@ -112,7 +123,7 @@ jobs:
 
       - name: Request drift report
         env:
-          BASE_URL: ${{ vars[inputs.base_url_var_name] }}
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
           API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
           MODEL: ${{ inputs.model }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
@@ -156,16 +167,17 @@ jobs:
     name: Comment on the merged PR
     needs: drift
     if: needs.drift.outputs.pr_number != ''
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
       contents: read
       pull-requests: write
-    timeout-minutes: 10
+    timeout-minutes: 60
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
