@@ -57,6 +57,21 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     timeout-minutes: 30
     steps:
+      # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr.js), so it
+      # must be empty (default branch) or a full commit SHA — never a
+      # branch/tag name a future write-access change could re-point to
+      # untrusted content. Same shape as docs-publisher.yml's
+      # `implementation_ref` validation. `registry_ref` is only ever parsed
+      # as YAML data, never executed, so a branch name is fine there — still
+      # restricted to a safe ref character set as defense in depth.
+      - name: Validate refs before checkout
+        env:
+          SCRIPTS_REF: ${{ inputs.scripts_ref }}
+          REGISTRY_REF: ${{ inputs.registry_ref }}
+        run: |
+          grep -Eq '^$|^[0-9a-f]{40}$' <<<"$SCRIPTS_REF"
+          grep -Eq '^[A-Za-z0-9._/-]+$' <<<"$REGISTRY_REF"
+
       - name: Checkout the model registry (read-write target)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
