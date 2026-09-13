@@ -1,0 +1,30 @@
+# Weekly trigger for Pricing Discovery (agents file W1 D1). Runs on the
+# proxmox-fleet self-hosted runner: it already mints its own OpenBao/GitHub
+# credentials and needs no Mac and no GPU.
+name: Schedule Pricing Discovery
+
+on:
+  schedule:
+    - cron: "31 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print bodies only; open/file/edit nothing.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/pricing-discovery.yml
+    with:
+      runner_label: proxmox-fleet
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      VIKUNJA_URL: ${{ secrets.VIKUNJA_URL }}
+      VIKUNJA_API_TOKEN: ${{ secrets.VIKUNJA_API_TOKEN }}

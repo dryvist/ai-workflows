@@ -1,5 +1,5 @@
 // ZDR gate for a NEW candidate (not yet a router deployment, so this cannot go
-// through the internal LiteLLM router the way an already-registered model's
+// through the shared LiteLLM router the way an already-registered model's
 // traffic does — there is no deployment to route through yet). Calls
 // OpenRouter directly with the same extra_body.provider shape
 // model-list.yaml.j2 renders for a registered ZDR entry: a live 200 is the
