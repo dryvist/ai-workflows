@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.40.1](https://github.com/dryvist/ai-workflows/compare/v0.40.0...v0.40.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **policy-gate:** inherit the caller's permissions instead of requesting write ([#390](https://github.com/dryvist/ai-workflows/issues/390)) ([99d90bf](https://github.com/dryvist/ai-workflows/commit/99d90bf57652d398178d25f9b36d53beb1b6a1e1))
+* **policy-gate:** make router secrets optional, fail closed in-job ([#391](https://github.com/dryvist/ai-workflows/issues/391)) ([43f563e](https://github.com/dryvist/ai-workflows/commit/43f563e8b859ad56aa2a1868b109223a9d9b47ac))
+
 ## [0.40.0](https://github.com/dryvist/ai-workflows/compare/v0.39.0...v0.40.0) (2026-09-13)
 
 
