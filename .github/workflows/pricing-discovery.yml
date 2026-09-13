@@ -48,11 +48,11 @@ on:
         description: Optional. Raises the OpenRouter models/endpoints rate limit; unauthenticated calls work without it.
         required: false
       VIKUNJA_URL:
-        description: Base URL of the Vikunja instance the review task is filed against.
-        required: true
+        description: Base URL of the Vikunja instance the review task is filed against. act.sh's `:?` guard fails closed if it's missing.
+        required: false
       VIKUNJA_API_TOKEN:
-        description: Bearer token for the Vikunja API.
-        required: true
+        description: Bearer token for the Vikunja API. act.sh's `:?` guard fails closed if it's missing.
+        required: false
 
 permissions:
   contents: read
