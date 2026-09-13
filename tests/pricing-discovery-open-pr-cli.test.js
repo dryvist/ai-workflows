@@ -57,4 +57,45 @@ describe('pricing-discovery open-pr-cli', () => {
     });
     expect(out).toContain('nothing to open');
   });
+
+  it(
+    'on a failed GitHub auth: exits non-zero, reports the status and body, never the token',
+    () => {
+    dir = initRepoWithChange();
+    const secretToken = 'SECRET_TOKEN_VALUE_DO_NOT_LEAK';
+    const serverScript = path.join(__dirname, 'fixtures', 'fake-github-401-server.js');
+    const portFile = path.join(dir, '..', `port-${process.pid}-${Date.now()}.txt`);
+    const server = require('child_process').spawn('bun', [serverScript, portFile], { stdio: 'ignore' });
+    try {
+      const deadline = Date.now() + 5000;
+      while (!fs.existsSync(portFile) && Date.now() < deadline) {
+        execFileSync('sleep', ['0.05']);
+      }
+      if (!fs.existsSync(portFile)) throw new Error('fake server never wrote its port file');
+      const apiBase = `http://localhost:${fs.readFileSync(portFile, 'utf8').trim()}`;
+
+      let threw = false;
+      let combined = '';
+      try {
+        execFileSync('bun', [path.join(__dirname, '..', '.github/scripts/pricing-discovery/open-pr-cli.js')], {
+          cwd: dir,
+          encoding: 'utf8',
+          env: { ...process.env, GITHUB_TOKEN: secretToken, GITHUB_API_BASE_URL: apiBase },
+        });
+      } catch (e) {
+        threw = true;
+        expect(e.status).not.toBe(0);
+        combined = `${e.stdout || ''}${e.stderr || ''}`;
+      }
+      expect(threw).toBe(true);
+      expect(combined).toContain('401');
+      expect(combined).toContain('Bad credentials');
+      expect(combined).not.toContain(secretToken);
+    } finally {
+      server.kill();
+      fs.rmSync(portFile, { force: true });
+    }
+    },
+    10000,
+  );
 });

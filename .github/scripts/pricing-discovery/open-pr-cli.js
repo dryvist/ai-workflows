@@ -14,8 +14,10 @@ if (!token) {
   process.exit(1);
 }
 
+const apiBase = process.env.GITHUB_API_BASE_URL || 'https://api.github.com';
+
 async function api(method, path, body) {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await fetch(`${apiBase}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,

@@ -48,11 +48,11 @@ on:
         description: Optional. Raises the OpenRouter models/endpoints rate limit; unauthenticated calls work without it.
         required: false
       VIKUNJA_URL:
-        description: Required unless dry_run. Base URL of the Vikunja instance the review task is filed against.
-        required: false
+        description: Base URL of the Vikunja instance the review task is filed against.
+        required: true
       VIKUNJA_API_TOKEN:
-        description: Required unless dry_run. Bearer token for the Vikunja API.
-        required: false
+        description: Bearer token for the Vikunja API.
+        required: true
 
 permissions:
   contents: read
@@ -81,7 +81,7 @@ jobs:
         run: |
           [[ "$SCRIPTS_REF" != *$'\n'* ]] || { echo "::error::SCRIPTS_REF must be a single line"; exit 1; }
           [[ "$REGISTRY_REF" != *$'\n'* ]] || { echo "::error::REGISTRY_REF must be a single line"; exit 1; }
-          grep -Exq '|[0-9a-f]{40}' <<<"$SCRIPTS_REF"
+          [[ -z "$SCRIPTS_REF" ]] || grep -Exq '[0-9a-f]{40}' <<<"$SCRIPTS_REF"
           grep -Exq '[A-Za-z0-9._/-]+' <<<"$REGISTRY_REF"
 
       - name: Checkout the model registry (read-write target)
@@ -137,6 +137,7 @@ jobs:
           REGISTRY_REF: ${{ inputs.registry_ref }}
         run: |
           eval "$(openbao-github-creds claim dryvist/ansible-proxmox-ai)"
+          echo "::add-mask::${GITHUB_TOKEN}"
           bun .ai-workflows/.github/scripts/pricing-discovery/open-pr-cli.js
 
       - name: File the Vikunja review task, if one was proposed
