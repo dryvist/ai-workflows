@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.40.0](https://github.com/dryvist/ai-workflows/compare/v0.39.0...v0.40.0) (2026-09-13)
+
+
+### Features
+
+* **pricing-discovery:** orchestration + reusable workflow (PR B of 2) ([#388](https://github.com/dryvist/ai-workflows/issues/388)) ([438006d](https://github.com/dryvist/ai-workflows/commit/438006db9bd87a53a96e154010629c6f2f275383))
+* **pricing-discovery:** registry diff/patch library (PR A of 2) ([#387](https://github.com/dryvist/ai-workflows/issues/387)) ([b11b9cc](https://github.com/dryvist/ai-workflows/commit/b11b9ccc6189a822073185e93d73d3f12f2458db))
+
 ## [0.39.0](https://github.com/dryvist/ai-workflows/compare/v0.38.0...v0.39.0) (2026-09-12)
 
 
