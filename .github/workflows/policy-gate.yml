@@ -16,6 +16,17 @@
 # require.
 #
 # This is a reusable workflow that can be called from other repositories.
+#
+# Permissions: deliberately no top-level `permissions:` block. A called
+# workflow's block is a ceiling on the caller's grant, never an elevation,
+# and GitHub validates it at startup for every job in the graph - even one
+# whose `if:` is false - so requesting `pull-requests: write` here fails the
+# whole calling workflow for any consumer that grants read only, while
+# declaring `contents: read` alone would strip write from callers that do
+# grant it. Inheriting the caller's grant is the only shape that serves
+# both. The sticky comment step needs `pull-requests: write` on the CALLING
+# workflow; without it that step fails and posts nothing, which is the
+# documented advisory behaviour.
 
 name: Policy Gate
 
@@ -78,10 +89,6 @@ on:
           audit line to (topic "ai"). Optional: the publish step is skipped,
           not failed, when this is absent.
         required: false
-
-permissions:
-  contents: read
-  pull-requests: write
 
 concurrency:
   group: policy-gate-${{ github.repository }}
