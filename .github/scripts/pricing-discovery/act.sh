@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # File the Vikunja task run.js proposed (vikunja-body.md), if any. The PR half
-# is opened by the workflow's own github-script step (verified-commit.js's
+# is opened by the workflow's own open-pr-cli.js step (verified-commit.js's
 # openPr, App-signed) rather than here — a plain unsigned `git push` would be
 # rejected by dryvist's org-wide required_signatures ruleset.
 set -euo pipefail

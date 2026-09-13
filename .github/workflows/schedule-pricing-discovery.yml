@@ -24,3 +24,7 @@ jobs:
     with:
       runner_label: proxmox-fleet
       dry_run: ${{ inputs.dry_run || false }}
+    secrets:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      VIKUNJA_URL: ${{ secrets.VIKUNJA_URL }}
+      VIKUNJA_API_TOKEN: ${{ secrets.VIKUNJA_API_TOKEN }}

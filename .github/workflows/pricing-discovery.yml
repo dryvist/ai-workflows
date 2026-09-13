@@ -8,7 +8,7 @@
 # human decision — nothing is ever auto-added to the registry.
 #
 # ZDR gate: a new candidate is probed live against OpenRouter directly (not
-# through the internal LiteLLM router — there is no deployment to route
+# through the shared LiteLLM router — there is no deployment to route
 # through yet for an id not in the registry) with the same
 # `provider: {zdr: true, data_collection: deny}` shape a registered ZDR entry
 # already renders. The result is reported in the Vikunja task; nothing here
@@ -43,6 +43,16 @@ on:
         type: boolean
         required: false
         default: false
+    secrets:
+      OPENROUTER_API_KEY:
+        description: Optional. Raises the OpenRouter models/endpoints rate limit; unauthenticated calls work without it.
+        required: false
+      VIKUNJA_URL:
+        description: Required unless dry_run. Base URL of the Vikunja instance the review task is filed against.
+        required: false
+      VIKUNJA_API_TOKEN:
+        description: Required unless dry_run. Bearer token for the Vikunja API.
+        required: false
 
 permissions:
   contents: read
@@ -57,7 +67,7 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     timeout-minutes: 30
     steps:
-      # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr.js), so it
+      # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr-cli.js), so it
       # must be empty (default branch) or a full commit SHA — never a
       # branch/tag name a future write-access change could re-point to
       # untrusted content. Same shape as docs-publisher.yml's
@@ -69,8 +79,10 @@ jobs:
           SCRIPTS_REF: ${{ inputs.scripts_ref }}
           REGISTRY_REF: ${{ inputs.registry_ref }}
         run: |
-          grep -Eq '^$|^[0-9a-f]{40}$' <<<"$SCRIPTS_REF"
-          grep -Eq '^[A-Za-z0-9._/-]+$' <<<"$REGISTRY_REF"
+          [[ "$SCRIPTS_REF" != *$'\n'* ]] || { echo "::error::SCRIPTS_REF must be a single line"; exit 1; }
+          [[ "$REGISTRY_REF" != *$'\n'* ]] || { echo "::error::REGISTRY_REF must be a single line"; exit 1; }
+          grep -Exq '|[0-9a-f]{40}' <<<"$SCRIPTS_REF"
+          grep -Exq '[A-Za-z0-9._/-]+' <<<"$REGISTRY_REF"
 
       - name: Checkout the model registry (read-write target)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -102,7 +114,7 @@ jobs:
         env:
           REGISTRY_DIR: llm-models.d
           DRY_RUN: ${{ inputs.dry_run }}
-          OPENROUTER_API_KEY: ${{ env.OPENROUTER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: bun .ai-workflows/.github/scripts/pricing-discovery/run.js
 
       - name: Job summary (always — this is the "one dry run" evidence too)
@@ -114,27 +126,22 @@ jobs:
             if [ ! -f pr-body.md ] && [ ! -f vikunja-body.md ]; then echo; echo 'Nothing changed.'; fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Mint an ansible-proxmox-ai-scoped token
-        if: ${{ !inputs.dry_run }}
-        run: |
-          eval "$(openbao-github-creds claim dryvist/ansible-proxmox-ai)"
-          echo "::add-mask::${GITHUB_TOKEN}"
-          echo "PROXMOX_AI_TOKEN=${GITHUB_TOKEN}" >> "$GITHUB_ENV"
-
+      # The App token is minted and consumed inside this one step's shell: it
+      # never touches $GITHUB_ENV or a step output, so no later step or log
+      # line can see it. open-pr-cli.js builds its own minimal REST/GraphQL
+      # client from GITHUB_TOKEN instead of relying on actions/github-script's
+      # pre-authenticated `github` object, which is fixed before a step runs.
       - name: Open the pricing PR (App-signed, satisfies required_signatures)
         if: ${{ !inputs.dry_run }}
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           REGISTRY_REF: ${{ inputs.registry_ref }}
-        with:
-          github-token: ${{ env.PROXMOX_AI_TOKEN }}
-          script: |
-            const run = require('./.ai-workflows/.github/scripts/pricing-discovery/open-pr.js');
-            await run({ github, context, core });
+        run: |
+          eval "$(openbao-github-creds claim dryvist/ansible-proxmox-ai)"
+          bun .ai-workflows/.github/scripts/pricing-discovery/open-pr-cli.js
 
       - name: File the Vikunja review task, if one was proposed
         if: ${{ !inputs.dry_run }}
         env:
-          VIKUNJA_URL: ${{ env.VIKUNJA_URL }}
-          VIKUNJA_API_TOKEN: ${{ env.VIKUNJA_API_TOKEN }}
+          VIKUNJA_URL: ${{ secrets.VIKUNJA_URL }}
+          VIKUNJA_API_TOKEN: ${{ secrets.VIKUNJA_API_TOKEN }}
         run: bash .ai-workflows/.github/scripts/pricing-discovery/act.sh
