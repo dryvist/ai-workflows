@@ -26,6 +26,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     post-merge-docs-review/
     post-merge-tests/
     pr-agent/
+    commit-review/
     release-notes/
     review-thread-resolver/
     shared/                         # incl. router-chat.sh, wait-for-router.sh
@@ -44,7 +45,8 @@ There are three families, and they do not share a credential contract:
 2. **`pr-agent.yml`** runs PR-Agent against the model router for PR-scoped
    review, code suggestions and descriptions. Its prompts live in the consumer
    repository's own `.pr_agent.toml`; see docs/pr-agent.md.
-3. **Router workflows** (`thread-triage`, `docs-drift`, `repo-hygiene-digest`)
+3. **Router workflows** (`commit-review`, `thread-triage`, `docs-drift`,
+   `repo-hygiene-digest`)
    make one chat completion through `scripts/shared/router-chat.sh`. They take
    `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
    to a `self-hosted` runner, because only such a runner reaches the router.

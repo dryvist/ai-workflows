@@ -1,0 +1,16 @@
+name: Dogfood Commit Review
+on:
+  push:
+    branches: ["**"]
+permissions:
+  contents: write
+jobs:
+  # Local ref on purpose: the pushed branch's own version of the workflow and
+  # scripts is what should run.
+  commit-review:
+    uses: ./.github/workflows/commit-review.yml
+    with:
+      scripts_ref: ${{ github.sha }}
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
