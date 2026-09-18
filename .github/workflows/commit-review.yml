@@ -46,12 +46,13 @@ on:
         default: ""
       model:
         description: >-
-          Router ROLE alias to call (e.g. judge, cheap, fast). Always an alias
-          the router resolves — never a vendor model id. The alias's own
-          fallback ladder is what absorbs a busy backend.
+          Router ROLE alias to call (e.g. cheap, fast, judge). Always an alias
+          the router resolves — never a vendor model id, and one the CI key is
+          scoped to reach. The alias's own fallback ladder is what absorbs a
+          busy backend.
         type: string
         required: false
-        default: judge
+        default: cheap
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number

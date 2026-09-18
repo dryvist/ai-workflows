@@ -29,7 +29,7 @@ Two things absorb a burst of pushes:
 
 - The per-repository concurrency group queues pushes (`cancel-in-progress:
   false`); one repository's backlog holds one runner slot, never the pool.
-- The router role alias (`model`, default `judge`) carries its own fallback
+- The router role alias (`model`, default `cheap`) carries its own fallback
   ladder, edited in the router's admin UI. A busy first rung falls through
   to the next rather than failing the review, and the ladder can be re-ranked
   without touching this workflow.
@@ -46,7 +46,7 @@ endpoint requires; that job runs no model and reads no secret.
 | --- | --- | --- |
 | `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
-| `model` | `judge` | Router **role alias** — never a vendor model id |
+| `model` | `cheap` | Router **role alias** — never a vendor model id; must be one the CI key may reach |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 
