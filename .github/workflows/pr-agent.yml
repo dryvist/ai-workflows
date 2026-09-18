@@ -115,11 +115,10 @@ jobs:
   pr-agent:
     name: PR Agent
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
-    # Fork guard: same-repo heads only, so no fork sees the router key.
-    # Draft pull requests are skipped — review them when they are ready.
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.draft == false
+    # Fork guard: same-repo heads only, so no fork sees the router key. Drafts
+    # are reviewed too — every pull request gets a review, and a draft is where
+    # a finding is cheapest to act on.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: read
       pull-requests: write

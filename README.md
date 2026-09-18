@@ -17,6 +17,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `cc-dep-review.yml` | `pull_request: [opened]` | On Renovate PR | Native Dependency Review + advisory AI `risk:*` label + sticky comment; Renovate merges |
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies changed code and opens a PR |
 | `cc-release-notes.yml` | `pull_request` | On release PR | Posts sticky AI release-highlights comment on release-please PRs (refreshed per head SHA) |
+| `commit-review.yml` | `workflow_call` | On push (consumer) | Router role reviews the pushed diff as one comment on the head commit; queued per repo |
 | `docs-drift.yml` | `workflow_call` | On push to default branch | Cheap model lists docs the merge contradicts; summary, artifact, sticky PR comment |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |

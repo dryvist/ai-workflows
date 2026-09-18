@@ -1,0 +1,176 @@
+# Commit Review
+#
+# An AI review of every push, on every branch: one comment on the pushed head
+# commit, written by the org's model router. Pull requests already get PR-Agent
+# (pr-agent.yml); this covers the commits that never sit in a pull request —
+# direct pushes, work-in-progress branches, bot commits — so no commit lands
+# unreviewed.
+#
+# Two contracts, the same as pr-agent.yml:
+#
+# 1. It runs on a runner that can reach the router (the shared self-hosted pool
+#    by default). A GitHub-hosted runner cannot reach the router.
+# 2. A router outage makes the review job WAIT (exponential backoff, five-minute
+#    cap) and then FAIL on timeout-minutes. It never reports success having
+#    reviewed nothing. Do not make it a required check.
+#
+# Bursts are absorbed in two places: the per-repository concurrency group below
+# queues pushes instead of running them all at once, and the router's role alias
+# carries its own fallback ladder, edited in the router's admin UI — a busy
+# first rung falls through instead of failing the review.
+#
+# The review job holds a read-only token; the comment is posted from a separate
+# job with the one write permission it needs (contents: write is what the
+# commit-comment endpoint requires). The review text itself is data, never
+# interpolated into a command.
+
+name: Commit Review
+
+on:
+  workflow_call:
+    inputs:
+      runner_label:
+        description: >-
+          Runner label for the jobs. Must be a runner that can reach the model
+          router.
+        type: string
+        required: false
+        default: self-hosted
+      scripts_ref:
+        description: >-
+          Commit or ref of dryvist/ai-workflows to take the scripts from.
+          Defaults to its default branch, which is what a consumer wants. A
+          dogfood caller in this repository passes its own head SHA.
+        type: string
+        required: false
+        default: ""
+      model:
+        description: >-
+          Router ROLE alias to call (e.g. cheap, fast, judge). Always an alias
+          the router resolves — never a vendor model id, and one the CI key is
+          scoped to reach. The alias's own fallback ladder is what absorbs a
+          busy backend.
+        type: string
+        required: false
+        default: cheap
+      max_diff_kb:
+        description: "Truncate the pushed diff at this many KiB"
+        type: number
+        required: false
+        default: 150
+      max_tokens:
+        description: "Completion token ceiling for the review"
+        type: number
+        required: false
+        default: 1500
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        description: >-
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
+        required: true
+      LLM_ROUTER_API_KEY:
+        description: >-
+          Scoped router virtual key for CI (never the router's master key).
+        required: true
+
+# Workflow-level permissions set the maximum for all jobs.
+# permissions: {} silently skips all jobs in cross-repo calls.
+permissions:
+  contents: write
+
+# Per REPOSITORY, not per push: a burst of pushes queues behind one runner slot
+# instead of parking the shared pool, and during a router outage one repository
+# cannot hold every slot. cancel-in-progress stays false — a queued review is
+# cheap, a cancelled one wasted the wait.
+concurrency:
+  group: commit-review-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    name: Review the push
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    # A branch deletion is a push event with no commit to review.
+    if: github.event.deleted != true
+    permissions:
+      contents: read
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+          # Enough history to diff a multi-commit push against its base.
+          fetch-depth: 50
+
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ inputs.scripts_ref }}
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+          persist-credentials: false
+
+      - name: Collect the pushed diff
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
+        run: bash .ai-workflows/.github/scripts/commit-review/collect.sh
+
+      - name: Wait for the router
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
+
+      - name: Request the review
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ inputs.model }}
+          MAX_TOKENS: ${{ inputs.max_tokens }}
+        run: bash .ai-workflows/.github/scripts/commit-review/request.sh
+
+      - name: Render the comment
+        env:
+          MODEL: ${{ inputs.model }}
+          COMMIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .ai-workflows/.github/scripts/commit-review/render.sh
+
+      - name: Job summary
+        run: cat commit-review.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: commit-review-${{ github.run_id }}
+          path: commit-review.md
+          if-no-files-found: error
+          retention-days: 7
+
+  comment:
+    name: Comment on the commit
+    needs: review
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - name: Download review
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: commit-review-${{ github.run_id }}
+
+      - name: Post commit comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          gh api --method POST "repos/${GH_REPO}/commits/${COMMIT_SHA}/comments" \
+            -F body=@commit-review.md > /dev/null
+          echo "Commented on ${COMMIT_SHA}."
