@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.41.0](https://github.com/dryvist/ai-workflows/compare/v0.40.1...v0.41.0) (2026-09-18)
+
+
+### Features
+
+* **workflows:** commit-review — an AI review of every push on every branch ([#393](https://github.com/dryvist/ai-workflows/issues/393)) ([03e4c68](https://github.com/dryvist/ai-workflows/commit/03e4c6879d77c1c3133501dd5f5e4437b52ea472))
+
 ## [0.40.1](https://github.com/dryvist/ai-workflows/compare/v0.40.0...v0.40.1) (2026-09-13)
 
 
