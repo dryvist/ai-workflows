@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.0](https://github.com/dryvist/ai-workflows/compare/v0.42.1...v0.43.0) (2026-09-19)
+
+
+### Features
+
+* **ci:** scope-classify gate (Jev, via typesafe-sdk) ([453286e](https://github.com/dryvist/ai-workflows/commit/453286ecaa870f328418e3f6e84a13cbd3903676))
+* **review:** pick the router key and role by repository visibility ([5fb876d](https://github.com/dryvist/ai-workflows/commit/5fb876d407c233eb01ff58c1d407631717a5cc39))
+* **review:** pick the router key and role by repository visibility ([328801a](https://github.com/dryvist/ai-workflows/commit/328801a8ebd5a67baa6846b8e47ba5c3590ec570))
+* **run-ai-agent:** every agent and review call goes through the model router ([7f6219c](https://github.com/dryvist/ai-workflows/commit/7f6219c8b9d1dcc89416e3293784888a708038ae))
+* **run-ai-agent:** reach the model router with one base URL and one key ([d9cb5fe](https://github.com/dryvist/ai-workflows/commit/d9cb5fe0f0c90b5f68e03b9b32334e46c4b422c6))
+
+
+### Bug Fixes
+
+* **ci:** close 5 review findings - fail-open, injection, rename evasion ([0ea9a4a](https://github.com/dryvist/ai-workflows/commit/0ea9a4a03269210d70a063c557cf1cbec9acd76b))
+* **ci:** the promotion override was a no-op on every trunk repo ([2863510](https://github.com/dryvist/ai-workflows/commit/2863510345f860f40a6882f8547e6e915ac2583b))
+* **ci:** tighten check_overrides() typing, avoid os.environ aliasing ([3b034d0](https://github.com/dryvist/ai-workflows/commit/3b034d0fffd1dc24c58ddf3a1ac2dedeb4f0ff3d))
+* **run-ai-agent:** drop the claude_code_oauth_token alias ([8cdf27c](https://github.com/dryvist/ai-workflows/commit/8cdf27caa0ad14532ab78150da16b7f66932a2e7))
+* **run-ai-agent:** fall back to the Claude role for Codex and to the cheap role for issue tasks ([691b8da](https://github.com/dryvist/ai-workflows/commit/691b8daa93bddb13e533a3d18c77172fc1e4d093))
+
 ## [0.42.1](https://github.com/dryvist/ai-workflows/compare/v0.42.0...v0.42.1) (2026-09-19)
 
 
