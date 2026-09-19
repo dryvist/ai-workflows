@@ -65,7 +65,7 @@ jobs:
   discover:
     name: Discover
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr-cli.js), so it
       # must be empty (default branch) or a full commit SHA — never a
