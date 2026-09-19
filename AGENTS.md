@@ -26,7 +26,6 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     post-merge-docs-review/
     post-merge-tests/
     pr-agent/
-    commit-review/
     release-notes/
     review-thread-resolver/
     shared/
@@ -45,8 +44,7 @@ There are three families, and they do not share a credential contract:
 2. **`pr-agent.yml`** runs PR-Agent against the model router for PR-scoped
    review, code suggestions and descriptions. Its prompts live in the consumer
    repository's own `.pr_agent.toml`; see docs/pr-agent.md.
-3. **Router workflows** (`commit-review`, `thread-triage`, `docs-drift`,
-   `repo-hygiene-digest`)
+3. **Router workflows** (`thread-triage`, `docs-drift`, `repo-hygiene-digest`)
    make one chat completion with `actions/ai-inference` (a `.prompt.yml`
    beside the workflow's scripts holds the messages and, where the answer is
    JSON, the schema). They take `LLM_ROUTER_BASE_URL` and
@@ -56,8 +54,8 @@ There are three families, and they do not share a credential contract:
 A router workflow that cannot reach the router FAILS, releasing the runner:
 the action's client retries a connection failure or 5xx twice and gives up,
 and the job is capped at ten minutes. CI never waits for a model beyond that;
-the router role's own fallback chain absorbs load. `pr-agent` and
-`commit-review` pick the router key and role by repository visibility
+the router role's own fallback chain absorbs load. `pr-agent` picks the
+router key and role by repository visibility
 (`LLM_ROUTER_OSS_API_KEY` + `oss_model` on an open-source repo); every review
 still runs on the self-hosted pool against the router. Never restore a
 skip-and-succeed path: a green check that did no work is what these replaced.
