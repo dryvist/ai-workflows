@@ -121,12 +121,6 @@ jobs:
           MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
         run: bash .ai-workflows/.github/scripts/commit-review/collect.sh
 
-      - name: Wait for the router
-        uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
-        with:
-          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
-
       - name: Request the review
         env:
           BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}

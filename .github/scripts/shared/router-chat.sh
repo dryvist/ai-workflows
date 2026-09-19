@@ -5,14 +5,13 @@
 # note and exited 0, so an outage or a broken credential produced a green check
 # that had reviewed nothing. curl's own retry absorbs what waiting can fix (a
 # connection failure, 408, 429, 5xx): two retries five seconds apart inside a
-# fifteen-second budget per model, then the next rung of FALLBACK_MODELS gets
-# the same budget. A 401, 403 or 404 cannot be fixed by waiting and exits at
-# once. CI never waits for a model beyond those seconds.
+# fifteen-second budget, then the job fails. MODEL is a router role; the
+# router walks that role's own fallback ladder and drops a request parameter a
+# backend does not support, so neither is handled here.
 #
 # Env (required): BASE_URL API_KEY MODEL SYSTEM_PROMPT USER_FILE OUT
 # Env (optional): MAX_TOKENS (1500)  REQUIRED_KEY ("")  TAG (OUT without its
-#                 extension)  FALLBACK_MODELS (comma-separated rungs after
-#                 MODEL)  RETRY_MAX (15, seconds per rung)  RETRY_DELAY (5)
+#                 extension)  RETRY_MAX (15, seconds)  RETRY_DELAY (5)
 #
 # REQUIRED_KEY set   -> ask for a JSON object and fail unless it has that key.
 # REQUIRED_KEY empty -> the model's text is written through as-is.
@@ -50,42 +49,24 @@ jq -n \
    + (if $key != "" then {response_format: {type: "json_object"}} else {} end)' \
   > request.json
 
-request() {
-  curl -sS --fail-with-body -o response.json -w '%{http_code}' --max-time 240 \
-    --retry 2 --retry-delay "${RETRY_DELAY:-5}" --retry-max-time "${RETRY_MAX:-15}" \
-    "${BASE_URL%/}/chat/completions" \
-    -H 'Content-Type: application/json' \
-    -H "Authorization: Bearer $API_KEY" \
-    -H "x-langfuse-trace-name: $tag" \
-    --data @request.json
-}
-
-ok=""
-for model in $(printf '%s' "$MODEL,${FALLBACK_MODELS:-}" | tr ',' ' '); do
-  jq --arg m "$model" '.model = $m' request.json > request.next.json
-  mv request.next.json request.json
-  code="$(request || true)"
-  # A backend that rejects response_format gets one retry without it.
-  if [ "$code" != 200 ] && grep -qi 'response_format' response.json 2> /dev/null \
-    && jq -e 'has("response_format")' request.json > /dev/null; then
-    echo "The backend rejected response_format; retrying without it."
-    jq 'del(.response_format)' request.json > request.next.json
-    mv request.next.json request.json
-    code="$(request || true)"
-  fi
-  case "$code" in
-    200) ok=1; break ;;
-    401 | 403 | 404)
-      echo "Router refused the request with HTTP $code: the key, the base URL or the model alias is wrong." >&2
-      exit 1
-      ;;
-    *) echo "'$model' returned HTTP ${code:-000} past the ${RETRY_MAX:-15}s retry budget." ;;
-  esac
-done
-if [ -z "$ok" ]; then
-  echo "No rung answered: failing so the runner is released." >&2
-  exit 1
-fi
+code="$(curl -sS --fail-with-body -o response.json -w '%{http_code}' --max-time 240 \
+  --retry 2 --retry-delay "${RETRY_DELAY:-5}" --retry-max-time "${RETRY_MAX:-15}" \
+  "${BASE_URL%/}/chat/completions" \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "x-langfuse-trace-name: $tag" \
+  --data @request.json || true)"
+case "$code" in
+  200) ;;
+  401 | 403 | 404)
+    echo "Router refused the request with HTTP $code: the key, the base URL or the model alias is wrong." >&2
+    exit 1
+    ;;
+  *)
+    echo "Router returned HTTP ${code:-000} past the ${RETRY_MAX:-15}s retry budget: failing so the runner is released." >&2
+    exit 1
+    ;;
+esac
 
 content="$(jq -r '.choices[0].message.content // ""' response.json)"
 # Models sometimes wrap JSON in a fenced block; strip the fences before parsing.
