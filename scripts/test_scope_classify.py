@@ -240,6 +240,16 @@ class SanitizeTests(unittest.TestCase):
         for line in content.splitlines():
             self.assertIn("=", line)  # every line is still a clean key=value
 
+    def test_write_summary_has_one_row_per_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "step_summary")
+            sc.write_summary(path, dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90", "jev")
+            with open(path, encoding="utf-8") as handle:
+                content = handle.read()
+        rows = [line for line in content.splitlines() if line.startswith("| ") and not line.startswith("| output") and not line.startswith("| ---")]
+        self.assertEqual([r.split(" | ")[0].lstrip("| ") for r in rows], ["ci", "molecule", "ai_review", "release_notes", "e2e", "source", "reason"])
+        self.assertIn("| reason | jev choice, avg confidence 0.90 |", content)
+
 
 if __name__ == "__main__":
     unittest.main()
