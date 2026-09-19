@@ -66,8 +66,9 @@ on:
         default: cheap
       fallback_model:
         description: >-
-          Model to retry on once the first errors, named the same way as
-          `model`. Must be reachable with the same key and endpoint.
+          Ladder to retry on once the first errors, named the same way as
+          `model`, comma-separated, walked in order on any error. Must be
+          reachable with the same key and endpoint.
         type: string
         required: false
         default: subagent

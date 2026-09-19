@@ -76,6 +76,14 @@ on:
         type: string
         required: false
         default: glm-5.3-flash
+      public_fallback_models:
+        description: >-
+          Comma-separated ladder tried in order, each inside its own retry
+          budget, when `public_model` errors on a public repo. Private repos
+          rely on the router alias's own ladder and never read this.
+        type: string
+        required: false
+        default: glm-4.7-flash,glm-4.5-flash
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number
@@ -166,6 +174,7 @@ jobs:
           BASE_URL: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_BASE_URL || secrets.LLM_ROUTER_BASE_URL }}
           API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
           MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
+          FALLBACK_MODELS: ${{ !github.event.repository.private && inputs.public_fallback_models || '' }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
         run: bash .ai-workflows/.github/scripts/commit-review/request.sh
 

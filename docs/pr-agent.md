@@ -52,7 +52,7 @@ request over the API — and the image is pinned by digest in
 | --- | --- | --- |
 | `runner_label` | `self-hosted` | Runner label; must reach the endpoint in `LLM_ROUTER_BASE_URL` |
 | `model` | `cheap` | Model as the endpoint names it: a router **role alias** (never a vendor id), or the vendor's id against an external endpoint |
-| `fallback_model` | `subagent` | Model to retry on after an error, named the same way; same key and endpoint |
+| `fallback_model` | `subagent` | Comma-separated ladder to retry on after an error, named the same way; same key and endpoint |
 | `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
 | `improve` | `false` | Run the improve tool |

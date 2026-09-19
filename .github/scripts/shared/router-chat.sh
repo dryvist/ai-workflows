@@ -47,11 +47,15 @@ jq -n \
    + (if $key != "" then {response_format: {type: "json_object"}} else {} end)' \
   > request.json
 
-# Retries live inside a 15-second budget (RETRY_MAX): a 5xx/429/timeout is the
-# endpoint's fallback ladder's problem, not something a runner waits out.
+# Retries live inside a 15-second budget (RETRY_MAX) per model: a 5xx/429/
+# timeout is not something a runner waits out. When the budget runs out the
+# next rung of FALLBACK_MODELS (comma-separated) gets its own budget; the job
+# fails only once every rung has.
 delay="${BACKOFF_START:-5}"
 max="${BACKOFF_MAX:-5}"
 retry_max="${RETRY_MAX:-15}"
+ladder="$(printf '%s' "$MODEL,${FALLBACK_MODELS:-}" | tr -d '[:space:]' | sed 's/,*$//')"
+rung=1
 started=$(date +%s)
 while :; do
   code="$(curl -s --max-time 240 -o response.json -w '%{http_code}' \
@@ -82,8 +86,19 @@ while :; do
       elapsed=$(( $(date +%s) - started ))
       remaining=$(( retry_max - elapsed ))
       if [ "$remaining" -le 0 ]; then
-        echo "Router returned HTTP $code for ${elapsed}s, past the ${retry_max}s retry budget: failing so the runner is released." >&2
-        exit 1
+        current="$(printf '%s' "$ladder" | cut -d, -f"$rung")"
+        rung=$((rung + 1))
+        next="$(printf '%s' "$ladder" | cut -d, -f"$rung")"
+        if [ -z "$next" ] || [ "$next" = "$current" ]; then
+          echo "Router returned HTTP $code for ${elapsed}s on '$current', past the ${retry_max}s retry budget with no rung left: failing so the runner is released." >&2
+          exit 1
+        fi
+        echo "'$current' returned HTTP $code for ${elapsed}s, past the ${retry_max}s retry budget: falling back to '$next'."
+        jq --arg m "$next" '.model = $m' request.json > request.next.json
+        mv request.next.json request.json
+        delay="${BACKOFF_START:-5}"
+        started=$(date +%s)
+        continue
       fi
       [ "$delay" -gt "$remaining" ] && delay=$remaining
       echo "Router returned HTTP $code; retrying in ${delay}s (${remaining}s left)."

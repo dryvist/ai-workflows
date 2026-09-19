@@ -114,3 +114,45 @@ test('fails once the retry budget passes instead of holding the runner', async (
   expect(elapsed).toBeLessThan(10_000);
   expect(hits).toBeGreaterThan(1);
 });
+
+test('walks the fallback ladder when the first model exhausts its budget', async () => {
+  const models = [];
+  const server = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      const body = await req.json();
+      models.push(body.model);
+      if (body.model === 'primary') return new Response('down', { status: 503 });
+      return Response.json({
+        choices: [{ message: { content: '{"items":["ok"]}' } }],
+      });
+    },
+  });
+  const dir = mkdtempSync(join(tmpdir(), 'router-chat-'));
+  writeFileSync(join(dir, 'user.txt'), 'DIFF:\nnothing');
+  const child = Bun.spawn(['bash', script], {
+    cwd: dir,
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env: {
+      ...process.env,
+      BASE_URL: `http://127.0.0.1:${server.port}/v1`,
+      API_KEY: 'test-key',
+      MODEL: 'primary',
+      FALLBACK_MODELS: 'second, third',
+      SYSTEM_PROMPT: 'test',
+      USER_FILE: 'user.txt',
+      OUT: 'out.json',
+      REQUIRED_KEY: 'items',
+      BACKOFF_START: '1',
+      RETRY_MAX: '2',
+    },
+  });
+  const status = await child.exited;
+  server.stop(true);
+
+  expect(status).toBe(0);
+  expect(models.filter((m) => m === 'primary').length).toBeGreaterThan(1);
+  expect(models[models.length - 1]).toBe('second');
+  expect(JSON.parse(readFileSync(join(dir, 'out.json'), 'utf8'))).toEqual({ items: ['ok'] });
+});

@@ -39,7 +39,8 @@ trap 'rm -f "$env_file"' EXIT
   echo "CONFIG__MODEL=openai/${MODEL:-cheap}"
   # The built-in fallback list names a vendor model this key cannot reach, so
   # leaving it at its default turns the first model error into an auth error.
-  echo "CONFIG__FALLBACK_MODELS=[\"openai/${FALLBACK_MODEL:-subagent}\"]"
+  # FALLBACK_MODEL is a comma-separated ladder; PR-Agent walks it on any error.
+  echo "CONFIG__FALLBACK_MODELS=$(printf '%s' "${FALLBACK_MODEL:-subagent}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;/^$/d' | jq -R -s -c 'split("\n") | map(select(length > 0) | "openai/" + .)')"
   echo "CONFIG__CUSTOM_MODEL_MAX_TOKENS=${MAX_TOKENS:-32000}"
   echo "CONFIG__AI_TIMEOUT=240"
   # Without this a tool that fails internally still exits 0, which is the
