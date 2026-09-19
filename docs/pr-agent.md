@@ -54,8 +54,6 @@ request over the API — and the image is pinned by digest in
 | `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `model` | `review-private` | Private repos: router **role alias** (never a vendor id) one `LLM_ROUTER_API_KEY` may call |
 | `public_model` | `review-public` | Public repos: router role alias one `LLM_PUBLIC_REVIEW_API_KEY` may call |
-| `fallback_models` | empty | Private repos: further roles, comma-separated, walked in order on any error |
-| `public_fallback_models` | empty | Public repos: the same after `public_model` |
 | `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
 | `improve` | `false` | Run the improve tool |

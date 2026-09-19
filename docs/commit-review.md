@@ -50,8 +50,7 @@ Two things absorb a burst of pushes:
 - On the router, the role carries its own fallback ladder, edited in the
   router's admin UI. A busy first rung falls through to the next rather than
   failing the review, and the ladder can be re-ranked without touching this
-  workflow. `fallback_models` / `public_fallback_models` add further roles
-  after that, each inside its own fifteen-second retry budget.
+  workflow.
 
 ## Permissions
 
@@ -67,8 +66,6 @@ endpoint requires; that job runs no model and reads no secret.
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
 | `model` | `review-private` | Private repos: router **role alias** — never a vendor model id; one `LLM_ROUTER_API_KEY` may call |
 | `public_model` | `review-public` | Public repos: router role alias one `LLM_PUBLIC_REVIEW_API_KEY` may call |
-| `fallback_models` | empty | Private repos: further roles, comma-separated, walked in order when `model` errors |
-| `public_fallback_models` | empty | Public repos: the same after `public_model` |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 

@@ -69,21 +69,6 @@ on:
         type: string
         required: false
         default: review-public
-      fallback_models:
-        description: >-
-          Further router roles, comma-separated, PR-Agent walks in order on a
-          private repo when `model` errors. Empty by default: the role
-          already carries its ladder on the router.
-        type: string
-        required: false
-        default: ""
-      public_fallback_models:
-        description: >-
-          The same for a public repo, after `public_model`. Must be roles the
-          public key may call.
-        type: string
-        required: false
-        default: ""
       max_tokens:
         description: >-
           Input context the alias can be assumed to hold, for PR-Agent's own
@@ -181,7 +166,6 @@ jobs:
           API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
           JOB_TOKEN: ${{ github.token }}
           MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
-          FALLBACK_MODELS: ${{ github.event.repository.private && inputs.fallback_models || (!github.event.repository.private && inputs.public_fallback_models) || '' }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
           CONFIG_BRANCH: ${{ github.head_ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}

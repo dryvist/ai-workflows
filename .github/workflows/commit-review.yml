@@ -67,21 +67,6 @@ on:
         type: string
         required: false
         default: review-public
-      fallback_models:
-        description: >-
-          Further router roles, comma-separated, tried in order on a private
-          repo when `model` errors, each inside its own retry budget. Empty by
-          default: the role already carries its ladder on the router.
-        type: string
-        required: false
-        default: ""
-      public_fallback_models:
-        description: >-
-          The same for a public repo, after `public_model`. Must be roles the
-          public key may call.
-        type: string
-        required: false
-        default: ""
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number
