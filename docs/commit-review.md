@@ -34,8 +34,8 @@ failing.
 ## Failure contract
 
 Same as PR-Agent: if the endpoint is unreachable the review job waits with
-exponential backoff and fails on `timeout-minutes` (60). A wrong key, base
-URL or model fails in seconds. It never succeeds having reviewed nothing.
+exponential backoff for at most three minutes, then fails and releases the
+runner. A wrong key, base URL or model fails in seconds. It never succeeds having reviewed nothing.
 Never make it a required check — a failure should be visible without blocking
 a push or a merge.
 

@@ -14,11 +14,11 @@
 #    is the shared self-hosted pool, the only one that reaches the internal
 #    router; a GitHub-hosted runner can only be paired with an endpoint on the
 #    public internet.
-# 2. An endpoint outage makes the job WAIT (exponential backoff, five-minute
-#    cap) and then FAIL when timeout-minutes runs out. It never reports success
-#    having reviewed nothing. The org ruleset injects this workflow into every
-#    pull request as a required check, so an outage blocks merges until it
-#    clears; timeout-minutes is the bound on how long each waits.
+# 2. An endpoint outage makes the job WAIT (exponential backoff) for at most
+#    three minutes and then FAIL, releasing the runner. It never reports
+#    success having reviewed nothing. The org ruleset injects this workflow
+#    into every pull request as a required check, so an outage blocks merges
+#    until it clears and the review is re-fired by a push or a close/reopen.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -118,9 +118,9 @@ permissions:
 # Per PULL REQUEST. GitHub keeps one running and ONE pending run per group and
 # cancels the older pending run when a newer one queues; with a per-repository
 # group, two sibling pull requests pushing inside one review window cancelled
-# the third's required check and left it blocked. A per-PR group means a
-# router outage can park one runner per open pull request; timeout-minutes is
-# the bound. cancel-in-progress stays false — a superseded head's review is
+# the third's required check and left it blocked. A per-PR group means an
+# endpoint outage can park one runner per open pull request, for at most the
+# bounded wait. cancel-in-progress stays false — a superseded head's review is
 # still queued behind the new one rather than thrown away.
 concurrency:
   group: pr-agent-${{ github.repository }}-${{ github.event.pull_request.number }}

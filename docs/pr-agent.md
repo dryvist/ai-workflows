@@ -18,16 +18,17 @@ release pull requests, or a provenance footer.
 
 ## Failure contract
 
-Not advisory. If the router is unreachable the job waits — exponential backoff
-from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
-out. A wrong key, base URL or model alias fails in seconds instead of waiting.
-A model error fails the job rather than being swallowed
-(`config.propagate_tool_errors`).
+Not advisory. If the endpoint is unreachable the job waits — exponential
+backoff from 5 s — for at most three minutes (`WAIT_MAX` in
+`wait-for-router.sh`) and then fails, releasing the runner. A wrong key, base
+URL or model fails in seconds instead of waiting. A model error fails the job
+rather than being swallowed (`config.propagate_tool_errors`).
 
 This is deliberate: the workflow this replaced reported success while doing
 nothing for weeks, because "router credential not configured" was a
-skip-and-succeed path. Never make this a required check — a failure should be
-visible without blocking a merge.
+skip-and-succeed path. The org ruleset runs this workflow as a required check
+on every pull request, so an outage blocks merges until the review is re-fired
+(a push or a close/reopen) once the endpoint is back.
 
 ## Runner
 
