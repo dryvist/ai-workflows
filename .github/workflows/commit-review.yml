@@ -122,15 +122,25 @@ jobs:
         run: bash .ai-workflows/.github/scripts/commit-review/collect.sh
 
       - name: Request the review
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-          MODEL: ${{ inputs.model }}
-          MAX_TOKENS: ${{ inputs.max_tokens }}
-        run: bash .ai-workflows/.github/scripts/commit-review/request.sh
+        id: review
+        if: hashFiles('review.skip') == ''
+        uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
+        with:
+          endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          token: ${{ secrets.LLM_ROUTER_API_KEY }}
+          model: ${{ inputs.model }}
+          max-completion-tokens: ${{ inputs.max_tokens }}
+          temperature: "0"
+          prompt-file: .ai-workflows/.github/scripts/commit-review/commit-review.prompt.yml
+          file_input: |
+            log: log.txt
+            changed: changed.txt
+            diff: diff.txt
+          custom-headers: "x-langfuse-trace-name: commit-review"
 
       - name: Render the comment
         env:
+          RESPONSE_FILE: ${{ steps.review.outputs.response-file }}
           MODEL: ${{ inputs.model }}
           COMMIT_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}

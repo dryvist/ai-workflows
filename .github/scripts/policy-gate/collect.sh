@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Collect a pull request's diff plus a per-file size table, for the fixed
-# five-check rubric in request.sh. Writes: diff.txt, changed.txt, sizes.txt
+# five-check rubric in policy-gate.prompt.yml. Writes: diff.txt, changed.txt, sizes.txt
 #
 # Unlike docs-drift's collect.sh (which diffs one merged commit against its
 # parent), a PR can carry many commits, so the base is passed explicitly.

@@ -136,7 +136,15 @@ runs:
         BASE_URL: ${{ inputs.base_url }}
         API_KEY: ${{ inputs.api_key }}
       run: >-
-        curl -sS --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
+    # Fifteen seconds, then fail: a runner that cannot reach the router must
+    # not sit in the agent's own retries until the job cap.
+    - name: Wait for the router
+      shell: bash
+      env:
+        BASE_URL: ${{ inputs.base_url }}
+        API_KEY: ${{ inputs.api_key }}
+      run: >-
+        curl -s --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
         -H "Authorization: Bearer $API_KEY" "${BASE_URL%/}/models"
 
     - name: Checkout canonical agent instructions
