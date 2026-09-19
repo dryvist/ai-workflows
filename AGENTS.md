@@ -58,7 +58,7 @@ the action's client retries a connection failure or 5xx twice and gives up,
 and the job is capped at ten minutes. CI never waits for a model beyond that;
 the router role's own fallback chain absorbs load. `pr-agent` and
 `commit-review` pick the router key and role by repository visibility
-(`LLM_PUBLIC_REVIEW_API_KEY` + `public_model` on a public repo); every review
+(`LLM_ROUTER_OSS_API_KEY` + `oss_model` on an open-source repo); every review
 still runs on the self-hosted pool against the router. Never restore a
 skip-and-succeed path: a green check that did no work is what these replaced.
 

@@ -15,7 +15,7 @@ reusable workflow, picks the router key and role — nothing else:
 | Visibility | Key | Role |
 | --- | --- | --- |
 | private | `LLM_ROUTER_API_KEY` | `model` (default `review-private`) |
-| public | `LLM_PUBLIC_REVIEW_API_KEY` | `public_model` (default `review-public`) |
+| open-source | `LLM_ROUTER_OSS_API_KEY` | `oss_model` (default `review-public`) |
 
 Each role carries its own fallback ladder on the router — local rungs first,
 then whatever overflow the role allows — so where a diff may travel is
@@ -65,15 +65,16 @@ endpoint requires; that job runs no model and reads no secret.
 | `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
 | `model` | `review-private` | Private repos: router **role alias** — never a vendor model id; one `LLM_ROUTER_API_KEY` may call |
-| `public_model` | `review-public` | Public repos: router role alias one `LLM_PUBLIC_REVIEW_API_KEY` may call |
+| `oss_model` | `review-public` | Open-source repos: router role alias one `LLM_ROUTER_OSS_API_KEY` may call |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 
 Secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required, same
-contract as [PR-Agent](pr-agent.md#configuration); `LLM_PUBLIC_REVIEW_API_KEY`,
-optional, a second router key scoped to the public role, read only on a
-public repo. `LLM_PUBLIC_REVIEW_BASE_URL` is deprecated and ignored — still
-accepted so existing callers validate; drop it.
+contract as [PR-Agent](pr-agent.md#configuration); `LLM_ROUTER_OSS_API_KEY`,
+optional, a second router key scoped to the open-source role, read only on
+such a repo. `LLM_PUBLIC_REVIEW_API_KEY` and `LLM_PUBLIC_REVIEW_BASE_URL` are
+deprecated and ignored — still accepted so existing callers validate; drop
+them.
 
 ## Caller
 
@@ -90,5 +91,5 @@ jobs:
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-      LLM_PUBLIC_REVIEW_API_KEY: ${{ secrets.LLM_PUBLIC_REVIEW_API_KEY }}
+      LLM_ROUTER_OSS_API_KEY: ${{ secrets.LLM_ROUTER_OSS_API_KEY }}
 ```
