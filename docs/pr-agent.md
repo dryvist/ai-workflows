@@ -25,12 +25,13 @@ base URL or model fails at once. A
 model error fails the job rather than being swallowed: PR-Agent 0.45.0's
 CLI exits 0 either way (`config.propagate_tool_errors` only changes what it
 logs; fixed upstream in qodo-ai/pr-agent#3368, not yet in an image), so
-`run.sh` fails the step on its failure log line. Each model call gets one
-attempt of at most 180 s (`config.ai_timeout`, the router's bounded worst
-case): a timed-out call is not replayed on the same model
+`run.sh` fails the step on its failure log line. Each model call is exactly
+one request: a timed-out call is not replayed on the same model
 (`config.retry_same_model_on_timeout=false`) and the completion client adds
-no retries of its own (`config.num_retries=0`), because a Gateway Timeout
-from the router already means its whole ladder was walked.
+no retries of its own (`config.num_retries=0`). The router bounds the
+request and walks the role's ladder; a Gateway Timeout from it is final.
+`config.ai_timeout` is unset (`@none`), so the job's `timeout-minutes` is
+the only client-side deadline.
 
 This is deliberate: the workflow this replaced reported success while doing
 nothing for weeks, because "router credential not configured" was a

@@ -39,7 +39,7 @@ test('run.sh fails when PR-Agent logs a failed request', () => {
   expect(result.stdout.toString()).toContain('::error::pr-agent review failed');
 });
 
-test('run.sh gives PR-Agent one bounded attempt per model call', () => {
+test('run.sh gives PR-Agent exactly one request per model call', () => {
   // The stand-in docker prints the env file it was handed, so the assertion
   // reads exactly what PR-Agent would.
   const dir = mkdtempSync(join(tmpdir(), 'pr-agent-run-'));
@@ -61,7 +61,7 @@ test('run.sh gives PR-Agent one bounded attempt per model call', () => {
       },
     });
     const env = result.stdout.toString();
-    expect(env).toContain('CONFIG__AI_TIMEOUT=180\n');
+    expect(env).toContain('CONFIG__AI_TIMEOUT=@none\n');
     expect(env).toContain('CONFIG__RETRY_SAME_MODEL_ON_TIMEOUT=false\n');
     expect(env).toContain('CONFIG__NUM_RETRIES=0\n');
   } finally {
