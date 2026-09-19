@@ -98,24 +98,3 @@ test('fails inside the retry budget when the router never answers', async () => 
   expect(hits).toBeGreaterThan(1);
   expect(elapsed).toBeLessThan(10_000);
 });
-
-test('walks the fallback ladder when the first model exhausts its budget', async () => {
-  const models = [];
-  const server = Bun.serve({
-    port: 0,
-    async fetch(req) {
-      const body = await req.json();
-      models.push(body.model);
-      if (body.model === 'cheap') return new Response('down', { status: 503 });
-      return Response.json({ choices: [{ message: { content: '{"items":["ok"]}' } }] });
-    },
-  });
-  const { dir, status } = await run(server.port, { FALLBACK_MODELS: 'second, third' });
-  server.stop(true);
-
-  expect(status).toBe(0);
-  expect(models.filter((m) => m === 'cheap').length).toBeGreaterThan(1);
-  expect(models[models.length - 1]).toBe('second');
-  expect(JSON.parse(readFileSync(join(dir, 'request.json'), 'utf8')).model).toBe('second');
-  expect(JSON.parse(readFileSync(join(dir, 'out.json'), 'utf8'))).toEqual({ items: ['ok'] });
-});

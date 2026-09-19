@@ -131,10 +131,13 @@ runs:
     # Fifteen seconds, then fail: a runner that cannot reach the router must
     # not sit in the agent's own retries until the job cap.
     - name: Wait for the router
-      uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
-      with:
-        base_url: ${{ inputs.base_url }}
-        api_key: ${{ inputs.api_key }}
+      shell: bash
+      env:
+        BASE_URL: ${{ inputs.base_url }}
+        API_KEY: ${{ inputs.api_key }}
+      run: >-
+        curl -sS --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
+        -H "Authorization: Bearer $API_KEY" "${BASE_URL%/}/models"
 
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
