@@ -154,5 +154,6 @@ test('walks the fallback ladder when the first model exhausts its budget', async
   expect(status).toBe(0);
   expect(models.filter((m) => m === 'primary').length).toBeGreaterThan(1);
   expect(models[models.length - 1]).toBe('second');
+  expect(JSON.parse(readFileSync(join(dir, 'request.json'), 'utf8')).model).toBe('second');
   expect(JSON.parse(readFileSync(join(dir, 'out.json'), 'utf8'))).toEqual({ items: ['ok'] });
 });
