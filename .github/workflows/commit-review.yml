@@ -1,20 +1,34 @@
 # Commit Review
 #
 # An AI review of every push, on every branch: one comment on the pushed head
-# commit, written by the org's model router. Pull requests already get PR-Agent
-# (pr-agent.yml); this covers the commits that never sit in a pull request —
-# direct pushes, work-in-progress branches, bot commits — so no commit lands
-# unreviewed.
+# commit. Pull requests already get PR-Agent (pr-agent.yml); this covers the
+# commits that never sit in a pull request — direct pushes, work-in-progress
+# branches, bot commits — so no commit lands unreviewed.
+#
+# Where it runs is decided here, from the repository's visibility, unless the
+# caller pins `runner_label`:
+#
+#   private repo -> the shared self-hosted pool and the org's internal model
+#                   router (LLM_ROUTER_*): only that pool reaches the router,
+#                   and the diff never leaves the estate.
+#   public repo  -> a GitHub-hosted runner and the external endpoint in
+#                   LLM_PUBLIC_REVIEW_* with `public_model`. The diff is
+#                   already public and GitHub-hosted minutes are free there.
+#
+# A caller passes both secret pairs; on a private repo the public pair is
+# simply absent (the org scopes it to public repositories), and the
+# expressions below fall through only from public to router — which a
+# GitHub-hosted runner cannot reach, so a missing public secret fails loudly
+# at the endpoint probe rather than reviewing on the wrong path.
 #
 # Two contracts, the same as pr-agent.yml:
 #
-# 1. It runs on a runner that can reach the router (the shared self-hosted pool
-#    by default). A GitHub-hosted runner cannot reach the router.
-# 2. A router outage makes the review job WAIT (exponential backoff, five-minute
-#    cap) and then FAIL on timeout-minutes. It never reports success having
-#    reviewed nothing. Do not make it a required check.
+# 1. The runner must reach the endpoint it is given.
+# 2. An endpoint outage makes the review job WAIT (exponential backoff,
+#    five-minute cap) and then FAIL on timeout-minutes. It never reports
+#    success having reviewed nothing. Do not make it a required check.
 #
-# Bursts are absorbed by the router's role alias, which carries its own
+# On the router, bursts are absorbed by the role alias, which carries its own
 # fallback ladder, edited in the router's admin UI — a busy first rung falls
 # through instead of failing the review.
 #
@@ -30,11 +44,13 @@ on:
     inputs:
       runner_label:
         description: >-
-          Runner label for the jobs. Must be a runner that can reach the model
-          router.
+          Runner label for the jobs. Empty (the default) picks by repository
+          visibility: self-hosted for a private repo, ubuntu-latest for a
+          public one. Set it only to pin a runner that reaches the endpoint
+          the job will be given.
         type: string
         required: false
-        default: self-hosted
+        default: ""
       scripts_ref:
         description: >-
           Commit or ref of dryvist/ai-workflows to take the scripts from.
@@ -45,13 +61,21 @@ on:
         default: ""
       model:
         description: >-
-          Router ROLE alias to call (e.g. cheap, fast, judge). Always an alias
-          the router resolves — never a vendor model id, and one the CI key is
-          scoped to reach. The alias's own fallback ladder is what absorbs a
-          busy backend.
+          Router ROLE alias to call on a private repo (e.g. cheap, fast,
+          judge). Always an alias the router resolves — never a vendor model
+          id, and one the CI key is scoped to reach. The alias's own fallback
+          ladder is what absorbs a busy backend.
         type: string
         required: false
         default: cheap
+      public_model:
+        description: >-
+          Model id to call on a public repo, as the external endpoint in
+          LLM_PUBLIC_REVIEW_BASE_URL names it. There is no router in that
+          path, so this is the vendor's id.
+        type: string
+        required: false
+        default: glm-5.3-flash
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number
@@ -72,6 +96,16 @@ on:
         description: >-
           Scoped router virtual key for CI (never the router's master key).
         required: true
+      LLM_PUBLIC_REVIEW_BASE_URL:
+        description: >-
+          OpenAI-compatible base URL of the external endpoint used on public
+          repos. An org secret scoped to the public repositories; absent on a
+          private repo.
+        required: false
+      LLM_PUBLIC_REVIEW_API_KEY:
+        description: >-
+          Key for that endpoint. Same scoping as the base URL.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -92,7 +126,7 @@ concurrency:
 jobs:
   review:
     name: Review the push
-    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    runs-on: ${{ inputs.runner_label || (github.event.repository.private && 'self-hosted' || 'ubuntu-latest') }}
     # A branch deletion is a push event with no commit to review.
     if: github.event.deleted != true
     permissions:
@@ -123,21 +157,21 @@ jobs:
 
       - name: Wait for the router
         env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          BASE_URL: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_BASE_URL || secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
         run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
 
       - name: Request the review
         env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-          MODEL: ${{ inputs.model }}
+          BASE_URL: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_BASE_URL || secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
         run: bash .ai-workflows/.github/scripts/commit-review/request.sh
 
       - name: Render the comment
         env:
-          MODEL: ${{ inputs.model }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
           COMMIT_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -157,7 +191,7 @@ jobs:
   comment:
     name: Comment on the commit
     needs: review
-    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    runs-on: ${{ inputs.runner_label || (github.event.repository.private && 'self-hosted' || 'ubuntu-latest') }}
     permissions:
       contents: write
     timeout-minutes: 10
