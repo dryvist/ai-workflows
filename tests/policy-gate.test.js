@@ -37,7 +37,7 @@ test('render.sh reports the override notice and exits 0 without calling the rout
 test('render.sh renders a passing verdict and marks exit 0', () => {
   withTempDir((dir) => {
     writeFileSync(
-      join(dir, 'findings.json'),
+      join(dir, 'response.json'),
       JSON.stringify({
         summary: 'No issues found.',
         findings: [
@@ -50,7 +50,7 @@ test('render.sh renders a passing verdict and marks exit 0', () => {
       }),
     );
 
-    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'findings.json') });
+    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'response.json') });
 
     expect(result.exitCode).toBe(0);
     const body = readFileSync(join(dir, 'policy-gate.md'), 'utf8');
@@ -63,7 +63,7 @@ test('render.sh renders a passing verdict and marks exit 0', () => {
 test('render.sh marks exit 1 when any check fails, and still renders the table', () => {
   withTempDir((dir) => {
     writeFileSync(
-      join(dir, 'findings.json'),
+      join(dir, 'response.json'),
       JSON.stringify({
         summary: 'One violation.',
         findings: [
@@ -82,7 +82,7 @@ test('render.sh marks exit 1 when any check fails, and still renders the table',
       }),
     );
 
-    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'findings.json') });
+    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'response.json') });
 
     expect(result.exitCode).toBe(0); // rendering itself never fails the job
     const body = readFileSync(join(dir, 'policy-gate.md'), 'utf8');
