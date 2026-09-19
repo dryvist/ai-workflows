@@ -20,63 +20,15 @@ def _answer(choice: str, confidence: float = 0.9):
 
 
 class CheckOverridesTests(unittest.TestCase):
-    def test_pull_request_with_no_matching_path_does_not_override(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["README.md"])
+    def test_pull_request_is_not_overridden(self):
+        matched, reason = sc.check_overrides("pull_request")
         self.assertFalse(matched)
         self.assertEqual(reason, "")
-
-    def test_workflow_path_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", [".github/workflows/ci.yml"])
-        self.assertTrue(matched)
-        self.assertIn(".github/workflows/ci.yml", reason)
 
     def test_push_event_forces_full(self):
-        matched, reason = sc.check_overrides("push", "main", "", "main", [])
+        matched, reason = sc.check_overrides("push")
         self.assertTrue(matched)
         self.assertIn("event is push", reason)
-
-    def test_trunk_repo_feature_pr_into_default_branch_is_not_overridden(self):
-        # A trunk repo's PRs all target its default branch. Only a
-        # develop -> default-branch PROMOTION should force full, or every
-        # feature PR on a trunk repo would always be full and the
-        # classifier could never save anything there.
-        matched, reason = sc.check_overrides("pull_request", "main", "feature/add-thing", "main", [])
-        self.assertFalse(matched)
-        self.assertEqual(reason, "")
-
-    def test_develop_to_main_promotion_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "main", "develop", "main", [])
-        self.assertTrue(matched)
-        self.assertIn("promotion into main from develop", reason)
-
-    def test_secret_like_path_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["roles/app/tasks/auth.yml"])
-        self.assertTrue(matched)
-        self.assertIn("auth", reason)
-
-    def test_roles_openbao_prefix_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["roles/openbao/vars/main.yml"])
-        self.assertTrue(matched)
-        self.assertIn("roles/openbao/vars/main.yml", reason)
-
-    def test_prefix_and_keyword_matches_are_case_insensitive(self):
-        matched, reason = sc.check_overrides(
-            "pull_request", "develop", "feature/x", "main", [".GITHUB/WORKFLOWS/ci.yml", "roles/APP/AUTH.yml"]
-        )
-        self.assertTrue(matched)
-        self.assertIn(".GITHUB/WORKFLOWS/ci.yml", reason)
-
-    def test_rename_evasion_is_caught_via_previous_path(self):
-        # check_overrides() only sees the paths it's handed; run() is
-        # responsible for including previous_path alongside path so a
-        # rename OUT of an always-full location can't dodge the override -
-        # this proves check_overrides() itself still catches it once that
-        # old path is in the list.
-        matched, reason = sc.check_overrides(
-            "pull_request", "develop", "feature/x", "main", ["renamed.yml", "roles/openbao/old-name.yml"]
-        )
-        self.assertTrue(matched)
-        self.assertIn("roles/openbao/old-name.yml", reason)
 
 
 class ClassifyTests(unittest.TestCase):
@@ -189,14 +141,18 @@ class ClassifyTests(unittest.TestCase):
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
     @mock.patch.object(sc, "fetch_changed_files", return_value=[])
-    def test_develop_to_main_promotion_skips_the_api_call(self, _fetch_files, _fetch_diff, _fetch_default_branch):
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_promotion_refs_reach_the_classifier(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
+        # The promotion rule is the rubric's to judge, so the classifier
+        # must be handed the refs it needs to judge it.
         env = self._base_env(BASE_REF="main", HEAD_REF="develop")
-        with mock.patch.object(sc, "TypeSafeClient") as client_cls:
-            decision, reason, source = sc.run(env)
-        client_cls.assert_not_called()
-        self.assertEqual(source, "fallback")
-        self.assertEqual(decision, sc.FULL_DECISION)
-        self.assertIn("promotion into main from develop", reason)
+        with mock.patch.object(
+            sc, "classify", return_value=(dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90")
+        ) as classify_call:
+            _decision, _reason, source = sc.run(env)
+        self.assertEqual(source, "jev")
+        _rubric, state, _api_key = classify_call.call_args[0]
+        self.assertEqual((state["base_ref"], state["head_ref"], state["default_branch"]), ("main", "develop", "main"))
 
     def test_override_skips_the_api_call_entirely(self):
         env = self._base_env(EVENT_NAME="push", BASE_REF="")
@@ -211,20 +167,23 @@ class ClassifyTests(unittest.TestCase):
     @mock.patch.object(
         sc,
         "fetch_changed_files",
-        return_value=[{"path": "roles/app/renamed.yml", "previous_path": "roles/openbao/old.yml", "additions": 1, "deletions": 1}],
+        return_value=[
+            {"path": "roles/app/renamed.yml", "previous_path": "roles/openbao/old.yml", "status": "renamed", "additions": 1, "deletions": 1},
+            {"path": ".github/workflows/commit-review.yml", "previous_path": None, "status": "removed", "additions": 0, "deletions": 40},
+        ],
     )
-    def test_run_includes_previous_path_so_a_rename_cannot_evade_the_override(
-        self, _fetch_files, _fetch_default_branch
-    ):
-        env = self._base_env()
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_rename_origin_and_deletion_status_reach_the_classifier(self, _read_rubric, _fetch_files, _fetch_default_branch):
+        # A path-based rule is the rubric's to apply; the script's job is
+        # to hand over what the rubric needs: the old name of a rename and
+        # the status that says a file is gone.
         with mock.patch.object(sc, "fetch_diff", return_value=""), mock.patch.object(
-            sc, "TypeSafeClient"
-        ) as client_cls:
-            decision, reason, source = sc.run(env)
-        client_cls.assert_not_called()
-        self.assertEqual(source, "fallback")
-        self.assertEqual(decision, sc.FULL_DECISION)
-        self.assertIn("roles/openbao/old.yml", reason)
+            sc, "classify", return_value=(dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90")
+        ) as classify_call:
+            sc.run(self._base_env())
+        _rubric, state, _api_key = classify_call.call_args[0]
+        self.assertEqual(state["files"][0]["previous_path"], "roles/openbao/old.yml")
+        self.assertEqual(state["files"][1]["status"], "removed")
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])

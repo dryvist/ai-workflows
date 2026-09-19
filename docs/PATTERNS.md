@@ -763,9 +763,14 @@ the per-output decision rules — is read by the script and rendered into
 the classifier prompt, so the text a caller is gated on is reviewable and
 diffable.
 
-**Deterministic overrides**: evaluated in the script before the model is
-ever called (`check_overrides()`, unit tested) — a matching change skips
-the API call and every output resolves to `full`/`yes`.
+**One override, not a second classifier**: the script decides nothing
+about the change itself. Its only rule (`check_overrides()`, unit tested)
+is that an event with no pull request has nothing to classify and
+resolves to `full`/`yes`. Which paths always mean full — workflow files
+that survive the change, `roles/openbao/**`, secret/auth-like names,
+a develop→default promotion — is written in the rubric and judged by
+the classifier, which is handed each file's `status` and a rename's
+`previous_path` for exactly that purpose.
 
 **Input by repository visibility**: public repos send title, body head,
 labels, changed-file paths with line stats, and the unified diff (capped
@@ -784,7 +789,5 @@ board.
 **Output hygiene**: every value written to `$GITHUB_OUTPUT`, the summary,
 or the `::notice::` line is passed through `_sanitize()` (strips CR/LF)
 first — PR title/body/diff text is untrusted model input, and the
-override `reason` embeds raw file paths, so nothing derived from them
-reaches an Actions output unsanitized. A rename's `previous_path` is
-included alongside its new path when checking overrides, so renaming a
-file out of an always-full location can't evade it.
+`reason` line is model output, so nothing derived from them reaches an
+Actions output unsanitized.
