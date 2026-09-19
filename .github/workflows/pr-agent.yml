@@ -14,9 +14,10 @@
 # Two contracts worth knowing before you call it:
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
-# 2. A router that is down or at capacity gets three probes inside fifteen
-#    seconds and then the job FAILS, releasing the runner. It never reports
-#    success having reviewed nothing. The org ruleset injects this workflow
+# 2. A router that is down or at capacity FAILS the job, releasing the
+#    runner: the router admits or refuses at once, and the job is capped at
+#    ten minutes. It never reports success having reviewed nothing. The org
+#    ruleset injects this workflow
 #    into every pull request as a required check, so an outage blocks merges
 #    until it clears and the review is re-fired by a push or a close/reopen.
 #
@@ -120,9 +121,9 @@ permissions:
 # Per PULL REQUEST. GitHub keeps one running and ONE pending run per group and
 # cancels the older pending run when a newer one queues; with a per-repository
 # group, two sibling pull requests pushing inside one review window cancelled
-# the third's required check and left it blocked. A per-PR group means an
-# endpoint outage costs one runner per open pull request for fifteen seconds,
-# no more. cancel-in-progress stays false — a superseded head's review is
+# the third's required check and left it blocked. A per-PR group means a
+# router outage costs one runner per open pull request for one refused
+# request, no more. cancel-in-progress stays false — a superseded head's review is
 # still queued behind the new one rather than thrown away.
 concurrency:
   group: pr-agent-${{ github.repository }}-${{ github.event.pull_request.number }}
@@ -149,16 +150,6 @@ jobs:
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
-
-      # Fifteen seconds, then fail: a runner that cannot reach the router must
-      # not sit in PR-Agent's own retries until the job cap.
-      - name: Wait for the router
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
-        run: >-
-          curl -s --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
-          -H "Authorization: Bearer $API_KEY" "${BASE_URL%/}/models"
 
       - name: Run PR-Agent
         env:

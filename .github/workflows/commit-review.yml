@@ -22,9 +22,10 @@
 # Two contracts, the same as pr-agent.yml:
 #
 # 1. The runner must reach the router.
-# 2. A router that is down or at capacity gets three probes inside fifteen
-#    seconds and then the review job FAILS, releasing the runner. It never
-#    reports success having reviewed nothing. Do not make it a required check.
+# 2. A router that is down or at capacity FAILS the review job, releasing the
+#    runner: the router admits or refuses at once, and the job is capped at
+#    ten minutes. It never reports success having reviewed nothing. Do not
+#    make it a required check.
 #
 # The review job holds a read-only token; the comment is posted from a separate
 # job with the one write permission it needs (contents: write is what the
@@ -109,7 +110,7 @@ permissions:
 # the older pending run when a newer one queues; with a per-repository group, a
 # burst of pushes to different branches cancelled every review but the last
 # and left the rest red having reviewed nothing. A per-ref group means a
-# router outage costs one runner per busy branch for fifteen seconds, no
+# router outage costs one runner per busy branch for one refused request, no
 # more.
 # cancel-in-progress stays false — a superseded push's review still queues
 # behind the newer one on the same branch rather than being thrown away.

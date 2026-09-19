@@ -14,8 +14,9 @@
 # here is what makes the new-issue path autonomous.
 #
 # Required org/repo config (already set org-wide on dryvist):
-#   - secret  GH_ACTION_AI_API_KEY            Claude Code OAuth token
-#   - var     GH_ACTION_AI_MODEL_PLAN         e.g. "claude-opus-4-8" (resolver model)
+#   - secret  LLM_ROUTER_BASE_URL             model router base URL, ending in /v1
+#   - secret  LLM_ROUTER_API_KEY              scoped router key for CI
+#   - var     GH_ACTION_AI_MODEL_PLAN         a router role alias (resolver model)
 #   - var     GH_APP_CLAUDE_BOT_ID            GitHub App id (bot attribution)
 #   - secret  GH_APP_CLAUDE_BOT_PRIVATE_KEY   GitHub App private key (PEM)
 #   - label   ai:ready + type:*/size:*/priority:* present in the repo

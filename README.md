@@ -42,28 +42,29 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 ### Prerequisites
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
-2. The credential for the selected agent configured at the org (or repo) level:
-   - Claude: secret `GH_ACTION_AI_API_KEY`
-   - Codex: secret `OPENAI_API_KEY`
+2. The model router pair configured at the org (or repo) level: secrets
+   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`
 
 ### Authentication
 
 Every AI workflow selects the implementation from one org (or repo) variable:
 `GH_ACTION_AI_AGENT=claude|codex`. It defaults to `claude`, so existing callers
-keep working. Each provider keeps its native credential contract:
+keep working. Both agents reach the org's model router with one pair of
+secrets:
 
 1. **Variable**: `GH_ACTION_AI_AGENT` — `claude` or `codex`; omitted means `claude`
-2. **Secret**: `GH_ACTION_AI_API_KEY` — Anthropic API key used only by Claude
-3. **Secret**: `OPENAI_API_KEY` — OpenAI API key used only by Codex
+2. **Secret**: `LLM_ROUTER_BASE_URL` — the router's OpenAI-compatible base URL, ending in `/v1`
+3. **Secret**: `LLM_ROUTER_API_KEY` — the scoped router key for CI
 
-Model, endpoint, effort, and Codex CLI version are optional variables. Leaving
-them unset lets each upstream action use its current default.
+Model variables name router role aliases, never vendor ids; effort and Codex
+CLI version are optional. Leaving them unset lets the router and the upstream
+action use their defaults.
 
 Set them with the GitHub CLI (org-level shown; drop `--org dryvist` for repo-level):
 
 ```bash
 gh variable set GH_ACTION_AI_AGENT --org dryvist -b "codex"
-gh secret set OPENAI_API_KEY --org dryvist
+gh secret set LLM_ROUTER_API_KEY --org dryvist
 ```
 
 See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for the complete variable

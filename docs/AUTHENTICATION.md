@@ -1,69 +1,72 @@
 # Authentication and agent selection
 
-All reusable AI workflows call one shared `run-ai-agent` adapter. Set
-`GH_ACTION_AI_AGENT` to select the implementation for every inheriting repository:
+All reusable AI workflows call one shared `run-ai-agent` adapter. Both agents
+talk to the org's model router and nothing else: Claude Code through the
+router's `/v1/messages` route, Codex through its `/v1/responses` route. Set `GH_ACTION_AI_AGENT` to select the implementation for every
+inheriting repository:
 
-| Value | Action | Credential |
+| Value | Action | Wire format |
 | --- | --- | --- |
-| `claude` (default) | `anthropics/claude-code-action` | `GH_ACTION_AI_API_KEY` |
-| `codex` | `openai/codex-action` | `OPENAI_API_KEY` |
+| `claude` (default) | `anthropics/claude-code-action` | Messages API, at the parent of the `/v1` base |
+| `codex` | `openai/codex-action` | OpenAI Responses, at `<base>/responses` |
 
-The credentials stay separate. The adapter validates and passes only the secret
-for the selected agent. Changing `GH_ACTION_AI_AGENT` is therefore the only
-switch required by callers that use `secrets: inherit`.
+The adapter derives both endpoints from one base URL and sends one key as the
+bearer token, so changing `GH_ACTION_AI_AGENT` is the only switch a caller
+needs.
 
 ## Required configuration
 
-Configure these as GitHub organization or repository variables and secrets:
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `GH_ACTION_AI_AGENT` | Variable | `claude` or `codex`; defaults to `claude` |
+| `LLM_ROUTER_BASE_URL` | Secret | The router's OpenAI-compatible base URL, ending in `/v1` |
+| `LLM_ROUTER_API_KEY` | Secret | The scoped router key for CI, never the master key |
 
-| Name | Kind | Required when | Purpose |
-| --- | --- | --- | --- |
-| `GH_ACTION_AI_AGENT` | Variable | Optional | `claude` or `codex`; defaults to `claude` |
-| `GH_ACTION_AI_API_KEY` | Secret | Claude selected | Anthropic API key |
-| `OPENAI_API_KEY` | Secret | Codex selected | OpenAI API key |
-
-An explicit-secret caller must forward both credentials so changing the selector
-does not require another workflow edit:
+Both secrets are required. The base URL is a secret rather than a variable
+because a run log prints each step's environment verbatim and these
+repositories are public. An explicit-secret caller forwards the pair:
 
 ```yaml
 jobs:
   run:
     uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main
     secrets:
-      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
 ```
 
-Callers that use `secrets: inherit` need no change after both organization
-secrets are available to the repository.
+Callers that use `secrets: inherit` need no change. A caller that names any
+other secret fails at startup until it passes the router pair.
 
-## Optional Claude configuration
+A router that is down or at capacity fails the job, releasing the runner:
+the router admits or refuses at once, and every agent job is capped at ten
+minutes. The runner must reach the router, so `runner_label` should be
+`self-hosted`.
 
-Existing Claude variables remain supported:
+## Model selection
+
+A model variable names a **router role alias** (the router's own contract
+lists them), never a vendor model id. Leave a variable empty to let the
+router's default for the request apply.
 
 | Name | Purpose |
 | --- | --- |
-| `GH_ACTION_AI_BASE_URL` | Anthropic-compatible endpoint; empty uses the upstream default |
-| `GH_ACTION_AI_MODEL` | Global Claude model override |
-| `GH_ACTION_AI_MODEL_CODE` | Code-task override |
-| `GH_ACTION_AI_MODEL_ISSUES` | Issue-task override |
-| `GH_ACTION_AI_MODEL_PLAN` | Planning-task override |
-| `GH_ACTION_AI_MODEL_REVIEW` | Review-task override |
-
-No model identifier is hard-coded. If no applicable model variable is set, the
-upstream action chooses its default.
+| `GH_ACTION_AI_MODEL` | Global role; every task falls back to it |
+| `GH_ACTION_AI_MODEL_CHEAP` | Issue-task fallback before the global role |
+| `GH_ACTION_AI_MODEL_CODE` | Code-task role |
+| `GH_ACTION_AI_MODEL_ISSUES` | Issue-task role |
+| `GH_ACTION_AI_MODEL_PLAN` | Planning-task role |
+| `GH_ACTION_AI_MODEL_REVIEW` | Review-task role |
+| `GH_ACTION_AI_CODEX_MODEL` | Codex role; empty uses the Claude role for the same task |
 
 ## Optional Codex configuration
 
 | Name | Maps to |
 | --- | --- |
-| `GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT` | `responses-api-endpoint` |
-| `GH_ACTION_AI_CODEX_MODEL` | `model` |
 | `GH_ACTION_AI_CODEX_EFFORT` | `effort` |
 | `GH_ACTION_AI_CODEX_VERSION` | `codex-version` |
 
-Leave these variables empty to use the Codex Action defaults. This avoids
-coupling inherited workflows to model or CLI identifiers that change over time.
+Leave these variables empty to use the Codex Action defaults.
 
 ## Security boundary
 
@@ -81,18 +84,10 @@ prompt input.
 
 `pr-agent.yml` and the router workflows (`thread-triage`, `docs-drift`,
 `repo-hygiene-digest`, `policy-gate`) do not use the adapter above. They speak
-the OpenAI protocol to the org's model router, so they take their own pair:
-
-| Name | Kind | Holds |
-| --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1` |
-| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI, never the master key |
-
-Both are required, and both are secrets. The base URL is a secret rather than a
-variable because a run log prints each step's environment verbatim and these
-repositories are public; the workflows also register the URL and its bare host
-with `::add-mask::` before the first request, since a connection error names the
-host in a string Actions would not otherwise mask.
+the OpenAI protocol to the router directly with the same two secrets, and
+register the URL and its bare host with `::add-mask::` before the first
+request, since a connection error names the host in a string Actions would
+not otherwise mask.
 
 Two consequences worth stating plainly:
 

@@ -18,10 +18,10 @@ release pull requests, or a provenance footer.
 
 ## Failure contract
 
-Not advisory. If the router is down or at capacity the job tries it three
-times inside fifteen seconds (the `wait-for-router` action: curl's own retry)
-and then fails, releasing the runner; the job itself is capped at ten minutes.
-CI never waits for a model; the router role's fallback ladder absorbs load. A wrong key, base URL or model fails at once. A
+Not advisory. If the router is down or at capacity the job fails, releasing
+the runner: the router admits or refuses at once, and the job is capped at
+ten minutes. The router role's fallback ladder absorbs load. A wrong key,
+base URL or model fails at once. A
 model error fails the job rather than being swallowed
 (`config.propagate_tool_errors`).
 

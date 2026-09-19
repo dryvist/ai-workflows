@@ -193,21 +193,18 @@ park the whole shared pool.
 ### Authentication
 
 Agentic workflows select their implementation with org/repo variable
-`GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Keep the credentials
-separate: Claude uses `GH_ACTION_AI_API_KEY`; Codex uses `OPENAI_API_KEY`.
-Explicit-secret callers forward both so the selector is the only switch.
+`GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Both agents talk to the
+org's model router through the `run-ai-agent` adapter, which derives the
+Messages route (Claude Code) and the Responses route (Codex) from one pair
+of secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The
+base URL is a secret, not a variable — a run log prints each step's
+environment verbatim, and these repositories are public. `pr-agent.yml` and
+the router workflows speak the OpenAI protocol to the router with the same
+pair.
 
-Provider tuning stays optional. Claude uses `GH_ACTION_AI_BASE_URL` and the
-existing `GH_ACTION_AI_MODEL*` variables. Codex uses
-`GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT`, `GH_ACTION_AI_CODEX_MODEL`,
-`GH_ACTION_AI_CODEX_EFFORT`, and `GH_ACTION_AI_CODEX_VERSION`. Never hard-code
-model IDs. See `docs/AUTHENTICATION.md`.
-
-`pr-agent.yml` and the router workflows use a different contract, because the
-router speaks the OpenAI protocol rather than Anthropic's: secrets
-`LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The base URL is a
-secret, not a variable — a run log prints each step's environment verbatim, and
-these repositories are public.
+A model variable (`GH_ACTION_AI_MODEL*`, `GH_ACTION_AI_CODEX_MODEL`) names a
+router role alias, never a vendor model id. `GH_ACTION_AI_CODEX_EFFORT` and
+`GH_ACTION_AI_CODEX_VERSION` stay optional. See `docs/AUTHENTICATION.md`.
 
 Agent jobs must not receive a write-capable GitHub token or App token. Publish
 comments, labels, commits, and PRs deterministically from a fresh job with the

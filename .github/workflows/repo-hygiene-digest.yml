@@ -6,8 +6,8 @@
 #
 # A model is used only to write a short natural-language summary of facts that
 # were already computed. It needs a runner that can reach the router: an outage
-# gets three tries inside fifteen seconds and then fails the job, rather than
-# post a digest that quietly lost its summary.
+# fails the job at once rather than post a digest that quietly lost its
+# summary.
 #
 # This is a reusable workflow that can be called from other repositories.
 

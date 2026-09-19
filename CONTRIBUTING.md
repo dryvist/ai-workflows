@@ -76,28 +76,21 @@ jobs:
         id: prompt
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-my-workflow.md
 
-      - name: Run Claude
-        uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+      - name: Run AI agent
+        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          allowed_bots: "github-actions"
+          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_args: >-
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*)"
-            --model ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL_EXAMPLE || vars.GH_ACTION_AI_MODEL }}
+          codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
+          allowed_tools: "Read,Glob,Grep,LS,Bash(gh issue:*)"
+          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          allowed_bots: "github-actions"
 ```
 
-For workflows that create commits or PRs, add API commit signing:
-
-```yaml
-        env:
-          ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
-        with:
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          use_commit_signing: "true"
-```
+Workflows that create commits or PRs do so in a separate publisher job with
+the App token; the agent job only edits the working tree.
 
 ### Dynamic Prompts
 
@@ -147,9 +140,9 @@ Pass `${{ }}` expression values via `env:` on the step, then read via `process.e
 
 ## Authentication
 
-- `GH_ACTION_AI_API_KEY` (secret) + `GH_ACTION_AI_BASE_URL` (var) — provider-agnostic; all Claude Code workflows reference these generic names,
-  mapped to a real provider at the org level (never reference a provider-specific secret in a workflow)
-- Write workflows use `use_commit_signing: "true"` (API mode); no SSH key needed
+- `LLM_ROUTER_BASE_URL` + `LLM_ROUTER_API_KEY` (secrets) — every agent job reaches the org's model router with
+  this one pair; a workflow never references a vendor credential or a vendor model id
+- Write workflows publish from a separate job with the App token; the agent job holds only a read token
 
 ## Permissions
 

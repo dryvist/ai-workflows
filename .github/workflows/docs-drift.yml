@@ -8,9 +8,9 @@
 # artifact, and — when the push came from a merged pull request — one sticky
 # comment on that pull request so the author sees it.
 #
-# A router outage gets three tries inside fifteen seconds and then FAILS
-# the job, releasing the runner; it never reports success having checked
-# nothing. It needs a runner that can reach the router. Do not make
+# A router outage FAILS the job, releasing the runner (the router admits or
+# refuses at once; the job is capped at ten minutes); it never reports
+# success having checked nothing. It needs a runner that can reach the router. Do not make
 # this a required check.
 #
 # This is a reusable workflow that can be called from other repositories.

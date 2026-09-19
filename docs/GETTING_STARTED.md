@@ -6,9 +6,8 @@ Add ai-workflows reusable workflows to your repository using thin caller files.
 
 1. [GitHub CLI](https://cli.github.com/) installed and authenticated
 2. Select an agent with variable `GH_ACTION_AI_AGENT` (`claude` or `codex`;
-   omitted means `claude`) and configure its secret:
-   - Claude: `GH_ACTION_AI_API_KEY`
-   - Codex: `OPENAI_API_KEY`
+   omitted means `claude`) and configure the model router pair, secrets
+   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`
 
 ## How It Works
 

@@ -26,4 +26,5 @@ jobs:
       pull-requests: write
     uses: dryvist/ai-workflows/.github/workflows/cc-dep-review.yml@main
     secrets:
-      GH_ACTION_AI_API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
