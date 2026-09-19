@@ -31,7 +31,7 @@ validate() {
   # Responses endpoint.
   local base="${BASE_URL%/}"
   {
-    echo "anthropic-base-url=${base%/v1}"
+    echo "claude-base-url=${base%/v1}"
     echo "responses-endpoint=$base/responses"
     echo "permission-profile=$permission_profile"
     echo "effective-agent=$AGENT"

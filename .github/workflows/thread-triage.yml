@@ -12,9 +12,8 @@
 #
 # It never resolves a thread, never replies in one, and never edits code.
 #
-# A router outage gets three tries inside fifteen seconds and then FAILS
-# the job, releasing the runner; it never reports success having triaged
-# nothing. It needs a runner that can reach the router. Do not make it
+# A router outage FAILS the job at once, releasing the runner; it never
+# reports success having triaged nothing. It needs a runner that can reach the router. Do not make it
 # a required check.
 #
 # This is a reusable workflow that can be called from other repositories.

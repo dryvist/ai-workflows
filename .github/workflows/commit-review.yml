@@ -10,9 +10,10 @@
 #
 # 1. It runs on a runner that can reach the router (the shared self-hosted pool
 #    by default). A GitHub-hosted runner cannot reach the router.
-# 2. A router outage gets three tries inside fifteen seconds and then the
-#    review job FAILS, releasing the runner. It never reports success having
-#    reviewed nothing. Do not make it a required check.
+# 2. A router outage FAILS the review job, releasing the runner: the router
+#    admits or refuses at once, and the job is capped at ten minutes. It
+#    never reports success having reviewed nothing. Do not make it a required
+#    check.
 #
 # Bursts are absorbed by the router's role alias, which carries its own
 # fallback ladder, edited in the router's admin UI — a busy first rung falls
@@ -82,7 +83,7 @@ permissions:
 # the older pending run when a newer one queues; with a per-repository group, a
 # burst of pushes to different branches cancelled every review but the last
 # and left the rest red having reviewed nothing. A per-ref group means a router
-# outage costs one runner per busy branch for fifteen seconds, no more.
+# outage costs one runner per busy branch for one refused request, no more.
 # cancel-in-progress stays false — a superseded push's review still queues
 # behind the newer one on the same branch rather than being thrown away.
 concurrency:

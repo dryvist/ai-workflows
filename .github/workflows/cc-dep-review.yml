@@ -63,15 +63,9 @@ on:
         default: moderate
     secrets:
       LLM_ROUTER_BASE_URL:
-        required: false
+        required: true
       LLM_ROUTER_API_KEY:
-        required: false
-      GH_ACTION_AI_API_KEY:
-        description: Deprecated and ignored; pass the LLM_ROUTER secrets instead.
-        required: false
-      OPENAI_API_KEY:
-        description: Deprecated and ignored; pass the LLM_ROUTER secrets instead.
-        required: false
+        required: true
 
 # Reusable-workflow ceiling. This workflow never merges or pushes commits, so
 # no job needs contents: write; every job narrows further below.

@@ -192,7 +192,7 @@ park the whole shared pool.
 Agentic workflows select their implementation with org/repo variable
 `GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Both agents talk to the
 org's model router through the `run-ai-agent` adapter, which derives the
-Anthropic route (Claude Code) and the Responses route (Codex) from one pair
+Messages route (Claude Code) and the Responses route (Codex) from one pair
 of secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The
 base URL is a secret, not a variable — a run log prints each step's
 environment verbatim, and these repositories are public. `pr-agent.yml` and

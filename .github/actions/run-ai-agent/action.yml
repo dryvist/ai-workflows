@@ -1,8 +1,8 @@
 name: Run AI agent
 description: >-
   Run the selected AI coding agent with a common, least-privilege interface.
-  Both agents talk to one OpenAI-compatible router: Claude Code through its
-  Anthropic /v1/messages route, Codex through its /v1/responses route. A
+  Both agents talk to the org's model router and nothing else: Claude Code
+  through its /v1/messages route, Codex through its /v1/responses route. A
   model name is a router role alias, never a vendor id.
 
 inputs:
@@ -45,8 +45,7 @@ inputs:
   base_url:
     description: >-
       Router base URL ending in /v1. Claude Code is pointed at its parent
-      (the Anthropic route is /v1/messages under it) and Codex at its
-      /responses child.
+      (it appends /v1/messages itself) and Codex at its /responses child.
     required: true
   api_key:
     description: Router key sent as the bearer token by both agents.
@@ -128,25 +127,6 @@ runs:
         PERMISSION_PROFILE: ${{ inputs.permission_profile }}
       run: '"$GITHUB_ACTION_PATH/prepare.sh" validate'
 
-    # Fifteen seconds, then fail: a runner that cannot reach the router must
-    # not sit in the agent's own retries until the job cap.
-    - name: Wait for the router
-      shell: bash
-      env:
-        BASE_URL: ${{ inputs.base_url }}
-        API_KEY: ${{ inputs.api_key }}
-      run: >-
-    # Fifteen seconds, then fail: a runner that cannot reach the router must
-    # not sit in the agent's own retries until the job cap.
-    - name: Wait for the router
-      shell: bash
-      env:
-        BASE_URL: ${{ inputs.base_url }}
-        API_KEY: ${{ inputs.api_key }}
-      run: >-
-        curl -s --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
-        -H "Authorization: Bearer $API_KEY" "${BASE_URL%/}/models"
-
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
       continue-on-error: true
@@ -211,11 +191,13 @@ runs:
         steps.codex.outcome == 'failure'
       uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
       env:
-        ANTHROPIC_BASE_URL: ${{ steps.prepare.outputs.anthropic-base-url }}
+        # The CLI's own variable name; it points at the router.
+        ANTHROPIC_BASE_URL: ${{ steps.prepare.outputs.claude-base-url }}
       with:
         # Supplying the job-scoped token prevents Claude Code Action from
         # exchanging OIDC for its own write-capable GitHub App token.
         github_token: ${{ github.token }}
+        # The action's own input name; it carries the router key.
         anthropic_api_key: ${{ inputs.api_key }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: "false"

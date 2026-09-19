@@ -2,13 +2,12 @@
 
 All reusable AI workflows call one shared `run-ai-agent` adapter. Both agents
 talk to the org's model router and nothing else: Claude Code through the
-router's Anthropic `/v1/messages` route, Codex through its `/v1/responses`
-route. Set `GH_ACTION_AI_AGENT` to select the implementation for every
+router's `/v1/messages` route, Codex through its `/v1/responses` route. Set `GH_ACTION_AI_AGENT` to select the implementation for every
 inheriting repository:
 
 | Value | Action | Wire format |
 | --- | --- | --- |
-| `claude` (default) | `anthropics/claude-code-action` | Anthropic Messages, at the parent of the `/v1` base |
+| `claude` (default) | `anthropics/claude-code-action` | Messages API, at the parent of the `/v1` base |
 | `codex` | `openai/codex-action` | OpenAI Responses, at `<base>/responses` |
 
 The adapter derives both endpoints from one base URL and sends one key as the
@@ -36,15 +35,13 @@ jobs:
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
 ```
 
-Callers that use `secrets: inherit` need no change. `cc-dep-review` and
-`cc-release-notes` still declare the retired `GH_ACTION_AI_API_KEY` and
-`OPENAI_API_KEY` secrets so an older explicit caller starts; both are
-ignored, and the run fails at the adapter's validation step until the caller
-passes the router pair.
+Callers that use `secrets: inherit` need no change. A caller that names any
+other secret fails at startup until it passes the router pair.
 
-Every agent job probes the router for at most fifteen seconds before the
-agent starts and fails, releasing the runner, if nothing answers. The runner
-must reach the router, so `runner_label` should be `self-hosted`.
+A router that is down or at capacity fails the job, releasing the runner:
+the router admits or refuses at once, and every agent job is capped at ten
+minutes. The runner must reach the router, so `runner_label` should be
+`self-hosted`.
 
 ## Model selection
 

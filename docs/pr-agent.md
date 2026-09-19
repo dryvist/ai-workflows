@@ -18,10 +18,9 @@ release pull requests, or a provenance footer.
 
 ## Failure contract
 
-Not advisory. If the router is unreachable or at capacity the job tries three
-times inside fifteen seconds and then fails, releasing the runner; the job
-itself is capped at ten minutes. A wrong key, base URL or model alias fails
-at once.
+Not advisory. If the router is unreachable or at capacity the job fails,
+releasing the runner: the router admits or refuses at once, and the job is
+capped at ten minutes. A wrong key, base URL or model alias fails at once.
 A model error fails the job rather than being swallowed
 (`config.propagate_tool_errors`).
 
@@ -50,7 +49,7 @@ request over the API — and the image is pinned by digest in
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `runner_label` | `self-hosted` | Runner label; must reach the endpoint in `LLM_ROUTER_BASE_URL` |
-| `model` | `cheap` | Model as the endpoint names it: a router **role alias** (never a vendor id), or the vendor's id against an external endpoint |
+| `model` | `cheap` | Router **role alias** (never a vendor model id) |
 | `fallback_model` | `subagent` | Model to retry on after an error, named the same way; same key and endpoint |
 | `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
