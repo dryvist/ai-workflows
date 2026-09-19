@@ -55,9 +55,12 @@ There are three families, and they do not share a credential contract:
 
 A router workflow that cannot reach the router FAILS, releasing the runner:
 the action's client retries a connection failure or 5xx twice and gives up,
-and the job is capped at ten minutes. CI never waits for a model beyond that.
-Never restore a skip-and-succeed path: a green check that did no work is what
-these replaced.
+and the job is capped at ten minutes. CI never waits for a model beyond that;
+the router role's own fallback chain absorbs load. `pr-agent` and
+`commit-review` pick the router key and role by repository visibility
+(`LLM_PUBLIC_REVIEW_API_KEY` + `public_model` on a public repo); every review
+still runs on the self-hosted pool against the router. Never restore a
+skip-and-succeed path: a green check that did no work is what these replaced.
 
 Non-AI utility workflows (`ci-fail-issue`, `review-thread-resolver`) use plain
 `actions/github-script` — see docs/PATTERNS.md "Non-AI Utility Workflow

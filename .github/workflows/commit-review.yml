@@ -1,23 +1,31 @@
 # Commit Review
 #
 # An AI review of every push, on every branch: one comment on the pushed head
-# commit, written by the org's model router. Pull requests already get PR-Agent
-# (pr-agent.yml); this covers the commits that never sit in a pull request —
-# direct pushes, work-in-progress branches, bot commits — so no commit lands
-# unreviewed.
+# commit. Pull requests already get PR-Agent (pr-agent.yml); this covers the
+# commits that never sit in a pull request — direct pushes, work-in-progress
+# branches, bot commits — so no commit lands unreviewed.
+#
+# Every review goes through the org's model router, on the self-hosted pool
+# (the only runners that reach it). Repository visibility picks the router KEY
+# and ROLE, nothing else:
+#
+#   private repo -> LLM_ROUTER_API_KEY with `model` (default review-private)
+#   public repo  -> LLM_PUBLIC_REVIEW_API_KEY with `public_model`
+#                   (default review-public)
+#
+# Each role carries its own fallback ladder on the router — local rungs first,
+# then whatever overflow the role allows — so where a diff may travel is
+# decided by the role and the key that may call it, never here. The
+# expressions below never read the public key on a private repo; the only
+# fall-through is public -> LLM_ROUTER_API_KEY when the public key is unset.
 #
 # Two contracts, the same as pr-agent.yml:
 #
-# 1. It runs on a runner that can reach the router (the shared self-hosted pool
-#    by default). A GitHub-hosted runner cannot reach the router.
-# 2. A router outage FAILS the review job, releasing the runner: the router
-#    admits or refuses at once, and the job is capped at ten minutes. It
-#    never reports success having reviewed nothing. Do not make it a required
-#    check.
-#
-# Bursts are absorbed by the router's role alias, which carries its own
-# fallback ladder, edited in the router's admin UI — a busy first rung falls
-# through instead of failing the review.
+# 1. The runner must reach the router.
+# 2. A router that is down or at capacity FAILS the review job, releasing the
+#    runner: the router admits or refuses at once, and the job is capped at
+#    ten minutes. It never reports success having reviewed nothing. Do not
+#    make it a required check.
 #
 # The review job holds a read-only token; the comment is posted from a separate
 # job with the one write permission it needs (contents: write is what the
@@ -31,8 +39,8 @@ on:
     inputs:
       runner_label:
         description: >-
-          Runner label for the jobs. Must be a runner that can reach the model
-          router.
+          Runner label for the jobs. Must reach the router, which only the
+          self-hosted pool does.
         type: string
         required: false
         default: self-hosted
@@ -46,13 +54,20 @@ on:
         default: ""
       model:
         description: >-
-          Router ROLE alias to call (e.g. cheap, fast, judge). Always an alias
-          the router resolves — never a vendor model id, and one the CI key is
-          scoped to reach. The alias's own fallback ladder is what absorbs a
-          busy backend.
+          Router ROLE alias called on a private repo. Always an alias the
+          router resolves — never a vendor model id — and one
+          LLM_ROUTER_API_KEY is scoped to reach. The role's own fallback
+          ladder is what absorbs a busy backend.
         type: string
         required: false
-        default: cheap
+        default: review-private
+      public_model:
+        description: >-
+          Router ROLE alias called on a public repo, one
+          LLM_PUBLIC_REVIEW_API_KEY is scoped to reach.
+        type: string
+        required: false
+        default: review-public
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number
@@ -71,8 +86,20 @@ on:
         required: true
       LLM_ROUTER_API_KEY:
         description: >-
-          Scoped router virtual key for CI (never the router's master key).
+          Scoped router virtual key for private repositories (never the
+          router's master key).
         required: true
+      LLM_PUBLIC_REVIEW_API_KEY:
+        description: >-
+          A second router virtual key, scoped to the public role. Read only
+          on a public repo.
+        required: false
+      LLM_PUBLIC_REVIEW_BASE_URL:
+        description: >-
+          Deprecated and ignored: every review goes to LLM_ROUTER_BASE_URL.
+          Still accepted so existing callers keep validating; drop it from
+          callers.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -82,8 +109,9 @@ permissions:
 # Per REF. GitHub keeps one running and ONE pending run per group and cancels
 # the older pending run when a newer one queues; with a per-repository group, a
 # burst of pushes to different branches cancelled every review but the last
-# and left the rest red having reviewed nothing. A per-ref group means a router
-# outage costs one runner per busy branch for one refused request, no more.
+# and left the rest red having reviewed nothing. A per-ref group means a
+# router outage costs one runner per busy branch for one refused request, no
+# more.
 # cancel-in-progress stays false — a superseded push's review still queues
 # behind the newer one on the same branch rather than being thrown away.
 concurrency:
@@ -128,8 +156,8 @@ jobs:
         uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
         with:
           endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          token: ${{ secrets.LLM_ROUTER_API_KEY }}
-          model: ${{ inputs.model }}
+          token: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          model: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
           max-completion-tokens: ${{ inputs.max_tokens }}
           temperature: "0"
           prompt-file: .ai-workflows/.github/scripts/commit-review/commit-review.prompt.yml
@@ -142,7 +170,7 @@ jobs:
       - name: Render the comment
         env:
           RESPONSE_FILE: ${{ steps.review.outputs.response-file }}
-          MODEL: ${{ inputs.model }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
           COMMIT_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

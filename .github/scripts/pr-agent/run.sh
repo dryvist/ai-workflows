@@ -9,7 +9,7 @@
 # branch, so a change to that file is reviewable in the pull request that makes
 # it instead of only after merge.
 #
-# Env: BASE_URL API_KEY JOB_TOKEN MODEL FALLBACK_MODEL MAX_TOKENS CONFIG_BRANCH
+# Env: BASE_URL API_KEY JOB_TOKEN MODEL MAX_TOKENS CONFIG_BRANCH
 #      PR_URL RUN_REVIEW RUN_IMPROVE RUN_DESCRIBE
 set -euo pipefail
 
@@ -36,10 +36,11 @@ trap 'rm -f "$env_file"' EXIT
   echo "OPENAI__KEY=$API_KEY"
   echo "OPENAI__API_BASE=$BASE_URL"
   echo "GITHUB__USER_TOKEN=$JOB_TOKEN"
-  echo "CONFIG__MODEL=openai/${MODEL:-cheap}"
+  echo "CONFIG__MODEL=openai/${MODEL:?MODEL is required}"
   # The built-in fallback list names a vendor model this key cannot reach, so
   # leaving it at its default turns the first model error into an auth error.
-  echo "CONFIG__FALLBACK_MODELS=[\"openai/${FALLBACK_MODEL:-subagent}\"]"
+  # The role carries its own fallback chain on the router; nothing to add.
+  echo "CONFIG__FALLBACK_MODELS=[]"
   echo "CONFIG__CUSTOM_MODEL_MAX_TOKENS=${MAX_TOKENS:-32000}"
   echo "CONFIG__AI_TIMEOUT=240"
   # Without this a tool that fails internally still exits 0, which is the
