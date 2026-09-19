@@ -1,20 +1,20 @@
 # PR Agent
 #
-# Runs PR-Agent's review, improve and describe tools against an
-# OpenAI-compatible endpoint: by default the org's internal model router, or
-# whatever base URL and key the caller passes — the org-required caller hands
-# public repositories an external endpoint and a GitHub-hosted runner.
+# Runs PR-Agent's review, improve and describe tools against the org's model
+# router, on the self-hosted pool (the only runners that reach it).
+# Repository visibility picks the router KEY and ROLE, nothing else: a private
+# repo uses LLM_ROUTER_API_KEY with `model`, a public repo
+# LLM_PUBLIC_REVIEW_API_KEY with `public_model`. Each role carries its own
+# fallback ladder on the router, so where a diff may travel is decided by the
+# role and the key that may call it, never here.
 # Per-repository prompt customisation — the review checklist, what "simplify"
 # means here, which files to ignore — lives in the consumer's own
 # `.pr_agent.toml`, so this workflow carries wiring only.
 #
 # Two contracts worth knowing before you call it:
 #
-# 1. The runner must reach the endpoint it is given. The default runner label
-#    is the shared self-hosted pool, the only one that reaches the internal
-#    router; a GitHub-hosted runner can only be paired with an endpoint on the
-#    public internet.
-# 2. An endpoint that is down or at capacity gets three tries inside fifteen
+# 1. The runner must reach the router: the shared self-hosted pool.
+# 2. A router that is down or at capacity gets three probes inside fifteen
 #    seconds and then the job FAILS, releasing the runner. It never reports
 #    success having reviewed nothing. The org ruleset injects this workflow
 #    into every pull request as a required check, so an outage blocks merges
@@ -37,10 +37,8 @@ on:
     inputs:
       runner_label:
         description: >-
-          Runner label for the job. Must be a runner that can reach the
-          endpoint in LLM_ROUTER_BASE_URL: the self-hosted pool for the
-          internal router, a GitHub-hosted label only with an external
-          endpoint.
+          Runner label for the job. Must reach the router, which only the
+          self-hosted pool does.
         type: string
         required: false
         default: self-hosted
@@ -57,20 +55,35 @@ on:
         default: ""
       model:
         description: >-
-          Model to call, as the endpoint names it. Against the router this is
-          always a ROLE alias it resolves (e.g. cheap, subagent), never a
-          vendor id; against an external endpoint it is that vendor's model
-          id, because nothing else resolves it.
+          Router ROLE alias called on a private repo. Always an alias the
+          router resolves — never a vendor model id — and one
+          LLM_ROUTER_API_KEY is scoped to reach. The role's own fallback
+          ladder is what absorbs a busy backend.
         type: string
         required: false
-        default: cheap
-      fallback_model:
+        default: review-private
+      public_model:
         description: >-
-          Model to retry on once the first errors, named the same way as
-          `model`. Must be reachable with the same key and endpoint.
+          Router ROLE alias called on a public repo, one
+          LLM_PUBLIC_REVIEW_API_KEY is scoped to reach.
         type: string
         required: false
-        default: subagent
+        default: review-public
+      fallback_models:
+        description: >-
+          Further router roles, comma-separated, PR-Agent walks in order on a
+          private repo when `model` errors. Empty by default: the role
+          already carries its ladder on the router.
+        type: string
+        required: false
+        default: ""
+      public_fallback_models:
+        description: >-
+          The same for a public repo, after `public_model`. Must be roles the
+          public key may call.
+        type: string
+        required: false
+        default: ""
       max_tokens:
         description: >-
           Input context the alias can be assumed to hold, for PR-Agent's own
@@ -99,20 +112,18 @@ on:
     secrets:
       LLM_ROUTER_BASE_URL:
         description: >-
-          The endpoint's OpenAI-compatible base URL (the router's, ending in
-          /v1, or an external provider's). A secret rather than a variable:
-          run logs print step environments verbatim.
+          The router's OpenAI-compatible base URL, ending in /v1. A secret
+          rather than a variable: run logs print step environments verbatim.
         required: true
       LLM_ROUTER_API_KEY:
         description: >-
-          Key for that endpoint: the scoped router key for CI (never the
-          router's master key), or the external provider's key.
+          Scoped router virtual key for private repositories (never the
+          router's master key).
         required: true
       LLM_PUBLIC_REVIEW_API_KEY:
         description: >-
-          Accepted so the org-required caller validates; not read yet. The
-          router key scoped to the public role, selected by repository
-          visibility once the router serves that role.
+          A second router virtual key, scoped to the public role. Read only
+          on a public repo.
         required: false
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -124,8 +135,8 @@ permissions:
 # Per PULL REQUEST. GitHub keeps one running and ONE pending run per group and
 # cancels the older pending run when a newer one queues; with a per-repository
 # group, two sibling pull requests pushing inside one review window cancelled
-# the third's required check and left it blocked. A per-PR group means a
-# router outage costs one runner per open pull request for fifteen seconds,
+# the third's required check and left it blocked. A per-PR group means an
+# endpoint outage costs one runner per open pull request for fifteen seconds,
 # no more. cancel-in-progress stays false — a superseded head's review is
 # still queued behind the new one rather than thrown away.
 concurrency:
@@ -158,15 +169,15 @@ jobs:
         uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
         with:
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          api_key: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
 
       - name: Run PR-Agent
         env:
           BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
           JOB_TOKEN: ${{ github.token }}
-          MODEL: ${{ inputs.model }}
-          FALLBACK_MODEL: ${{ inputs.fallback_model }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
+          FALLBACK_MODELS: ${{ github.event.repository.private && inputs.fallback_models || (!github.event.repository.private && inputs.public_fallback_models) || '' }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
           CONFIG_BRANCH: ${{ github.head_ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
