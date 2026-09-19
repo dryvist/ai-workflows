@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.1](https://github.com/dryvist/ai-workflows/compare/v0.42.0...v0.42.1) (2026-09-19)
+
+
+### Bug Fixes
+
+* **pr-agent:** accept LLM_PUBLIC_REVIEW_API_KEY so the org-required caller validates ([b84966b](https://github.com/dryvist/ai-workflows/commit/b84966b642c98ccd0b69309c144bde5c6a7b471d))
+* **pr-agent:** accept LLM_PUBLIC_REVIEW_API_KEY so the org-required caller validates ([efce8ac](https://github.com/dryvist/ai-workflows/commit/efce8acb75b838b7a5a1fb354e2651cf406973d4))
+
 ## [0.42.0](https://github.com/dryvist/ai-workflows/compare/v0.41.0...v0.42.0) (2026-09-19)
 
 
