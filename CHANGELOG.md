@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.5](https://github.com/dryvist/ai-workflows/compare/v0.43.4...v0.43.5) (2026-09-19)
+
+
+### Bug Fixes
+
+* **policy-gate:** render the verdict from the ai-inference response file ([be7886c](https://github.com/dryvist/ai-workflows/commit/be7886c7dc5f128c26f6aac078d2cd4481e1fbf5))
+
 ## [0.43.4](https://github.com/dryvist/ai-workflows/compare/v0.43.3...v0.43.4) (2026-09-19)
 
 
