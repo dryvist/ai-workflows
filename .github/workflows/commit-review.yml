@@ -15,11 +15,11 @@
 #                   LLM_PUBLIC_REVIEW_* with `public_model`. The diff is
 #                   already public and GitHub-hosted minutes are free there.
 #
-# A caller passes both secret pairs; on a private repo the public pair is
-# simply absent (the org scopes it to public repositories), and the
-# expressions below fall through only from public to router — which a
-# GitHub-hosted runner cannot reach, so a missing public secret fails loudly
-# at the endpoint probe rather than reviewing on the wrong path.
+# A caller passes both secret pairs; the expressions below hand a private
+# repo the router pair and never read the public one there, and the only
+# fall-through is public -> router — which a GitHub-hosted runner cannot
+# reach, so a missing public secret fails loudly at the endpoint probe rather
+# than reviewing on the wrong path.
 #
 # Two contracts, the same as pr-agent.yml:
 #
@@ -99,12 +99,11 @@ on:
       LLM_PUBLIC_REVIEW_BASE_URL:
         description: >-
           OpenAI-compatible base URL of the external endpoint used on public
-          repos. An org secret scoped to the public repositories; absent on a
-          private repo.
+          repos. Never read on a private repo.
         required: false
       LLM_PUBLIC_REVIEW_API_KEY:
         description: >-
-          Key for that endpoint. Same scoping as the base URL.
+          Key for that endpoint. Never read on a private repo.
         required: false
 
 # Workflow-level permissions set the maximum for all jobs.

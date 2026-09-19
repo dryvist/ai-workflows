@@ -17,10 +17,10 @@ pins `runner_label`:
 | public | `ubuntu-latest` | `LLM_PUBLIC_REVIEW_BASE_URL` / `LLM_PUBLIC_REVIEW_API_KEY` | `public_model` (the vendor's id) |
 
 Only the self-hosted pool reaches the router, so private diffs never leave the
-estate. The public pair is an org secret scoped to the public repositories; a
-private repo's run cannot read it. The expressions fall through only from
-public to router, which a GitHub-hosted runner cannot reach — a missing public
-secret fails at the endpoint probe instead of reviewing on the wrong path.
+estate. The expressions hand a private repo the router pair and never read
+the public one there; the only fall-through is public to router, which a
+GitHub-hosted runner cannot reach — a missing public secret fails at the
+endpoint probe instead of reviewing on the wrong path.
 
 ## What it reviews
 
@@ -72,8 +72,8 @@ endpoint requires; that job runs no model and reads no secret.
 
 Secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required, same
 contract as [PR-Agent](pr-agent.md#configuration); `LLM_PUBLIC_REVIEW_BASE_URL`
-and `LLM_PUBLIC_REVIEW_API_KEY`, optional, passed by every caller and present
-only where the org has scoped them.
+and `LLM_PUBLIC_REVIEW_API_KEY`, optional, passed by every caller and read
+only on a public repo.
 
 ## Caller
 
