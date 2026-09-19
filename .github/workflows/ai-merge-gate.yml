@@ -4,4 +4,3 @@ permissions: read-all
 jobs:
   gate:
     uses: ./.github/workflows/_ai-merge-gate.yml
-    secrets: inherit
