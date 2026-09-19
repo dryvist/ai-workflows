@@ -39,6 +39,36 @@ test('run.sh fails when PR-Agent logs a failed request', () => {
   expect(result.stdout.toString()).toContain('::error::pr-agent review failed');
 });
 
+test('run.sh gives PR-Agent one bounded attempt per model call', () => {
+  // The stand-in docker prints the env file it was handed, so the assertion
+  // reads exactly what PR-Agent would.
+  const dir = mkdtempSync(join(tmpdir(), 'pr-agent-run-'));
+  try {
+    const docker = join(dir, 'docker');
+    writeFileSync(docker, '#!/usr/bin/env bash\nwhile [ $# -gt 0 ]; do [ "$1" = --env-file ] && cat "$2"; shift; done\n');
+    chmodSync(docker, 0o755);
+    const result = Bun.spawnSync(['bash', script], {
+      cwd: dir,
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH}`,
+        BASE_URL: 'https://router.invalid/v1',
+        API_KEY: 'k',
+        JOB_TOKEN: 't',
+        MODEL: 'review-private',
+        PR_URL: 'https://github.com/o/r/pull/1',
+        RUN_REVIEW: 'true',
+      },
+    });
+    const env = result.stdout.toString();
+    expect(env).toContain('CONFIG__AI_TIMEOUT=180\n');
+    expect(env).toContain('CONFIG__RETRY_SAME_MODEL_ON_TIMEOUT=false\n');
+    expect(env).toContain('CONFIG__NUM_RETRIES=0\n');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('run.sh passes when PR-Agent reviewed', () => {
   const result = runWithDockerPrinting('INFO | pr_agent.tools.pr_reviewer:run:203 - Reviewing PR: done');
   expect(result.exitCode).toBe(0);

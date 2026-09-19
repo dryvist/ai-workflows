@@ -42,7 +42,17 @@ trap 'rm -f "$env_file"' EXIT
   # The role carries its own fallback chain on the router; nothing to add.
   echo "CONFIG__FALLBACK_MODELS=[]"
   echo "CONFIG__CUSTOM_MODEL_MAX_TOKENS=${MAX_TOKENS:-32000}"
-  echo "CONFIG__AI_TIMEOUT=240"
+  # One attempt per model call, bounded by the router's own worst case (its
+  # local hard timeout plus one cloud rung). A Gateway Timeout from the router
+  # means the role's whole ladder was already walked, so a client-side retry
+  # is a second full walk: PR-Agent 0.45.0 replays a timed-out call on the same
+  # model unless told not to (config.retry_same_model_on_timeout), and the
+  # completion client adds its own retries on top unless capped
+  # (config.num_retries). Its non-timeout API errors keep the handler's
+  # single built-in retry (MODEL_RETRIES, not configurable).
+  echo "CONFIG__AI_TIMEOUT=180"
+  echo "CONFIG__RETRY_SAME_MODEL_ON_TIMEOUT=false"
+  echo "CONFIG__NUM_RETRIES=0"
   # Without this a tool that fails internally still exits 0, which is the
   # silent-green failure this whole workflow exists to remove.
   echo "CONFIG__PROPAGATE_TOOL_ERRORS=true"
