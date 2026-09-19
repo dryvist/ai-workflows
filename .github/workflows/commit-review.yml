@@ -24,9 +24,9 @@
 # Two contracts, the same as pr-agent.yml:
 #
 # 1. The runner must reach the endpoint it is given.
-# 2. An endpoint outage makes the review job WAIT (exponential backoff,
-#    five-minute cap) and then FAIL on timeout-minutes. It never reports
-#    success having reviewed nothing. Do not make it a required check.
+# 2. An endpoint outage makes the review job WAIT (exponential backoff) for
+#    at most three minutes and then FAIL, releasing the runner. It never
+#    reports success having reviewed nothing. Do not make it a required check.
 #
 # On the router, bursts are absorbed by the role alias, which carries its own
 # fallback ladder, edited in the router's admin UI — a busy first rung falls
@@ -115,8 +115,9 @@ permissions:
 # Per REF. GitHub keeps one running and ONE pending run per group and cancels
 # the older pending run when a newer one queues; with a per-repository group, a
 # burst of pushes to different branches cancelled every review but the last
-# and left the rest red having reviewed nothing. A per-ref group means a router
-# outage can park one runner per busy branch; timeout-minutes is the bound.
+# and left the rest red having reviewed nothing. A per-ref group means an
+# endpoint outage can park one runner per busy branch, for at most the bounded
+# wait.
 # cancel-in-progress stays false — a superseded push's review still queues
 # behind the newer one on the same branch rather than being thrown away.
 concurrency:
