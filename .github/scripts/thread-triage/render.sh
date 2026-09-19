@@ -13,7 +13,7 @@ out=.thread-triage.md
     echo "| --- | --- | --- | --- |"
     # Join the model's verdicts onto the collected threads, so a thread the
     # model skipped still shows up (as unclassified) rather than vanishing.
-    jq -r --slurpfile triage triage.json '
+    jq -r --slurpfile triage "$RESPONSE_FILE" '
       ($triage[0].threads // []) as $v
       | .[]
       | . as $t

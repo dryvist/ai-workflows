@@ -29,7 +29,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     commit-review/
     release-notes/
     review-thread-resolver/
-    shared/                         # incl. router-chat.sh
+    shared/
     verification/
   workflows/
     *.yml                           # Pure YAML workflow definitions (no embedded content)
@@ -47,13 +47,16 @@ There are three families, and they do not share a credential contract:
    repository's own `.pr_agent.toml`; see docs/pr-agent.md.
 3. **Router workflows** (`commit-review`, `thread-triage`, `docs-drift`,
    `repo-hygiene-digest`)
-   make one chat completion through `scripts/shared/router-chat.sh`. They take
-   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
-   to a `self-hosted` runner, because only such a runner reaches the router.
+   make one chat completion with `actions/ai-inference` (a `.prompt.yml`
+   beside the workflow's scripts holds the messages and, where the answer is
+   JSON, the schema). They take `LLM_ROUTER_BASE_URL` and
+   `LLM_ROUTER_API_KEY` — both secrets — and default to a `self-hosted`
+   runner, because only such a runner reaches the router.
 
-A router workflow that cannot reach the router probes it three times inside
-fifteen seconds and then FAILS, releasing the runner — CI never waits for a
-model; the router role's fallback ladder absorbs load. `pr-agent` and
+A router workflow that cannot reach the router FAILS, releasing the runner:
+the action's client retries a connection failure or 5xx twice and gives up,
+and the job is capped at ten minutes. CI never waits for a model beyond that;
+the router role's own fallback chain absorbs load. `pr-agent` and
 `commit-review` pick the router key and role by repository visibility
 (`LLM_PUBLIC_REVIEW_API_KEY` + `public_model` on a public repo); every review
 still runs on the self-hosted pool against the router. Never restore a

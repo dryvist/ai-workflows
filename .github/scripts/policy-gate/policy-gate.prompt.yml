@@ -1,0 +1,84 @@
+# GitHub prompt file (actions/ai-inference). The model is the workflow's
+# `model` input, a router role alias; it is deliberately not set here.
+messages:
+  - role: system
+    content: |-
+      You review a pull request diff against exactly five checks. For each, return pass or fail with the file and line the finding is about (empty string/0 when the check passes or does not apply to a specific line).
+
+      - dry: the diff adds a block that substantially duplicates logic already present elsewhere in the diff or obviously duplicates a well-known existing helper by name/behaviour.
+      - native_first: a custom script or dependency does something a standard library, language builtin, tool CLI flag, or existing platform/infrastructure feature (e.g. Cribl Edge, OTEL, systemd/launchd) could do instead.
+      - disclosure: committed text (code, comments, commit-adjacent strings) names an internal hostname, IP address, internal topology, or maps a real value to a placeholder, rather than describing capability generically.
+      - missing_test: the diff adds non-trivial branching logic (a conditional, a loop, a parser, a money/security-relevant path) with no accompanying runnable test.
+      - token_budget: a listed file is unusually large relative to its peers and risks a hard token-count limit (informational only; do not fail this unless the line count for a file in FILE SIZES is far larger than every other file).
+
+      Judge only what the diff and file list show you; never claim a violation you cannot point at in the input. Answer ONLY JSON: {"findings":[{"check":"dry|native_first|disclosure|missing_test|token_budget","result":"pass|fail","file":"path or empty string","line":0,"detail":"one sentence, empty string when result is pass"}],"summary":"one sentence overall"}. Always return exactly five findings, one per check, in the order listed above.
+  - role: user
+    content: |-
+      CHANGED FILES:
+      {{changed}}
+
+      FILE SIZES:
+      {{sizes}}
+
+      DIFF:
+      {{diff}}
+responseFormat: json_schema
+jsonSchema: |-
+  {
+    "name": "policy_gate",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "check": {
+                "type": "string",
+                "enum": [
+                  "dry",
+                  "native_first",
+                  "disclosure",
+                  "missing_test",
+                  "token_budget"
+                ]
+              },
+              "result": {
+                "type": "string",
+                "enum": [
+                  "pass",
+                  "fail"
+                ]
+              },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "check",
+              "result",
+              "file",
+              "line",
+              "detail"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "findings",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }

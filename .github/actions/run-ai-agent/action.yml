@@ -134,10 +134,12 @@ runs:
     # the Claude path has a probe-able base URL; unset means the vendor's API.
     - name: Wait for the model endpoint
       if: steps.prepare.outputs.effective-agent == 'claude' && env.ANTHROPIC_BASE_URL != ''
-      uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
-      with:
-        base_url: ${{ env.ANTHROPIC_BASE_URL }}
-        api_key: ${{ inputs.anthropic_api_key }}
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.anthropic_api_key }}
+      run: >-
+        curl -s --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
+        -H "Authorization: Bearer $API_KEY" "${ANTHROPIC_BASE_URL%/}/v1/models"
 
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'

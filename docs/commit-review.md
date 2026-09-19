@@ -34,11 +34,10 @@ failing.
 
 ## Failure contract
 
-Same as PR-Agent: if the router is down or at capacity the review job tries
-it three times inside fifteen seconds, then fails and releases the runner; the
-completion request itself retries inside the same fifteen-second budget per
-rung (`RETRY_MAX` in `router-chat.sh`), and the job is capped at ten minutes. A wrong key, base URL or model fails at
-once. It never succeeds having reviewed nothing.
+If the router is unreachable or at capacity the review job fails, releasing
+the runner: `actions/ai-inference` retries a connection failure or 5xx twice,
+and the job is capped at ten minutes. A wrong key, base URL or alias fails
+at once. It never succeeds having reviewed nothing.
 Never make it a required check — a failure should be visible without blocking
 a push or a merge.
 

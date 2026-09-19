@@ -50,7 +50,7 @@ test('render.sh renders a passing verdict and marks exit 0', () => {
       }),
     );
 
-    const result = run(dir, 'render.sh', { MODEL: 'cheap' });
+    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'findings.json') });
 
     expect(result.exitCode).toBe(0);
     const body = readFileSync(join(dir, 'policy-gate.md'), 'utf8');
@@ -82,7 +82,7 @@ test('render.sh marks exit 1 when any check fails, and still renders the table',
       }),
     );
 
-    const result = run(dir, 'render.sh', { MODEL: 'cheap' });
+    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'findings.json') });
 
     expect(result.exitCode).toBe(0); // rendering itself never fails the job
     const body = readFileSync(join(dir, 'policy-gate.md'), 'utf8');
