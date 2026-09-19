@@ -147,7 +147,9 @@ jobs:
         id: prs
         env:
           GH_TOKEN: ${{ github.token }}
-        run: echo "open_prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq length)" >> "$GITHUB_OUTPUT"
+        # gh writes the output line itself, so a failed call fails the step
+        # instead of leaving an empty count that would skip the review.
+        run: gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq '"open_prs=\(length)"' >> "$GITHUB_OUTPUT"
 
   review:
     name: Review the push
