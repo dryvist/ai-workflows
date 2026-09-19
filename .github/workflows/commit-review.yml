@@ -14,10 +14,9 @@
 #    cap) and then FAIL on timeout-minutes. It never reports success having
 #    reviewed nothing. Do not make it a required check.
 #
-# Bursts are absorbed in two places: the per-repository concurrency group below
-# queues pushes instead of running them all at once, and the router's role alias
-# carries its own fallback ladder, edited in the router's admin UI — a busy
-# first rung falls through instead of failing the review.
+# Bursts are absorbed by the router's role alias, which carries its own
+# fallback ladder, edited in the router's admin UI — a busy first rung falls
+# through instead of failing the review.
 #
 # The review job holds a read-only token; the comment is posted from a separate
 # job with the one write permission it needs (contents: write is what the
@@ -79,12 +78,15 @@ on:
 permissions:
   contents: write
 
-# Per REPOSITORY, not per push: a burst of pushes queues behind one runner slot
-# instead of parking the shared pool, and during a router outage one repository
-# cannot hold every slot. cancel-in-progress stays false — a queued review is
-# cheap, a cancelled one wasted the wait.
+# Per REF. GitHub keeps one running and ONE pending run per group and cancels
+# the older pending run when a newer one queues; with a per-repository group, a
+# burst of pushes to different branches cancelled every review but the last
+# and left the rest red having reviewed nothing. A per-ref group means a router
+# outage can park one runner per busy branch; timeout-minutes is the bound.
+# cancel-in-progress stays false — a superseded push's review still queues
+# behind the newer one on the same branch rather than being thrown away.
 concurrency:
-  group: commit-review-${{ github.repository }}
+  group: commit-review-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
