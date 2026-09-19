@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.3](https://github.com/dryvist/ai-workflows/compare/v0.43.2...v0.43.3) (2026-09-19)
+
+
+### Bug Fixes
+
+* **ci:** scope-classify.yml checkout is now caller-agnostic ([88df2cd](https://github.com/dryvist/ai-workflows/commit/88df2cd07389eace6d7936f5e22aeef761ef9edd))
+
 ## [0.43.2](https://github.com/dryvist/ai-workflows/compare/v0.43.1...v0.43.2) (2026-09-19)
 
 
