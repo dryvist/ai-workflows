@@ -6,6 +6,22 @@ permissions:
   contents: read
   pull-requests: read
 jobs:
+  # Unit tests for scripts/scope_classify.py - mocks the typesafe-sdk
+  # client, no network call and no TYPESAFE_API_KEY needed.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - run: python3 -m unittest scripts/test_scope_classify.py -v
+
   # Runs the classifier for visibility on this repo's own PRs. Wiring its
   # outputs into this repo's ci-gate.yml (and the dryvist/.github shared
   # reusable workflows) is a follow-up - see the PR description.

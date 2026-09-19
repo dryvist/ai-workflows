@@ -1,9 +1,9 @@
 # CI scope rubric
 
-Rendered verbatim into the `scope-classify` job's prompt to typesafe.ai's
-`choice` primitive ("Jev"). Versioned here so the rubric a caller is gated
-on is reviewable and diffable like any other CI config, not embedded only
-in a workflow's inline `run:` step.
+Read by `scripts/scope_classify.py` (`read_rubric()`) and rendered into
+the prompt sent to typesafe.ai's `choice` primitive ("Jev"). Versioned
+here so the rubric a caller is gated on is reviewable and diffable like
+any other CI config, not embedded in the script or the workflow.
 
 ## Job classes and measured cost
 

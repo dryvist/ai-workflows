@@ -9,34 +9,19 @@
 # writes its decision, the reason, and the source to its own summary —
 # that is the audit trail for a gate that can now skip required work.
 #
-# Rubric: `.github/scope-rubric.md` (job classes, measured cost, and the
-# per-output decision rules) is rendered verbatim into the classifier
-# prompt, so the text a caller is gated on is reviewable like any other
-# CI config.
+# All decision logic lives in scripts/scope_classify.py (unit tested:
+# scripts/test_scope_classify.py), not in this YAML. This step is a
+# single invocation; the script owns the ALWAYS-FULL overrides, the
+# rubric (.github/scope-rubric.md), the content-aware GitHub API calls,
+# and the call to typesafe.ai's official `typesafe-sdk` (never a
+# hand-rolled HTTP request).
 #
-# Deterministic ALWAYS-FULL overrides (`.github/scope-rubric.md` "always
-# full" section) are evaluated here, in the workflow, before the model is
-# ever called — never left to the model to infer. A matching override
-# skips the API call entirely and sets every output to the safe value.
-#
-# Input, by repository visibility:
-#   - public:  title, body head, labels, changed-file paths + line
-#              stats, AND the unified diff (capped at 60 KiB, truncated
-#              with a marker).
-#   - private: changed-file paths + line stats + title only — no diff
-#              content leaves the runner. This is the one policy
-#              assumption in this pilot; flip it only with a deliberate
-#              decision, not a default.
-#
-# Fail-safe: `timeout-minutes: 2`, `curl --max-time 10`. Any request
-# failure, non-2xx response, or unparsable answer sets every output to
-# the safe full/yes value with `source: fallback` — the same value an
-# ALWAYS-FULL override produces, so "the classifier didn't decide" always
-# resolves to running everything, never to running less. The metadata
-# and classify steps carry `continue-on-error: true`, and the decide/
-# summary steps run with `if: always()`, so a failure anywhere upstream
-# still reaches a full/fallback decision rather than leaving the job's
-# `outputs` unset.
+# Fail-safe: `timeout-minutes: 2` on the job, a 10s client-side timeout
+# on the SDK call. Any request failure, non-2xx response, timeout, or
+# unparsable answer resolves every output to the safe full/yes value
+# with `source: fallback` - the same value an ALWAYS-FULL override
+# produces. The script never lets an exception escape without writing
+# that fallback decision to the summary first.
 
 name: Scope Classify
 
@@ -79,202 +64,47 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
-      ci: ${{ steps.decide.outputs.ci }}
-      molecule: ${{ steps.decide.outputs.molecule }}
-      ai_review: ${{ steps.decide.outputs.ai_review }}
-      release_notes: ${{ steps.decide.outputs.release_notes }}
-      e2e: ${{ steps.decide.outputs.e2e }}
-      reason: ${{ steps.decide.outputs.reason }}
-      source: ${{ steps.decide.outputs.source }}
+      ci: ${{ steps.classify.outputs.ci }}
+      molecule: ${{ steps.classify.outputs.molecule }}
+      ai_review: ${{ steps.classify.outputs.ai_review }}
+      release_notes: ${{ steps.classify.outputs.release_notes }}
+      e2e: ${{ steps.classify.outputs.e2e }}
+      reason: ${{ steps.classify.outputs.reason }}
+      source: ${{ steps.classify.outputs.source }}
     steps:
+      # Reads scripts/ and .github/scope-rubric.md from the CALLER's own
+      # repo, so this only finds them when the caller is
+      # dryvist/ai-workflows itself (today's only consumer; see the
+      # dogfood caller). Wiring this reusable workflow into another
+      # repo's ci-gate.yml is a follow-up and needs this checkout changed
+      # to fetch scripts/ and the rubric from dryvist/ai-workflows
+      # explicitly, the way policy-gate.yml fetches its own scripts.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          fetch-depth: 0
+          sparse-checkout: |
+            scripts
+            .github/scope-rubric.md
+          sparse-checkout-cone-mode: false
           persist-credentials: false
 
-      - name: Check deterministic ALWAYS-FULL overrides
-        id: override
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          reasons=()
-          if [ "$EVENT_NAME" != "pull_request" ]; then
-            reasons+=("event is $EVENT_NAME")
-          fi
-          if [ "$BASE_REF" = "main" ]; then
-            reasons+=("base branch is main")
-          fi
-          if [ "$EVENT_NAME" = "pull_request" ]; then
-            files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-            if echo "$files" | grep -q '^\.github/workflows/'; then
-              reasons+=(".github/workflows/** changed")
-            fi
-            if echo "$files" | grep -q '^roles/openbao/'; then
-              reasons+=("roles/openbao/** changed")
-            fi
-            if echo "$files" | grep -qiE '(secret|auth|ssh|firewall|sudo|policy)'; then
-              reasons+=("a changed path matches secret/auth/ssh/firewall/sudo/policy")
-            fi
-          fi
-          if [ "${#reasons[@]}" -gt 0 ]; then
-            joined=$(IFS='; '; echo "${reasons[*]}")
-            echo "matched=true" >> "$GITHUB_OUTPUT"
-            echo "reason=always-full override: $joined" >> "$GITHUB_OUTPUT"
-          else
-            echo "matched=false" >> "$GITHUB_OUTPUT"
-          fi
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
 
-      - name: Collect PR metadata, stats, and (public repos only) the diff
-        id: metadata
-        if: steps.override.outputs.matched != 'true' && github.event_name == 'pull_request'
+      - run: pip install -r scripts/requirements-scope-classify.txt
+
+      - name: Classify CI scope
+        id: classify
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
           REPO: ${{ github.repository }}
           REPO_PRIVATE: ${{ github.event.repository.private }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          labels=$(jq -c '[.pull_request.labels[].name]' "$GITHUB_EVENT_PATH")
-          files=$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate \
-            --jq '[.[] | {path: .filename, additions, deletions}]')
-          body_head=$(printf '%s' "$PR_BODY" | head -c 500)
-          diff_arg=""
-          if [ "$REPO_PRIVATE" != "true" ]; then
-            git diff "$BASE_SHA" "$HEAD_SHA" > full.diff
-            diff_arg=$(head -c 61440 full.diff)
-            if [ "$(wc -c < full.diff)" -gt 61440 ]; then
-              diff_arg=$(printf '%s\n%s' "$diff_arg" '[... diff truncated at 60 KiB ...]')
-            fi
-          fi
-          # Private repos: paths + line stats + title only - no body, no
-          # labels, no diff content leaves the runner. Public repos also
-          # get the body head, labels, and the capped unified diff.
-          jq -n \
-            --arg repo "$REPO" \
-            --arg title "$PR_TITLE" \
-            --arg body "$body_head" \
-            --argjson labels "$labels" \
-            --argjson files "$files" \
-            --arg diff "$diff_arg" \
-            --arg private "$REPO_PRIVATE" \
-            '{repo: $repo, title: $title, files: $files}
-             + (if $private == "true" then {} else {body: $body, labels: $labels, diff: $diff} end)' \
-            > state.json
-
-      - name: Call the Jev classifier
-        id: jev
-        # Reads .github/scope-rubric.md from the checkout at the top of
-        # this job - the CALLER's repo, so this only finds the rubric
-        # when the caller is dryvist/ai-workflows itself (today's only
-        # consumer; see the dogfood caller). Wiring this reusable
-        # workflow into another repo's ci-gate.yml is a follow-up and
-        # needs this step changed to fetch the rubric from
-        # dryvist/ai-workflows explicitly, the way policy-gate.yml
-        # fetches its own scripts.
-        if: steps.override.outputs.matched != 'true' && github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
-        run: |
-          rubric=$(cat .github/scope-rubric.md)
-          state=$(jq -n --arg rubric "$rubric" --slurpfile meta state.json \
-            '{rubric: $rubric} * $meta[0] | tostring')
-          request=$(jq -n --arg state "$state" '{
-            state: $state,
-            questions: {
-              ci: {type: "choice", instructions: "How much CI does this PR need per the rubric in state.rubric?", criteria: {full: "runs the whole CI suite", "lint-only": "runs lint/format checks only", none: "no CI needed"}},
-              molecule: {type: "choice", instructions: "How much Molecule testing does this PR need per the rubric?", criteria: {full: "run every scenario", "changed-roles": "run only scenarios for changed roles", none: "no Molecule testing needed"}},
-              ai_review: {type: "choice", instructions: "Does this PR need an AI code review pass per the rubric?", criteria: {yes: "run AI review", no: "skip AI review"}},
-              release_notes: {type: "choice", instructions: "Does this PR need release notes per the rubric?", criteria: {yes: "generate release notes", no: "skip release notes"}},
-              e2e: {type: "choice", instructions: "Does this PR need e2e testing per the rubric?", criteria: {yes: "run e2e", no: "skip e2e"}}
-            }
-          }')
-          http_code=$(curl -sS --max-time 10 -o response.json -w '%{http_code}' \
-            -X POST https://api.typesafe.ai/v1/systemone \
-            -H "Authorization: Bearer $TYPESAFE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$request") || { echo "reason=request failed (network/timeout)" >> "$GITHUB_OUTPUT"; echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0; }
-          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
-            echo "reason=HTTP $http_code" >> "$GITHUB_OUTPUT"
-            echo "ok=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if ! jq -e '.answers.ci.choice and .answers.molecule.choice and .answers.ai_review.choice and .answers.release_notes.choice and .answers.e2e.choice' response.json > /dev/null 2>&1; then
-            echo "reason=unparseable response" >> "$GITHUB_OUTPUT"
-            echo "ok=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          {
-            echo "ok=true"
-            echo "ci=$(jq -r '.answers.ci.choice' response.json)"
-            echo "molecule=$(jq -r '.answers.molecule.choice' response.json)"
-            echo "ai_review=$(jq -r '.answers.ai_review.choice' response.json)"
-            echo "release_notes=$(jq -r '.answers.release_notes.choice' response.json)"
-            echo "e2e=$(jq -r '.answers.e2e.choice' response.json)"
-            echo "confidence=$(jq -r '[.answers[].confidence] | add / length' response.json)"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Decide the final outputs
-        id: decide
-        if: always()
-        env:
-          OVERRIDE_MATCHED: ${{ steps.override.outputs.matched }}
-          OVERRIDE_REASON: ${{ steps.override.outputs.reason }}
-          JEV_OK: ${{ steps.jev.outputs.ok }}
-          JEV_REASON: ${{ steps.jev.outputs.reason }}
-          JEV_CI: ${{ steps.jev.outputs.ci }}
-          JEV_MOLECULE: ${{ steps.jev.outputs.molecule }}
-          JEV_AI_REVIEW: ${{ steps.jev.outputs.ai_review }}
-          JEV_RELEASE_NOTES: ${{ steps.jev.outputs.release_notes }}
-          JEV_E2E: ${{ steps.jev.outputs.e2e }}
-          JEV_CONFIDENCE: ${{ steps.jev.outputs.confidence }}
-        run: |
-          if [ "$OVERRIDE_MATCHED" = "true" ]; then
-            ci=full; molecule=full; ai_review=yes; release_notes=yes; e2e=yes
-            source=fallback; reason="$OVERRIDE_REASON"
-          elif [ "$JEV_OK" = "true" ]; then
-            ci="$JEV_CI"; molecule="$JEV_MOLECULE"; ai_review="$JEV_AI_REVIEW"
-            release_notes="$JEV_RELEASE_NOTES"; e2e="$JEV_E2E"
-            source=jev; reason="jev choice, avg confidence ${JEV_CONFIDENCE}"
-          else
-            ci=full; molecule=full; ai_review=yes; release_notes=yes; e2e=yes
-            source=fallback; reason="classifier unavailable (${JEV_REASON:-unknown failure, see run log})"
-          fi
-          {
-            echo "ci=$ci"
-            echo "molecule=$molecule"
-            echo "ai_review=$ai_review"
-            echo "release_notes=$release_notes"
-            echo "e2e=$e2e"
-            echo "source=$source"
-            echo "reason=$reason"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Write the decision to the summary (audit trail)
-        if: always()
-        env:
-          CI: ${{ steps.decide.outputs.ci }}
-          MOLECULE: ${{ steps.decide.outputs.molecule }}
-          AI_REVIEW: ${{ steps.decide.outputs.ai_review }}
-          RELEASE_NOTES: ${{ steps.decide.outputs.release_notes }}
-          E2E: ${{ steps.decide.outputs.e2e }}
-          SOURCE: ${{ steps.decide.outputs.source }}
-          REASON: ${{ steps.decide.outputs.reason }}
-        run: |
-          {
-            echo "### Scope Classify"
-            echo
-            echo "| ci | molecule | ai_review | release_notes | e2e | source |"
-            echo "| --- | --- | --- | --- | --- | --- |"
-            echo "| $CI | $MOLECULE | $AI_REVIEW | $RELEASE_NOTES | $E2E | $SOURCE |"
-            echo
-            echo "reason: $REASON"
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice::Scope Classify: ci=$CI molecule=$MOLECULE ai_review=$AI_REVIEW release_notes=$RELEASE_NOTES e2e=$E2E source=$SOURCE reason=$REASON"
+          PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: python3 scripts/scope_classify.py

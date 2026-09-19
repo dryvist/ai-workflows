@@ -744,28 +744,36 @@ failure.
 
 `scope-classify.yml` is a `workflow_call` reusable workflow that gates a
 caller's CI scope through a third-party classifier (typesafe.ai's `choice`
-primitive, "Jev"). It runs first and exports `outputs` — `ci`, `molecule`,
-`ai_review`, `release_notes`, `e2e`, `reason`, `source` — that downstream
-reusable jobs gate on, e.g. `if: needs.scope.outputs.ci == 'full'`. A
-skipped job still satisfies a required status check, so the merge gate
-stays green on a narrowed run. The job itself always runs and always
-writes its decision, reason, and source to its own summary as an audit
-trail.
+primitive, "Jev", via the official `typesafe-sdk` Python package). It runs
+first and exports `outputs` — `ci`, `molecule`, `ai_review`,
+`release_notes`, `e2e`, `reason`, `source` — that downstream reusable jobs
+gate on, e.g. `if: needs.scope.outputs.ci == 'full'`. A skipped job still
+satisfies a required status check, so the merge gate stays green on a
+narrowed run. The job itself always runs and always writes its decision,
+reason, and source to its own summary as an audit trail.
+
+All decision logic lives in `scripts/scope_classify.py`, unit tested by
+`scripts/test_scope_classify.py` (mocks the SDK client; no network call,
+no API key needed to run it). The workflow step is a single invocation
+(`python3 scripts/scope_classify.py`) — no inline `jq`/`curl`/bash
+branching in the YAML.
 
 **Rubric**: `.github/scope-rubric.md` — job classes with measured cost and
-the per-output decision rules — is rendered into the classifier prompt, so
-the text a caller is gated on is reviewable and diffable.
+the per-output decision rules — is read by the script and rendered into
+the classifier prompt, so the text a caller is gated on is reviewable and
+diffable.
 
-**Deterministic overrides**: evaluated in the workflow before the model is
-ever called (see the rubric's "always full" section) — a matching change
-skips the API call and every output resolves to `full`/`yes`.
+**Deterministic overrides**: evaluated in the script before the model is
+ever called (`check_overrides()`, unit tested) — a matching change skips
+the API call and every output resolves to `full`/`yes`.
 
 **Input by repository visibility**: public repos send title, body head,
 labels, changed-file paths with line stats, and the unified diff (capped
-at 60 KiB). Private repos send changed-file paths, line stats, and title
-only — no diff content leaves the runner.
+at 60 KiB, fetched via the GitHub API). Private repos send changed-file
+paths, line stats, and title only — no diff content leaves the runner.
 
-**Fail-safe**: `timeout-minutes: 2`, `curl --max-time 10`. Any request
-failure, non-2xx response, or unparsable answer resolves every output to
-`full`/`yes` with `source: fallback` — the same safe value an override
-produces.
+**Fail-safe**: `timeout-minutes: 2` on the job, a 10s client-side timeout
+on the SDK call. Any request failure, non-2xx response, timeout, or
+unparsable answer resolves every output to `full`/`yes` with `source:
+fallback` — the same safe value an override produces. `run()` never lets
+an exception escape without returning that fallback decision.
