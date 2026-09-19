@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.0](https://github.com/dryvist/ai-workflows/compare/v0.41.0...v0.42.0) (2026-09-19)
+
+
+### Features
+
+* **review:** instruct PR-Agent, commit-review, and policy-gate to enforce Native-First ([fd0053b](https://github.com/dryvist/ai-workflows/commit/fd0053b2804f500a4a8540d9acd2b5bb6d12df67))
+* **review:** instruct PR-Agent, commit-review, and policy-gate to enforce Native-First ([67c5783](https://github.com/dryvist/ai-workflows/commit/67c5783675e8881a611f8fc311a8675d6293fd4f))
+
+
+### Bug Fixes
+
+* **ai-review:** scope pr-agent and commit-review concurrency groups per pull request and per ref ([#396](https://github.com/dryvist/ai-workflows/issues/396)) ([da58c77](https://github.com/dryvist/ai-workflows/commit/da58c77c394aaeb3bab792de7513e107279ebd9c))
+
 ## [0.41.0](https://github.com/dryvist/ai-workflows/compare/v0.40.1...v0.41.0) (2026-09-18)
 
 
