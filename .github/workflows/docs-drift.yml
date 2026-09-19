@@ -8,9 +8,9 @@
 # artifact, and — when the push came from a merged pull request — one sticky
 # comment on that pull request so the author sees it.
 #
-# A router outage makes the job WAIT (exponential backoff, five-minute cap) and
-# then FAIL when timeout-minutes runs out; it never reports success having
-# checked nothing. It needs a runner that can reach the router. Do not make
+# A router outage gets three probes inside fifteen seconds and then FAILS
+# the job, releasing the runner; it never reports success having checked
+# nothing. It needs a runner that can reach the router. Do not make
 # this a required check.
 #
 # This is a reusable workflow that can be called from other repositories.
@@ -95,7 +95,7 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
       contents: read
-    timeout-minutes: 60
+    timeout-minutes: 10
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
     steps:
@@ -120,6 +120,15 @@ jobs:
           MAX_DIFF_KB: ${{ inputs.max_diff_kb }}
           MAX_DOCS_KB: ${{ inputs.max_docs_kb }}
         run: bash .ai-workflows/.github/scripts/docs-drift/collect.sh
+
+      - name: Wait for the router
+        # Fifteen seconds, then fail, releasing the runner.
+        env:
+          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          WAIT_MAX: 15
+          BACKOFF_MAX: 5
+        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
 
       - name: Request drift report
         env:
@@ -171,7 +180,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

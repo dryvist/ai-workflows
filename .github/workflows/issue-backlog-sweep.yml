@@ -134,6 +134,17 @@ jobs:
 
       # Claude only JUDGES (read-only + writes the JSON verdict file). It applies no
       # labels — the App-token step below does that so `ai:ready` fires the resolver.
+      - name: Wait for the router
+        # Fifteen seconds, then fail: a runner that cannot reach the model
+        # endpoint must not sit in the agent's own retries until the job cap.
+        if: env.ANTHROPIC_BASE_URL != ''
+        env:
+          BASE_URL: ${{ env.ANTHROPIC_BASE_URL }}
+          API_KEY: ${{ secrets.GH_ACTION_AI_API_KEY }}
+          WAIT_MAX: 15
+          BACKOFF_MAX: 5
+        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
+
       - name: Run AI agent
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
