@@ -9,8 +9,8 @@
 # entirely, posts a neutral comment, and publishes one audit line to the
 # ntfy hub instead - an escape hatch that is visible, not silent.
 #
-# Same router contract as docs-drift.yml: a router outage makes the job
-# WAIT (exponential backoff) and then FAIL when timeout-minutes runs out.
+# Same router contract as docs-drift.yml: a router outage gets three tries
+# inside fifteen seconds and then FAILS the job, releasing the runner.
 # It needs a runner that can reach the router. Never make it a required
 # check while `blocking` is false - an advisory check has nothing to
 # require.
@@ -101,7 +101,7 @@ jobs:
   gate:
     name: Policy gate
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Require the router secrets
         env:

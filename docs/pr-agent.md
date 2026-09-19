@@ -18,9 +18,10 @@ release pull requests, or a provenance footer.
 
 ## Failure contract
 
-Not advisory. If the router is unreachable the job waits — exponential backoff
-from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
-out. A wrong key, base URL or model alias fails in seconds instead of waiting.
+Not advisory. If the router is unreachable or at capacity the job tries three
+times inside fifteen seconds and then fails, releasing the runner; the job
+itself is capped at ten minutes. A wrong key, base URL or model alias fails
+at once.
 A model error fails the job rather than being swallowed
 (`config.propagate_tool_errors`).
 

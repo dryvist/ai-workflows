@@ -7,7 +7,7 @@ const script = join(process.cwd(), '.github/scripts/shared/router-chat.sh');
 
 // Bun.spawn, not spawnSync: a synchronous child would block this process's
 // event loop, and the stub server that the child is calling lives in it.
-async function run(port) {
+async function run(port, extraEnv = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'router-chat-'));
   writeFileSync(join(dir, 'user.txt'), 'DIFF:\nnothing');
   const child = Bun.spawn(['bash', script], {
@@ -23,7 +23,9 @@ async function run(port) {
       USER_FILE: 'user.txt',
       OUT: 'out.json',
       REQUIRED_KEY: 'items',
-      BACKOFF_START: '0',
+      RETRY_DELAY: '0',
+      RETRY_MAX: '3',
+      ...extraEnv,
     },
   });
   return { dir, status: await child.exited };
@@ -76,4 +78,44 @@ test('fails when the model output lacks the required key', async () => {
   server.stop(true);
 
   expect(status).toBe(1);
+});
+
+test('fails inside the retry budget when the router never answers', async () => {
+  let hits = 0;
+  const server = Bun.serve({
+    port: 0,
+    fetch() {
+      hits += 1;
+      return new Response('down', { status: 503 });
+    },
+  });
+  const started = Date.now();
+  const { status } = await run(server.port);
+  const elapsed = Date.now() - started;
+  server.stop(true);
+
+  expect(status).toBe(1);
+  expect(hits).toBeGreaterThan(1);
+  expect(elapsed).toBeLessThan(10_000);
+});
+
+test('walks the fallback ladder when the first model exhausts its budget', async () => {
+  const models = [];
+  const server = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      const body = await req.json();
+      models.push(body.model);
+      if (body.model === 'cheap') return new Response('down', { status: 503 });
+      return Response.json({ choices: [{ message: { content: '{"items":["ok"]}' } }] });
+    },
+  });
+  const { dir, status } = await run(server.port, { FALLBACK_MODELS: 'second, third' });
+  server.stop(true);
+
+  expect(status).toBe(0);
+  expect(models.filter((m) => m === 'cheap').length).toBeGreaterThan(1);
+  expect(models[models.length - 1]).toBe('second');
+  expect(JSON.parse(readFileSync(join(dir, 'request.json'), 'utf8')).model).toBe('second');
+  expect(JSON.parse(readFileSync(join(dir, 'out.json'), 'utf8'))).toEqual({ items: ['ok'] });
 });

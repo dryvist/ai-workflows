@@ -117,7 +117,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
       ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:

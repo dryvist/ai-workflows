@@ -10,8 +10,8 @@
 #
 # 1. It runs on a runner that can reach the router (the shared self-hosted pool
 #    by default). A GitHub-hosted runner cannot reach the router.
-# 2. A router outage makes the review job WAIT (exponential backoff, five-minute
-#    cap) and then FAIL on timeout-minutes. It never reports success having
+# 2. A router outage gets three tries inside fifteen seconds and then the
+#    review job FAILS, releasing the runner. It never reports success having
 #    reviewed nothing. Do not make it a required check.
 #
 # Bursts are absorbed by the router's role alias, which carries its own
@@ -82,7 +82,7 @@ permissions:
 # the older pending run when a newer one queues; with a per-repository group, a
 # burst of pushes to different branches cancelled every review but the last
 # and left the rest red having reviewed nothing. A per-ref group means a router
-# outage can park one runner per busy branch; timeout-minutes is the bound.
+# outage costs one runner per busy branch for fifteen seconds, no more.
 # cancel-in-progress stays false — a superseded push's review still queues
 # behind the newer one on the same branch rather than being thrown away.
 concurrency:
@@ -97,7 +97,7 @@ jobs:
     if: github.event.deleted != true
     permissions:
       contents: read
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -122,10 +122,10 @@ jobs:
         run: bash .ai-workflows/.github/scripts/commit-review/collect.sh
 
       - name: Wait for the router
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
+        uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
+        with:
+          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
 
       - name: Request the review
         env:

@@ -99,8 +99,8 @@ Two consequences worth stating plainly:
 - These workflows need a runner that can reach the router, so `runner_label`
   defaults to `self-hosted`. On a GitHub-hosted runner they would review
   nothing.
-- A router outage makes the job wait with exponential backoff and then fail on
-  the job timeout. There is no skip-and-succeed path. Do not make any of them a
+- A router outage gets three tries inside fifteen seconds and then fails the
+  job, releasing the runner. There is no skip-and-succeed path. Do not make any of them a
   required check.
 
 `policy-gate.yml` is advisory by default (its `blocking` input defaults to

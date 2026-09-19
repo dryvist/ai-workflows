@@ -84,7 +84,7 @@ jobs:
        github.event.sender.login != 'jacobpevans-claude[bot]' &&
        github.event.sender.login != 'claude[bot]' &&
        github.event.sender.login != 'github-actions[bot]')
-    timeout-minutes: 15
+    timeout-minutes: 10
     outputs:
       pr_number: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
       head_sha: ${{ github.event.pull_request.head.sha || steps.pr.outputs.sha }}

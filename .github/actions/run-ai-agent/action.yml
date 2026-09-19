@@ -135,6 +135,16 @@ runs:
         PERMISSION_PROFILE: ${{ inputs.permission_profile }}
       run: '"$GITHUB_ACTION_PATH/prepare.sh" validate'
 
+    # Fifteen seconds, then fail: a runner that cannot reach the model
+    # endpoint must not sit in the agent's own retries until the job cap. Only
+    # the Claude path has a probe-able base URL; unset means the vendor's API.
+    - name: Wait for the model endpoint
+      if: steps.prepare.outputs.effective-agent == 'claude' && env.ANTHROPIC_BASE_URL != ''
+      uses: dryvist/ai-workflows/.github/actions/wait-for-router@main
+      with:
+        base_url: ${{ env.ANTHROPIC_BASE_URL }}
+        api_key: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+
     - name: Checkout canonical agent instructions
       if: inputs.inject_instructions == 'true'
       continue-on-error: true

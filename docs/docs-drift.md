@@ -14,9 +14,9 @@ question a small model answers, so it does not need one.
 
 ## Failure contract
 
-Not advisory. If the router is unreachable the job waits — exponential backoff
-from 5 s, capped at 5 minutes — and then fails when `timeout-minutes` (60) runs
-out. A wrong key, base URL or model alias fails in seconds instead of waiting.
+Not advisory. If the router is unreachable the job tries three times inside
+fifteen seconds and then fails, releasing the runner; the job itself is
+capped at ten minutes (`timeout-minutes`). A wrong key, base URL or model alias fails in seconds instead of waiting.
 
 `runner_label` defaults to `self-hosted` because the router is only reachable
 from inside the estate; a GitHub-hosted runner would review nothing. Never make
