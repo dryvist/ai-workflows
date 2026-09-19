@@ -737,3 +737,22 @@ mints a GitHub App installation token from `GH_APP_CLAUDE_BOT_ID` /
 `GH_APP_CLAUDE_BOT_PRIVATE_KEY` when available (org-wide in sweep mode) and
 falls back to `GITHUB_TOKEN` with a per-thread warning instead of a run
 failure.
+
+---
+
+## Shadow Classifier Pattern
+
+`scope-shadow.yml` is a non-blocking pilot: a `workflow_call` reusable
+workflow that logs a third-party CI-scope classification alongside the
+repo's existing deterministic `dorny/paths-filter` answer, for comparison
+only. Current member: `dogfood-scope-shadow.yml` (this repo, dogfooding its
+own reusable workflow).
+
+**Scope**: public repositories only — the job is skipped when the calling
+repository is private. Only metadata leaves the runner: repo name, PR title,
+the first 500 characters of the PR body, labels, and changed file paths with
+their added/removed line counts. The diff and file contents are never sent.
+
+**Non-blocking**: `continue-on-error: true`, no other job depends on its
+outputs, and it writes only a job summary table and `::notice::` lines — it
+never gates a check.

@@ -1,0 +1,189 @@
+# Scope Shadow Classifier
+#
+# Non-blocking pilot: calls typesafe.ai's `choice` primitive ("Jev") to
+# classify a pull request's CI scope from metadata only, and logs the
+# decision side by side with the repo's existing deterministic
+# dorny/paths-filter answer. Nothing gates on this job's output — it exists
+# to collect a week of agreement data, never to skip a check.
+#
+# Public repositories only: the job is skipped entirely when the calling
+# repository is private, and the first step re-checks the same condition
+# from the event payload as a second, in-script guard. Only repo name, PR
+# title, the first 500 chars of the PR body, labels, and changed file paths
+# with their added/removed line counts are sent — never the diff or file
+# contents.
+#
+# Fail-safe: `timeout-minutes: 2` on the job, `curl --max-time 10` on the
+# API call, and `continue-on-error: true` so a slow, wrong, or dead vendor
+# never affects the run's outcome. Any non-2xx response, timeout, or parse
+# failure prints "classifier unavailable" to the summary and exits 0.
+
+name: Scope Shadow Classifier
+
+on:
+  workflow_call:
+    secrets:
+      TYPESAFE_API_KEY:
+        description: Bearer token for the typesafe.ai API. Required.
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  shadow-classify:
+    name: Shadow-classify PR scope (non-blocking)
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    continue-on-error: true
+    steps:
+      - name: Guard against a private repository (belt and braces)
+        env:
+          REPO_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [ "$REPO_PRIVATE" = "true" ]; then
+            echo "::notice::Scope Shadow Classifier: repository is private, skipping (public repos only)."
+            echo "classifier skipped: private repository" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Deterministic side of the comparison. Filter names and shapes mirror
+      # the org-canonical categories in dryvist/.github's `_ci-gate.yml`
+      # (markdown / flake-lock) adapted to this repo's own docs/lockfile/
+      # workflow file layout.
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        id: filter
+        with:
+          filters: |
+            docs:
+              - '**.md'
+              - '.markdownlint*'
+            lockfile:
+              - '**/bun.lock'
+              - '**/package-lock.json'
+              - 'renovate.json*'
+            workflow:
+              - '.github/workflows/**'
+
+      - name: Compute the deterministic decision
+        id: deterministic
+        env:
+          DOCS: ${{ steps.filter.outputs.docs }}
+          LOCKFILE: ${{ steps.filter.outputs.lockfile }}
+          WORKFLOW: ${{ steps.filter.outputs.workflow }}
+        run: |
+          if [ "$WORKFLOW" = "true" ]; then
+            ci=full; ai_review=yes; release_notes=yes
+          elif [ "$DOCS" = "true" ] && [ "$LOCKFILE" != "true" ]; then
+            ci=lint-only; ai_review=no; release_notes=no
+          elif [ "$LOCKFILE" = "true" ] && [ "$DOCS" != "true" ]; then
+            ci=lint-only; ai_review=no; release_notes=yes
+          else
+            ci=full; ai_review=yes; release_notes=yes
+          fi
+          {
+            echo "ci=$ci"
+            echo "ai_review=$ai_review"
+            echo "release_notes=$release_notes"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Collect PR metadata (paths and line counts only, never the diff)
+        id: metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          labels=$(jq -c '[.pull_request.labels[].name]' "$GITHUB_EVENT_PATH")
+          files=$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate \
+            --jq '[.[] | {path: .filename, additions, deletions}]')
+          body_head=$(printf '%s' "$PR_BODY" | head -c 500)
+          jq -n \
+            --arg repo "$REPO" \
+            --arg title "$PR_TITLE" \
+            --arg body "$body_head" \
+            --argjson labels "$labels" \
+            --argjson files "$files" \
+            '{repo: $repo, title: $title, body: $body, labels: $labels, files: $files}' \
+            > state.json
+
+      - name: Call the Jev classifier
+        id: jev
+        continue-on-error: true
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          state=$(jq -r 'tostring' state.json)
+          request=$(jq -n --arg state "$state" '{
+            state: $state,
+            questions: {
+              ci_scope: {type: "choice", instructions: "How much CI does this PR need? docs-only changes need lint-only. lockfile/renovate-only dependency bumps need lint-only. A workflow-file change, a behavior change, or anything security-relevant always needs full.", criteria: {full: "runs the whole CI suite", "lint-only": "runs lint/format checks only", none: "no CI needed"}},
+              molecule: {type: "choice", instructions: "How much Molecule testing does this PR need, if the repo has any? A workflow-file or security-relevant change always needs full.", criteria: {full: "run every scenario", "changed-roles": "run only scenarios for changed roles", none: "no Molecule testing needed"}},
+              ai_review: {type: "choice", instructions: "Does this PR need an AI code review pass? docs-only and lockfile/renovate-only changes do not.", criteria: {yes: "run AI review", no: "skip AI review"}},
+              release_notes: {type: "choice", instructions: "Does this PR need release notes? docs-only changes do not; dependency bumps and behavior changes do.", criteria: {yes: "generate release notes", no: "skip release notes"}}
+            }
+          }')
+          http_code=$(curl -sS --max-time 10 -o response.json -w '%{http_code}' \
+            -X POST https://api.typesafe.ai/v1/systemone \
+            -H "Authorization: Bearer $TYPESAFE_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$request") || { echo "reason=request failed (network/timeout)" >> "$GITHUB_OUTPUT"; echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "reason=HTTP $http_code" >> "$GITHUB_OUTPUT"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! jq -e '.answers.ci_scope.choice and .answers.molecule.choice and .answers.ai_review.choice and .answers.release_notes.choice' response.json > /dev/null 2>&1; then
+            echo "reason=unparseable response" >> "$GITHUB_OUTPUT"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "ok=true"
+            echo "ci=$(jq -r '.answers.ci_scope.choice' response.json)"
+            echo "molecule=$(jq -r '.answers.molecule.choice' response.json)"
+            echo "ai_review=$(jq -r '.answers.ai_review.choice' response.json)"
+            echo "release_notes=$(jq -r '.answers.release_notes.choice' response.json)"
+            echo "confidence=$(jq -r '[.answers[].confidence] | add / length' response.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write the comparison summary
+        env:
+          JEV_OK: ${{ steps.jev.outputs.ok }}
+          JEV_REASON: ${{ steps.jev.outputs.reason }}
+          JEV_CI: ${{ steps.jev.outputs.ci }}
+          JEV_MOLECULE: ${{ steps.jev.outputs.molecule }}
+          JEV_AI_REVIEW: ${{ steps.jev.outputs.ai_review }}
+          JEV_RELEASE_NOTES: ${{ steps.jev.outputs.release_notes }}
+          JEV_CONFIDENCE: ${{ steps.jev.outputs.confidence }}
+          DET_CI: ${{ steps.deterministic.outputs.ci }}
+          DET_AI_REVIEW: ${{ steps.deterministic.outputs.ai_review }}
+          DET_RELEASE_NOTES: ${{ steps.deterministic.outputs.release_notes }}
+        run: |
+          {
+            echo "### Scope Shadow Classifier (non-blocking pilot)"
+            echo
+            if [ "$JEV_OK" != "true" ]; then
+              echo "classifier unavailable ($JEV_REASON)"
+            else
+              echo "reason: jev choice, avg confidence ${JEV_CONFIDENCE}"
+              echo
+              echo "| field | jev | deterministic | agrees |"
+              echo "| --- | --- | --- | --- |"
+              echo "| ci | $JEV_CI | $DET_CI | $([ "$JEV_CI" = "$DET_CI" ] && echo yes || echo no) |"
+              echo "| molecule | $JEV_MOLECULE | n/a | n/a |"
+              echo "| ai_review | $JEV_AI_REVIEW | $DET_AI_REVIEW | $([ "$JEV_AI_REVIEW" = "$DET_AI_REVIEW" ] && echo yes || echo no) |"
+              echo "| release_notes | $JEV_RELEASE_NOTES | $DET_RELEASE_NOTES | $([ "$JEV_RELEASE_NOTES" = "$DET_RELEASE_NOTES" ] && echo yes || echo no) |"
+              echo "::notice::Scope Shadow Classifier: ci=$JEV_CI ai_review=$JEV_AI_REVIEW release_notes=$JEV_RELEASE_NOTES (deterministic: ci=$DET_CI ai_review=$DET_AI_REVIEW release_notes=$DET_RELEASE_NOTES)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
