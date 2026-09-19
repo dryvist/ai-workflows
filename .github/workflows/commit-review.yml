@@ -3,7 +3,11 @@
 # An AI review of every push, on every branch: one comment on the pushed head
 # commit. Pull requests already get PR-Agent (pr-agent.yml); this covers the
 # commits that never sit in a pull request — direct pushes, work-in-progress
-# branches, bot commits — so no commit lands unreviewed.
+# branches, bot commits — so no commit lands unreviewed. A push to a branch
+# with an open pull request, or to develop or main (merges of reviewed pull
+# requests), is skipped: one native call on a GitHub-hosted runner counts the
+# branch's open pull requests and the review job gates on zero, so no diff is
+# reviewed twice.
 #
 # Every review goes through the org's model router, on the self-hosted pool
 # (the only runners that reach it). Repository visibility picks the router KEY
@@ -124,11 +128,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  scope:
+    name: Count open pull requests on the branch
+    # Never touches the router, so the cheapest runner will do.
+    runs-on: ubuntu-latest
+    # A branch deletion is a push event with no commit to review; develop and
+    # main receive only merges of pull requests PR-Agent already reviewed.
+    if: github.event.deleted != true && github.ref_name != 'develop' && github.ref_name != 'main'
+    # Open pull requests on a public repository are readable with any token;
+    # a private caller must grant pull-requests: read.
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    outputs:
+      open_prs: ${{ steps.prs.outputs.open_prs }}
+    steps:
+      - name: Count open pull requests
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "open_prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq length)" >> "$GITHUB_OUTPUT"
+
   review:
     name: Review the push
+    needs: scope
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
-    # A branch deletion is a push event with no commit to review.
-    if: github.event.deleted != true
+    # A branch with an open pull request is PR-Agent's; reviewing it here too
+    # would read the same diff twice.
+    if: needs.scope.outputs.open_prs == '0'
     permissions:
       contents: read
     timeout-minutes: 10

@@ -6,6 +6,12 @@ get [PR-Agent](pr-agent.md); this covers the commits that never sit in one —
 direct pushes, work-in-progress branches, bot commits — so no commit lands
 unreviewed.
 
+A push to a branch that already has an open pull request is skipped, as is a
+push to `develop` or `main` (merges of pull requests PR-Agent reviewed). A
+first job on a GitHub-hosted runner counts the branch's open pull requests
+with one `gh pr list` call, and the review job runs only when that count is
+zero — the same diff is never reviewed twice.
+
 ## Where it runs
 
 Every review goes through the org's model router, on the `self-hosted` pool
@@ -54,7 +60,9 @@ Two things absorb a burst of pushes:
 
 ## Permissions
 
-The review job runs with `contents: read`. The comment is posted from a
+The counting job runs with `contents: read`, enough to list a public
+repository's open pull requests; a private caller grants `pull-requests: read`
+as well. The review job runs with `contents: read`. The comment is posted from a
 separate job holding `contents: write`, the permission the commit-comment
 endpoint requires; that job runs no model and reads no secret.
 
