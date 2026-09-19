@@ -25,19 +25,19 @@ fi
 {
   echo "## Policy gate"
   echo
-  printf '%s\n\n' "$(jq -r '.summary // "(no summary)"' findings.json)"
+  printf '%s\n\n' "$(jq -r '.summary // "(no summary)"' "$RESPONSE_FILE")"
   echo "| Check | Result | File | Line | Detail |"
   echo "| --- | --- | --- | --- | --- |"
   jq -r '
     def cell: (. // "") | tostring | gsub("[|\n]"; " ");
     .findings[]? |
     "| \(.check | cell) | \(.result | cell) | \(.file | cell) | \(.line | cell) | \(.detail | cell) |"
-  ' findings.json
+  ' "$RESPONSE_FILE"
   echo
   echo "_Advisory only for the first two weeks. Router role \`${MODEL:-?}\`._"
 } > "$out"
 cat "$out"
 
-if jq -e '.findings[]? | select(.result == "fail")' findings.json > /dev/null 2>&1; then
+if jq -e '.findings[]? | select(.result == "fail")' "$RESPONSE_FILE" > /dev/null 2>&1; then
   echo 1 > "$exit_file"
 fi
