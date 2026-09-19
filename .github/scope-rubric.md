@@ -5,6 +5,11 @@ the prompt sent to typesafe.ai's `choice` primitive ("Jev"). Versioned
 here so the rubric a caller is gated on is reviewable and diffable like
 any other CI config, not embedded in the script or the workflow.
 
+Editing this file to add a new answer option? Also update
+`VALID_CHOICES` in `scripts/scope_classify.py` - an answer the rubric
+describes but the script doesn't recognize is rejected as out-of-enum
+and falls back to `full`/`yes`, `source: fallback`.
+
 ## Job classes and measured cost
 
 Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
