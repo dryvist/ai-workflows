@@ -53,7 +53,7 @@ request over the API — and the image is pinned by digest in
 | --- | --- | --- |
 | `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `model` | `review-private` | Private repos: router **role alias** (never a vendor id) one `LLM_ROUTER_API_KEY` may call |
-| `oss_model` | `review-oss` | Open-source repos: router role alias one `LLM_ROUTER_OSS_API_KEY` may call |
+| `oss_model` | `review-public` | Open-source repos: router role alias one `LLM_ROUTER_OSS_API_KEY` may call |
 | `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
 | `improve` | `false` | Run the improve tool |

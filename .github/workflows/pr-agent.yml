@@ -69,7 +69,7 @@ on:
           LLM_ROUTER_OSS_API_KEY is scoped to reach.
         type: string
         required: false
-        default: review-oss
+        default: review-public
       max_tokens:
         description: >-
           Input context the alias can be assumed to hold, for PR-Agent's own

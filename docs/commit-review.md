@@ -15,7 +15,7 @@ reusable workflow, picks the router key and role — nothing else:
 | Visibility | Key | Role |
 | --- | --- | --- |
 | private | `LLM_ROUTER_API_KEY` | `model` (default `review-private`) |
-| open-source | `LLM_ROUTER_OSS_API_KEY` | `oss_model` (default `review-oss`) |
+| open-source | `LLM_ROUTER_OSS_API_KEY` | `oss_model` (default `review-public`) |
 
 Each role carries its own fallback ladder on the router — local rungs first,
 then whatever overflow the role allows — so where a diff may travel is
@@ -65,7 +65,7 @@ endpoint requires; that job runs no model and reads no secret.
 | `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
 | `model` | `review-private` | Private repos: router **role alias** — never a vendor model id; one `LLM_ROUTER_API_KEY` may call |
-| `oss_model` | `review-oss` | Open-source repos: router role alias one `LLM_ROUTER_OSS_API_KEY` may call |
+| `oss_model` | `review-public` | Open-source repos: router role alias one `LLM_ROUTER_OSS_API_KEY` may call |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 
