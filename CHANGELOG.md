@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.1](https://github.com/dryvist/ai-workflows/compare/v0.43.0...v0.43.1) (2026-09-19)
+
+
+### Bug Fixes
+
+* **review:** keep the review-public role default until the router carries review-oss ([c8c2b1c](https://github.com/dryvist/ai-workflows/commit/c8c2b1cfdf6013afa40b0e525e432fa851cb15f0))
+* **review:** name the open-source review key and role without the word public ([6484d24](https://github.com/dryvist/ai-workflows/commit/6484d24aed4344c6bee759a3683c09201472745a))
+* **review:** name the open-source review key and role without the word public ([e3470f3](https://github.com/dryvist/ai-workflows/commit/e3470f316979a1bfa78e9c3bd73f248739323d8b))
+
 ## [0.43.0](https://github.com/dryvist/ai-workflows/compare/v0.42.1...v0.43.0) (2026-09-19)
 
 
