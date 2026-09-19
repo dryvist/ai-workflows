@@ -67,7 +67,7 @@ endpoint requires; that job runs no model and reads no secret.
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
 | `model` | `cheap` | Private repos: router **role alias** — never a vendor model id; must be one the CI key may reach |
 | `public_model` | `glm-5.3-flash` | Public repos: the external endpoint's model id |
-| `public_fallback_models` | `glm-4.7-flash,glm-4.5-flash` | Public repos: ladder walked in order, each inside its own retry budget, when `public_model` errors |
+| `public_fallback_models` | `glm-4.7-flash,glm-4.5-flash` | Public repos: ladder walked in order, each with its own retry budget, when `public_model` errors |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 
