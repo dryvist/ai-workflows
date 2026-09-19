@@ -17,10 +17,10 @@ on:
         type: string
         default: "0"
     secrets:
-      GH_ACTION_AI_API_KEY:
-        required: false
-      OPENAI_API_KEY:
-        required: false
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
       GH_APP_CLAUDE_BOT_PRIVATE_KEY:
         required: false
   workflow_dispatch:
@@ -41,8 +41,6 @@ jobs:
       contents: read
       issues: read
     timeout-minutes: 5
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -83,9 +81,8 @@ jobs:
           allowed_tools: >-
             Read,Glob,Grep,LS,Write,
             Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"

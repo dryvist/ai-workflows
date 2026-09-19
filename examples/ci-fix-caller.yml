@@ -5,15 +5,11 @@
 # to that PR branch (max 2 attempts/PR). It stops before merge — a human merges.
 #
 # Required configuration on the consumer repo (or org):
-#   - secret  GH_ACTION_AI_API_KEY            AI provider API key (e.g. sk-ant-...)
-#   - var     GH_ACTION_AI_MODEL_CODE (or GH_ACTION_AI_MODEL)   e.g. "claude-sonnet-4-6"
+#   - secret  LLM_ROUTER_BASE_URL             model router base URL, ending in /v1
+#   - secret  LLM_ROUTER_API_KEY              scoped router key for CI
+#   - var     GH_ACTION_AI_MODEL_CODE (or GH_ACTION_AI_MODEL)   a router role alias
 #   - var     GH_APP_CLAUDE_BOT_ID            GitHub App id (commit signing/attribution)
 #   - secret  GH_APP_CLAUDE_BOT_PRIVATE_KEY   GitHub App private key (PEM)
-#
-# Optional:
-#   - var     GH_ACTION_AI_BASE_URL   provider base URL; leave empty/unset for
-#             direct Anthropic (https://api.anthropic.com). Set to a router
-#             endpoint (e.g. https://openrouter.ai/api/v1) to switch providers.
 
 name: CI Fix (Claude)
 

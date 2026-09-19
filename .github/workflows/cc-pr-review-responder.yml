@@ -37,12 +37,10 @@ on:
         type: string
         default: ""
     secrets:
-      GH_ACTION_AI_API_KEY:
-        description: "Anthropic API key; required when GH_ACTION_AI_AGENT is claude"
-        required: false
-      OPENAI_API_KEY:
-        description: "OpenAI API key; required when GH_ACTION_AI_AGENT is codex"
-        required: false
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
       GH_APP_CLAUDE_BOT_PRIVATE_KEY:
         description: >-
           JacobPEvans-claude App private key. Mints the App token used for the
@@ -89,8 +87,6 @@ jobs:
       pr_number: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
       head_sha: ${{ github.event.pull_request.head.sha || steps.pr.outputs.sha }}
       head_ref: ${{ github.event.pull_request.head.ref || steps.pr.outputs.ref }}
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
     steps:
       # workflow_dispatch has no PR event context — resolve the head SHA (a hex OID,
       # no injection surface) from the trusted integer pr_number input. Review-event
@@ -157,9 +153,8 @@ jobs:
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           permission_profile: workspace
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "gemini-code-assist,copilot-pull-request-reviewer,github-actions"

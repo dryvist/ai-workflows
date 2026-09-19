@@ -7,26 +7,14 @@ validate() {
     read-only|workspace) permission_profile=":$permission_profile" ;;
   esac
 
-  # ponytail: a caller (e.g. GH_ACTION_AI_AGENT var) can request codex without
-  # ever wiring OPENAI_API_KEY through. Fall back to claude rather than fail
-  # every consumer repo; escalate for real if claude's key is also missing.
-  if [[ "$AGENT" == "codex" && -z "$OPENAI_API_KEY" ]]; then
-    echo "::warning::codex requested but openai_api_key is missing; falling back to claude"
-    AGENT=claude
+  if [[ -z "$BASE_URL" || -z "$API_KEY" ]]; then
+    echo "::error::base_url and api_key are required"
+    exit 1
   fi
 
   case "$AGENT" in
-    claude)
-      if [[ -z "$ANTHROPIC_API_KEY" ]]; then
-        echo "::error::anthropic_api_key is required when agent is claude"
-        exit 1
-      fi
-      ;;
+    claude) ;;
     codex)
-      if [[ -z "$OPENAI_API_KEY" ]]; then
-        echo "::error::openai_api_key is required when agent is codex"
-        exit 1
-      fi
       if [[ -z "$permission_profile" ]]; then
         echo "::error::permission_profile is required when agent is codex"
         exit 1
@@ -38,8 +26,16 @@ validate() {
       ;;
   esac
 
-  echo "permission-profile=$permission_profile" >> "$GITHUB_OUTPUT"
-  echo "effective-agent=$AGENT" >> "$GITHUB_OUTPUT"
+  # One router, two wire formats. Claude Code appends /v1/messages to its
+  # base URL, so it gets the parent of the /v1 base; Codex takes the full
+  # Responses endpoint.
+  local base="${BASE_URL%/}"
+  {
+    echo "anthropic-base-url=${base%/v1}"
+    echo "responses-endpoint=$base/responses"
+    echo "permission-profile=$permission_profile"
+    echo "effective-agent=$AGENT"
+  } >> "$GITHUB_OUTPUT"
 
   local args="$CLAUDE_ARGS"
   local quoted

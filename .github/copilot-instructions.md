@@ -66,9 +66,9 @@ placeholders. Workflows pin an immutable catalog commit and render with
 
 ## Authentication
 
-All Claude Code workflows reference a provider-agnostic namespace: secret `GH_ACTION_AI_API_KEY`, vars `GH_ACTION_AI_BASE_URL` and
-`GH_ACTION_AI_MODEL[_CODE|_ISSUES|_PLAN]`. Map these org-level vars/secrets to any provider's key/URL/model — never reference a
-provider-specific secret name in a workflow.
+All agent workflows reach the org's model router with secrets `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`; the vars
+`GH_ACTION_AI_MODEL[_CODE|_ISSUES|_PLAN]` name router role aliases. Never reference a vendor credential or a vendor model id in a
+workflow.
 
 ## Version Tags
 
