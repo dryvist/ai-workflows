@@ -740,19 +740,32 @@ failure.
 
 ---
 
-## Shadow Classifier Pattern
+## Scope Classify Pattern
 
-`scope-shadow.yml` is a non-blocking pilot: a `workflow_call` reusable
-workflow that logs a third-party CI-scope classification alongside the
-repo's existing deterministic `dorny/paths-filter` answer, for comparison
-only. Current member: `dogfood-scope-shadow.yml` (this repo, dogfooding its
-own reusable workflow).
+`scope-classify.yml` is a `workflow_call` reusable workflow that gates a
+caller's CI scope through a third-party classifier (typesafe.ai's `choice`
+primitive, "Jev"). It runs first and exports `outputs` — `ci`, `molecule`,
+`ai_review`, `release_notes`, `e2e`, `reason`, `source` — that downstream
+reusable jobs gate on, e.g. `if: needs.scope.outputs.ci == 'full'`. A
+skipped job still satisfies a required status check, so the merge gate
+stays green on a narrowed run. The job itself always runs and always
+writes its decision, reason, and source to its own summary as an audit
+trail.
 
-**Scope**: public repositories only — the job is skipped when the calling
-repository is private. Only metadata leaves the runner: repo name, PR title,
-the first 500 characters of the PR body, labels, and changed file paths with
-their added/removed line counts. The diff and file contents are never sent.
+**Rubric**: `.github/scope-rubric.md` — job classes with measured cost and
+the per-output decision rules — is rendered into the classifier prompt, so
+the text a caller is gated on is reviewable and diffable.
 
-**Non-blocking**: `continue-on-error: true`, no other job depends on its
-outputs, and it writes only a job summary table and `::notice::` lines — it
-never gates a check.
+**Deterministic overrides**: evaluated in the workflow before the model is
+ever called (see the rubric's "always full" section) — a matching change
+skips the API call and every output resolves to `full`/`yes`.
+
+**Input by repository visibility**: public repos send title, body head,
+labels, changed-file paths with line stats, and the unified diff (capped
+at 60 KiB). Private repos send changed-file paths, line stats, and title
+only — no diff content leaves the runner.
+
+**Fail-safe**: `timeout-minutes: 2`, `curl --max-time 10`. Any request
+failure, non-2xx response, or unparsable answer resolves every output to
+`full`/`yes` with `source: fallback` — the same safe value an override
+produces.
