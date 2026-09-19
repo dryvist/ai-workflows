@@ -22,8 +22,10 @@ Not advisory. If the router is down or at capacity the job fails, releasing
 the runner: the router admits or refuses at once, and the job is capped at
 ten minutes. The router role's fallback ladder absorbs load. A wrong key,
 base URL or model fails at once. A
-model error fails the job rather than being swallowed
-(`config.propagate_tool_errors`).
+model error fails the job rather than being swallowed: PR-Agent 0.45.0's
+CLI exits 0 either way (`config.propagate_tool_errors` only changes what it
+logs; fixed upstream in qodo-ai/pr-agent#3368, not yet in an image), so
+`run.sh` fails the step on its failure log line.
 
 This is deliberate: the workflow this replaced reported success while doing
 nothing for weeks, because "router credential not configured" was a

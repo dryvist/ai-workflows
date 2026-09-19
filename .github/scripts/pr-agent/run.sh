@@ -65,8 +65,18 @@ if [ -z "${tools// /}" ]; then
   exit 1
 fi
 
+log="$(mktemp)"
+trap 'rm -f "$env_file" "$log"' EXIT
+
 for tool in $tools; do
   echo "::group::pr-agent $tool"
-  docker run --rm --env-file "$env_file" "$image" --pr_url "$PR_URL" "$tool"
+  docker run --rm --env-file "$env_file" "$image" --pr_url "$PR_URL" "$tool" 2>&1 | tee "$log"
   echo "::endgroup::"
+  # PR-Agent 0.45.0 exits 0 whatever happened; a failed request is logged as
+  # exactly this line. Fixed upstream in qodo-ai/pr-agent#3368 — drop this
+  # check once the pinned image carries it.
+  if grep -q "Failed to process the command\." "$log"; then
+    echo "::error::pr-agent $tool failed; nothing was posted."
+    exit 1
+  fi
 done
