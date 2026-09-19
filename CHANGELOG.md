@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.4](https://github.com/dryvist/ai-workflows/compare/v0.43.3...v0.43.4) (2026-09-19)
+
+
+### Bug Fixes
+
+* **pr-agent:** default the open-source review role to review-oss ([8c53970](https://github.com/dryvist/ai-workflows/commit/8c53970b17524684dc40f71ce1f6a1e67b093e96))
+* **pr-agent:** default the open-source review role to review-oss ([2ea788c](https://github.com/dryvist/ai-workflows/commit/2ea788c1e46b83a36e6ea1fffcc03708abde5def))
+
 ## [0.43.3](https://github.com/dryvist/ai-workflows/compare/v0.43.2...v0.43.3) (2026-09-19)
 
 
