@@ -161,7 +161,7 @@ jobs:
           BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
           API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
         run: >-
-          curl -sS --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
+          curl -s --fail -o /dev/null --max-time 5 --retry 2 --retry-delay 5 --retry-max-time 15
           -H "Authorization: Bearer $API_KEY" "${BASE_URL%/}/models"
 
       - name: Run PR-Agent

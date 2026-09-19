@@ -1,0 +1,70 @@
+# GitHub prompt file (actions/ai-inference). The model is the workflow's
+# `model` input, a router role alias; it is deliberately not set here.
+messages:
+  - role: system
+    content: |-
+      You detect documentation drift. Given a merged code diff and the documentation that mentions it, list only documented claims the diff CONTRADICTS, and behaviour the diff adds that the documentation does not mention. Do not review the code, do not suggest edits to code, do not restate the diff. Answer ONLY JSON: {"items":[{"doc":"path","section":"heading or line","claim":"what the docs say or omit","contradicted_by":"what in the diff makes it wrong","action":"update|add|none"}],"summary":"..."}. Omit anything you cannot cite from both inputs. An empty items array is the correct answer when the documentation still matches.
+  - role: user
+    content: |-
+      CHANGED FILES:
+      {{changed}}
+
+      DIFF:
+      {{diff}}
+
+      DOCUMENTATION:
+      {{docs}}
+responseFormat: json_schema
+jsonSchema: |-
+  {
+    "name": "docs_drift",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "doc": {
+                "type": "string"
+              },
+              "section": {
+                "type": "string"
+              },
+              "claim": {
+                "type": "string"
+              },
+              "contradicted_by": {
+                "type": "string"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "update",
+                  "add",
+                  "none"
+                ]
+              }
+            },
+            "required": [
+              "doc",
+              "section",
+              "claim",
+              "contradicted_by",
+              "action"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "summary"
+      ],
+      "additionalProperties": false
+    }
+  }

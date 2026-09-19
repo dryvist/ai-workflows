@@ -29,7 +29,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     commit-review/
     release-notes/
     review-thread-resolver/
-    shared/                         # incl. router-chat.sh
+    shared/
     verification/
   workflows/
     *.yml                           # Pure YAML workflow definitions (no embedded content)
@@ -47,14 +47,17 @@ There are three families, and they do not share a credential contract:
    repository's own `.pr_agent.toml`; see docs/pr-agent.md.
 3. **Router workflows** (`commit-review`, `thread-triage`, `docs-drift`,
    `repo-hygiene-digest`)
-   make one chat completion through `scripts/shared/router-chat.sh`. They take
-   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
-   to a `self-hosted` runner, because only such a runner reaches the router.
+   make one chat completion with `actions/ai-inference` (a `.prompt.yml`
+   beside the workflow's scripts holds the messages and, where the answer is
+   JSON, the schema). They take `LLM_ROUTER_BASE_URL` and
+   `LLM_ROUTER_API_KEY` — both secrets — and default to a `self-hosted`
+   runner, because only such a runner reaches the router.
 
-A router workflow that cannot reach the router gets three tries inside
-fifteen seconds and then FAILS, releasing the runner — CI never waits for a
-model. Never restore a skip-and-succeed path: a green check that did no work
-is what these replaced.
+A router workflow that cannot reach the router FAILS, releasing the runner:
+the action's client retries a connection failure or 5xx twice and gives up,
+and the job is capped at ten minutes. CI never waits for a model beyond that.
+Never restore a skip-and-succeed path: a green check that did no work is what
+these replaced.
 
 Non-AI utility workflows (`ci-fail-issue`, `review-thread-resolver`) use plain
 `actions/github-script` — see docs/PATTERNS.md "Non-AI Utility Workflow

@@ -113,16 +113,23 @@ jobs:
         run: bash .ai-workflows/.github/scripts/thread-triage/collect.sh
 
       - name: Request triage
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-          MODEL: ${{ inputs.model }}
-          MAX_TOKENS: ${{ inputs.max_tokens }}
-          REPO: ${{ github.repository }}
-        run: bash .ai-workflows/.github/scripts/thread-triage/request.sh
+        id: triage
+        if: hashFiles('triage.empty') == ''
+        uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
+        with:
+          endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          token: ${{ secrets.LLM_ROUTER_API_KEY }}
+          model: ${{ inputs.model }}
+          max-completion-tokens: ${{ inputs.max_tokens }}
+          temperature: "0"
+          prompt-file: .ai-workflows/.github/scripts/thread-triage/thread-triage.prompt.yml
+          file_input: |
+            threads: threads.json
+          custom-headers: "x-langfuse-trace-name: thread-triage"
 
       - name: Render comment body
         env:
+          RESPONSE_FILE: ${{ steps.triage.outputs.response-file }}
           MODEL: ${{ inputs.model }}
         run: bash .ai-workflows/.github/scripts/thread-triage/render.sh
 

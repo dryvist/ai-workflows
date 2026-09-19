@@ -14,9 +14,10 @@ that were already computed.
 
 ## Failure contract
 
-Not advisory. If the router is unreachable the job tries three times inside
-fifteen seconds and then fails, releasing the runner; the job itself is
-capped at ten minutes (`timeout-minutes`). A wrong key, base URL or model alias fails in seconds instead of waiting.
+Not advisory. If the router is unreachable the job fails, releasing the
+runner: `actions/ai-inference` retries a connection failure or 5xx twice, and
+the job is capped at ten minutes (`timeout-minutes`). A wrong key, base URL
+or model alias fails in seconds instead of waiting.
 
 `runner_label` defaults to `self-hosted` because the router is only reachable
 from inside the estate; a GitHub-hosted runner would review nothing. Never make
