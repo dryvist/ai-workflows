@@ -18,11 +18,12 @@ release pull requests, or a provenance footer.
 
 ## Failure contract
 
-Not advisory. If the endpoint is unreachable the job waits — exponential
-backoff from 5 s — for at most three minutes (`WAIT_MAX` in
-`wait-for-router.sh`) and then fails, releasing the runner. A wrong key, base
-URL or model fails in seconds instead of waiting. A model error fails the job
-rather than being swallowed (`config.propagate_tool_errors`).
+Not advisory. If the endpoint is down or at capacity the job probes it three
+times inside fifteen seconds (`WAIT_MAX` in `wait-for-router.sh`) and then
+fails, releasing the runner; CI never waits for a model, the endpoint's own
+fallback ladder absorbs load. A wrong key, base URL or model fails at once. A
+model error fails the job rather than being swallowed
+(`config.propagate_tool_errors`).
 
 This is deliberate: the workflow this replaced reported success while doing
 nothing for weeks, because "router credential not configured" was a

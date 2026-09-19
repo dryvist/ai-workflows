@@ -54,7 +54,7 @@ test('fails once the wait bound passes instead of holding the runner', async () 
   server.stop(true);
 
   expect(status).toBe(1);
-  expect(stderr).toContain('past the 2s bound');
+  expect(stderr).toContain('past the 2s budget');
   expect(elapsed).toBeLessThan(10_000);
   expect(hits).toBeGreaterThan(1);
 });

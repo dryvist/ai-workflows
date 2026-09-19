@@ -51,10 +51,10 @@ There are three families, and they do not share a credential contract:
    `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
    to a `self-hosted` runner, because only such a runner reaches the router.
 
-A router workflow that cannot reach its endpoint WAITS with exponential
-backoff for a bounded three minutes and then FAILS, releasing the runner.
-Never restore a skip-and-succeed path: a green check that did no work is what
-these replaced.
+A router workflow that cannot reach its endpoint probes it three times inside
+fifteen seconds and then FAILS, releasing the runner — CI never waits for a
+model; the endpoint's fallback ladder absorbs load. Never restore a
+skip-and-succeed path: a green check that did no work is what these replaced.
 
 Non-AI utility workflows (`ci-fail-issue`, `review-thread-resolver`) use plain
 `actions/github-script` — see docs/PATTERNS.md "Non-AI Utility Workflow

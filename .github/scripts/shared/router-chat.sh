@@ -47,8 +47,12 @@ jq -n \
    + (if $key != "" then {response_format: {type: "json_object"}} else {} end)' \
   > request.json
 
+# Retries live inside a 15-second budget (RETRY_MAX): a 5xx/429/timeout is the
+# endpoint's fallback ladder's problem, not something a runner waits out.
 delay="${BACKOFF_START:-5}"
-max="${BACKOFF_MAX:-300}"
+max="${BACKOFF_MAX:-5}"
+retry_max="${RETRY_MAX:-15}"
+started=$(date +%s)
 while :; do
   code="$(curl -s --max-time 240 -o response.json -w '%{http_code}' \
     "${BASE_URL%/}/chat/completions" \
@@ -75,7 +79,14 @@ while :; do
       exit 1
       ;;
     *)
-      echo "Router returned HTTP $code; retrying in ${delay}s."
+      elapsed=$(( $(date +%s) - started ))
+      remaining=$(( retry_max - elapsed ))
+      if [ "$remaining" -le 0 ]; then
+        echo "Router returned HTTP $code for ${elapsed}s, past the ${retry_max}s retry budget: failing so the runner is released." >&2
+        exit 1
+      fi
+      [ "$delay" -gt "$remaining" ] && delay=$remaining
+      echo "Router returned HTTP $code; retrying in ${delay}s (${remaining}s left)."
       sleep "$delay"
       delay=$((delay * 2 > max ? max : delay * 2))
       ;;

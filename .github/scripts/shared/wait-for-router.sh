@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Block until the endpoint answers, or fail within a bounded wait.
+# Probe the endpoint a few times inside a 15-second budget, or fail.
 #
-# Retries only what waiting can fix: a connection failure, or 408/429/5xx. A
-# 401, 403 or 404 means the key or the base URL is wrong, so it fails in
-# seconds instead of holding a runner.
+# Retries only what a moment can fix: a connection failure, or 408/429/5xx. A
+# 401, 403 or 404 means the key or the base URL is wrong, so it fails at once.
 #
-# The wait is bounded (WAIT_MAX, default 180 s). An endpoint that stays down
-# past that fails the job right there: a runner slot held for the job's whole
-# timeout starves every other job in the pool, and the required check reports
-# the outage just as honestly after three minutes as after sixty. There is
+# CI never waits for a model that is down or at capacity: three probes five
+# seconds apart (WAIT_MAX 15, BACKOFF_START 5, no growth) and then the job
+# fails, releasing the runner. The endpoint's own fallback ladder is what
+# absorbs load — the router's role aliases on a private repo, the external
+# provider on a public one — not a runner sitting in a loop. There is
 # deliberately no succeed-on-outage path — a green check that reviewed nothing
 # is worse than a red one; a push or a close/reopen re-fires the review once
 # the endpoint is back.
 #
 # Env: BASE_URL, API_KEY. Optional: BACKOFF_START (default 5), BACKOFF_MAX
-# (300), WAIT_MAX (180) — all in seconds.
+# (5), WAIT_MAX (15) — all in seconds.
 set -euo pipefail
 
 # shellcheck source-path=SCRIPTDIR
@@ -31,8 +31,8 @@ if [ -z "${API_KEY:-}" ]; then
 fi
 
 delay="${BACKOFF_START:-5}"
-max="${BACKOFF_MAX:-300}"
-wait_max="${WAIT_MAX:-180}"
+max="${BACKOFF_MAX:-5}"
+wait_max="${WAIT_MAX:-15}"
 started=$(date +%s)
 while :; do
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
@@ -50,7 +50,7 @@ while :; do
   elapsed=$(( $(date +%s) - started ))
   remaining=$(( wait_max - elapsed ))
   if [ "$remaining" -le 0 ]; then
-    echo "Endpoint unreachable (HTTP $code) for ${elapsed}s, past the ${wait_max}s bound: failing so the runner is released. Re-run once the endpoint is back." >&2
+    echo "Endpoint unreachable (HTTP $code) for ${elapsed}s, past the ${wait_max}s budget: failing so the runner is released. Re-run once the endpoint is back." >&2
     exit 1
   fi
   [ "$delay" -gt "$remaining" ] && delay=$remaining

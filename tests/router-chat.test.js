@@ -77,3 +77,40 @@ test('fails when the model output lacks the required key', async () => {
 
   expect(status).toBe(1);
 });
+
+test('fails once the retry budget passes instead of holding the runner', async () => {
+  let hits = 0;
+  const server = Bun.serve({
+    port: 0,
+    fetch() {
+      hits += 1;
+      return new Response('down', { status: 503 });
+    },
+  });
+  const started = Date.now();
+  const child = Bun.spawn(['bash', script], {
+    cwd: mkdtempSync(join(tmpdir(), 'router-chat-')),
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env: {
+      ...process.env,
+      BASE_URL: `http://127.0.0.1:${server.port}/v1`,
+      API_KEY: 'test-key',
+      MODEL: 'cheap',
+      SYSTEM_PROMPT: 'test',
+      USER_FILE: '/dev/null',
+      OUT: 'out.json',
+      BACKOFF_START: '1',
+      RETRY_MAX: '2',
+    },
+  });
+  const status = await child.exited;
+  const stderr = await new Response(child.stderr).text();
+  const elapsed = Date.now() - started;
+  server.stop(true);
+
+  expect(status).toBe(1);
+  expect(stderr).toContain('past the 2s retry budget');
+  expect(elapsed).toBeLessThan(10_000);
+  expect(hits).toBeGreaterThan(1);
+});

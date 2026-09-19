@@ -33,9 +33,11 @@ failing.
 
 ## Failure contract
 
-Same as PR-Agent: if the endpoint is unreachable the review job waits with
-exponential backoff for at most three minutes, then fails and releases the
-runner. A wrong key, base URL or model fails in seconds. It never succeeds having reviewed nothing.
+Same as PR-Agent: if the endpoint is down or at capacity the review job probes
+it three times inside fifteen seconds, then fails and releases the runner; the
+completion request itself retries inside the same fifteen-second budget
+(`RETRY_MAX` in `router-chat.sh`). A wrong key, base URL or model fails at
+once. It never succeeds having reviewed nothing.
 Never make it a required check — a failure should be visible without blocking
 a push or a merge.
 
