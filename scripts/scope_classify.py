@@ -43,45 +43,21 @@ VALID_CHOICES = {
     "e2e": {"yes", "no"},
 }
 
-# Paths that always force a full run, regardless of what the classifier
-# would say. Evaluated here, in the script, never left to the model.
-# Case-insensitive, same as the keyword match below - a path's casing is
-# not something a change author should be able to use to dodge either.
-ALWAYS_FULL_PATH_PREFIXES = (".github/workflows/", "roles/openbao/")
-ALWAYS_FULL_PATH_KEYWORDS = ("secret", "auth", "ssh", "firewall", "sudo", "policy")
-
 CLASSIFY_TIMEOUT_SECONDS = 10.0
 RUBRIC_PATH = ".github/scope-rubric.md"
 
 
-def check_overrides(
-    event_name: str, base_ref: str, head_ref: str, default_branch: str, changed_paths: list[str]
-) -> tuple[bool, str]:
+def check_overrides(event_name: str) -> tuple[bool, str]:
     """Pure decision function -> (matched, reason). reason is "" when
-    matched is False, never None, so callers never have to narrow an
-    Optional they only read on the matched branch.
+    matched is False, never None.
 
-    The promotion override is git-flow's develop -> default-branch merge,
-    not "any PR targeting the default branch" - a trunk repo (ai-workflows
-    included) runs every feature PR straight into its default branch, and
-    forcing those full would make the classifier a permanent no-op there.
+    The only override is the absence of a pull request: without one there
+    is nothing to classify, so the answer is full. Every scope decision -
+    which paths mean full, what a promotion means - belongs to the rubric
+    Jev reads (.github/scope-rubric.md), never to this script.
     """
-    reasons = []
     if event_name != "pull_request":
-        reasons.append(f"event is {event_name}")
-    elif base_ref == default_branch and head_ref == "develop":
-        reasons.append(f"promotion into {default_branch} from develop")
-    lowered = [p.lower() for p in changed_paths]
-    for original, path in zip(changed_paths, lowered):
-        if any(path.startswith(prefix) for prefix in ALWAYS_FULL_PATH_PREFIXES):
-            reasons.append(f"{original} matches an always-full path")
-            break
-    for original, path in zip(changed_paths, lowered):
-        if any(keyword in path for keyword in ALWAYS_FULL_PATH_KEYWORDS):
-            reasons.append(f"{original} matches secret/auth/ssh/firewall/sudo/policy")
-            break
-    if reasons:
-        return True, "always-full override: " + "; ".join(reasons)
+        return True, f"always-full override: event is {event_name}"
     return False, ""
 
 
@@ -100,10 +76,9 @@ def fetch_default_branch(repo: str, token: str) -> str:
 
 
 def fetch_changed_files(repo: str, pr_number: str, token: str) -> list[dict]:
-    """Each item carries `previous_path` (the old path, for a rename) so a
-    rename OUT of an always-full path/keyword can still be caught by
-    check_overrides() - only reading the new filename would let a rename
-    evade the override entirely."""
+    """Each item carries `previous_path` (the old path, for a rename) and
+    `status`, so the classifier sees a rename's origin and a deletion for
+    what they are."""
     files: list[dict] = []
     page = 1
     while True:
@@ -115,6 +90,7 @@ def fetch_changed_files(repo: str, pr_number: str, token: str) -> list[dict]:
             {
                 "path": item["filename"],
                 "previous_path": item.get("previous_filename"),
+                "status": item.get("status", ""),
                 "additions": item["additions"],
                 "deletions": item["deletions"],
             }
@@ -134,9 +110,28 @@ def fetch_diff(repo: str, pr_number: str, token: str, cap_bytes: int = 61440) ->
     return text
 
 
-def build_state(repo: str, title: str, body: str, labels: list[str], files: list[dict], diff: str, private: bool) -> dict:
-    """Metadata-only for private repos; adds body/labels/diff for public ones."""
-    state = {"repo": repo, "title": title, "files": files}
+def build_state(
+    repo: str,
+    title: str,
+    body: str,
+    labels: list[str],
+    files: list[dict],
+    diff: str,
+    private: bool,
+    base_ref: str = "",
+    head_ref: str = "",
+    default_branch: str = "",
+) -> dict:
+    """Metadata-only for private repos; adds body/labels/diff for public ones.
+    The refs let the rubric's promotion rule be judged by the classifier."""
+    state = {
+        "repo": repo,
+        "title": title,
+        "files": files,
+        "base_ref": base_ref,
+        "head_ref": head_ref,
+        "default_branch": default_branch,
+    }
     if not private:
         state["body"] = (body or "")[:500]
         state["labels"] = labels
@@ -264,24 +259,18 @@ def run(env: dict[str, str]) -> tuple[dict, str, str]:
         body = env.get("PR_BODY", "")
         labels = json.loads(env.get("PR_LABELS_JSON") or "[]")
 
-        files: list[dict] = []
-        diff = ""
-        changed_paths: list[str] = []
-        default_branch = ""
-        if event_name == "pull_request" and pr_number:
-            files = fetch_changed_files(repo, pr_number, token)
-            changed_paths = [item["path"] for item in files]
-            changed_paths += [item["previous_path"] for item in files if item.get("previous_path")]
-            default_branch = fetch_default_branch(repo, token)
-            if not repo_private:
-                diff = fetch_diff(repo, pr_number, token)
+        matched, override_reason = check_overrides(event_name)
+        if matched or not pr_number:
+            return dict(FULL_DECISION), override_reason or "always-full override: no pull request number", "fallback"
 
-        matched, override_reason = check_overrides(event_name, base_ref, head_ref, default_branch, changed_paths)
-        if matched:
-            return dict(FULL_DECISION), override_reason, "fallback"
+        files = fetch_changed_files(repo, pr_number, token)
+        default_branch = fetch_default_branch(repo, token)
+        diff = "" if repo_private else fetch_diff(repo, pr_number, token)
 
         rubric = read_rubric()
-        state = build_state(repo, title, body, labels, files, diff, repo_private)
+        state = build_state(
+            repo, title, body, labels, files, diff, repo_private, base_ref, head_ref, default_branch
+        )
         decision, reason = classify(rubric, state, api_key)
         if decision is None:
             return dict(FULL_DECISION), f"classifier unavailable ({reason})", "fallback"

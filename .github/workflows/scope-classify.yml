@@ -11,15 +11,17 @@
 #
 # All decision logic lives in scripts/scope_classify.py (unit tested:
 # scripts/test_scope_classify.py), not in this YAML. This step is a
-# single invocation; the script owns the ALWAYS-FULL overrides, the
-# rubric (.github/scope-rubric.md), the content-aware GitHub API calls,
-# and the call to typesafe.ai's official `typesafe-sdk` (never a
-# hand-rolled HTTP request).
+# single invocation; the script fetches the pull request context, hands
+# it with the rubric (.github/scope-rubric.md) to typesafe.ai's official
+# `typesafe-sdk` (never a hand-rolled HTTP request), and writes the
+# answer. Every scope rule, always-full paths included, lives in the
+# rubric the classifier reads; the script decides nothing but "no pull
+# request, nothing to classify".
 #
 # Fail-safe: `timeout-minutes: 2` on the job, a 10s client-side timeout
 # on the SDK call. Any request failure, non-2xx response, timeout, or
 # unparsable answer resolves every output to the safe full/yes value
-# with `source: fallback` - the same value an ALWAYS-FULL override
+# with `source: fallback` - the same value a non-pull_request event
 # produces. The script never lets an exception escape without writing
 # that fallback decision to the summary first.
 

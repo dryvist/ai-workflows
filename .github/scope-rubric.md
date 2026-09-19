@@ -51,30 +51,30 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
   contract (API shape, ingress, auth).
 - **`e2e: no`** — everything else.
 
-## Deterministic ALWAYS-FULL overrides (not left to the model)
+## Changes that are always full (judged from the rubric, not a script)
 
-Applied in `scripts/scope_classify.py`'s `check_overrides()`, before the
-API call — matching any of these skips the call entirely and sets every
-output to `full`/`yes` with `source: fallback` and a reason naming the
-matched condition. A request failure, timeout, or unparsable answer
-produces the same `full`/`yes`/`source: fallback` result; `source: jev`
-means the classifier itself answered:
+Answer `full`/`yes` on every output for any of these, whatever the diff
+otherwise looks like:
 
-- Any file under `.github/workflows/**`.
+- A change to a workflow that still exists after the pull request: any
+  added or modified file under `.github/workflows/**`. A workflow the
+  pull request **deletes** cannot run again, so its removal alone widens
+  nothing — classify the rest of the change on its own merits.
 - Any file under `roles/openbao/**`.
-- Any changed file path matching
-  `*secret*|*auth*|*ssh*|*firewall*|*sudo*|*policy*` (case-insensitive).
+- Any changed path (including a rename's previous path) whose name
+  contains `secret`, `auth`, `ssh`, `firewall`, `sudo` or `policy`,
+  case-insensitively.
 - The pull request promotes `develop` into the repository's default
-  branch (git-flow's release promotion) — not any PR that merely
-  *targets* the default branch, which on a trunk repo (this one
-  included) is every feature PR and would make the classifier a
-  permanent no-op.
-- The triggering event is not `pull_request` (e.g. `push`).
+  branch (`head_ref` is `develop` and `base_ref` equals
+  `default_branch`) — git-flow's release promotion. A feature PR that
+  merely *targets* the default branch, which on a trunk repo is every
+  PR, is not a promotion.
 
-These conditions are the one guaranteed full sweep this rubric cannot
-narrow — the same "narrow at the consumer, force full at the promotion
-boundary" policy the org's existing `dorny/paths-filter` gates already
-follow.
+`scripts/scope_classify.py` keeps exactly one rule of its own: with no
+pull request to classify (any event but `pull_request`), every output is
+`full`/`yes` with `source: fallback`. A request failure, timeout, or
+unparsable answer produces the same result; `source: jev` means the
+classifier itself answered.
 
 ## When in doubt
 
