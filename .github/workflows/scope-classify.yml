@@ -1,0 +1,116 @@
+# Scope Classify
+#
+# Content-aware CI-scope gate. Runs first in a caller's CI gate and
+# returns `outputs` (ci, molecule, ai_review, release_notes, e2e, reason,
+# source) that downstream reusable jobs gate on, e.g.
+# `if: needs.scope.outputs.ci == 'full'`. A skipped job still satisfies a
+# required status check, so the merge gate stays green when this job
+# decides a check was not needed. This job itself always runs and always
+# writes its decision, the reason, and the source to its own summary —
+# that is the audit trail for a gate that can now skip required work.
+#
+# All decision logic lives in scripts/scope_classify.py (unit tested:
+# scripts/test_scope_classify.py), not in this YAML. This step is a
+# single invocation; the script owns the ALWAYS-FULL overrides, the
+# rubric (.github/scope-rubric.md), the content-aware GitHub API calls,
+# and the call to typesafe.ai's official `typesafe-sdk` (never a
+# hand-rolled HTTP request).
+#
+# Fail-safe: `timeout-minutes: 2` on the job, a 10s client-side timeout
+# on the SDK call. Any request failure, non-2xx response, timeout, or
+# unparsable answer resolves every output to the safe full/yes value
+# with `source: fallback` - the same value an ALWAYS-FULL override
+# produces. The script never lets an exception escape without writing
+# that fallback decision to the summary first.
+
+name: Scope Classify
+
+on:
+  workflow_call:
+    outputs:
+      ci:
+        description: full | lint-only | none
+        value: ${{ jobs.scope.outputs.ci }}
+      molecule:
+        description: full | changed-roles | none
+        value: ${{ jobs.scope.outputs.molecule }}
+      ai_review:
+        description: "yes | no"
+        value: ${{ jobs.scope.outputs.ai_review }}
+      release_notes:
+        description: "yes | no"
+        value: ${{ jobs.scope.outputs.release_notes }}
+      e2e:
+        description: "yes | no"
+        value: ${{ jobs.scope.outputs.e2e }}
+      reason:
+        description: One-line explanation of the decision
+        value: ${{ jobs.scope.outputs.reason }}
+      source:
+        description: jev | fallback
+        value: ${{ jobs.scope.outputs.source }}
+    secrets:
+      TYPESAFE_API_KEY:
+        description: Bearer token for the typesafe.ai API. Required.
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  scope:
+    name: Classify CI scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      ci: ${{ steps.classify.outputs.ci }}
+      molecule: ${{ steps.classify.outputs.molecule }}
+      ai_review: ${{ steps.classify.outputs.ai_review }}
+      release_notes: ${{ steps.classify.outputs.release_notes }}
+      e2e: ${{ steps.classify.outputs.e2e }}
+      reason: ${{ steps.classify.outputs.reason }}
+      source: ${{ steps.classify.outputs.source }}
+    steps:
+      # Reads scripts/ and .github/scope-rubric.md from the CALLER's own
+      # repo, so this only finds them when the caller is
+      # dryvist/ai-workflows itself (today's only consumer; see the
+      # dogfood caller). Wiring this reusable workflow into another
+      # repo's ci-gate.yml is a follow-up and needs this checkout changed
+      # to fetch scripts/ and the rubric from dryvist/ai-workflows
+      # explicitly, the way policy-gate.yml fetches its own scripts.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          sparse-checkout: |
+            scripts
+            .github/scope-rubric.md
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r scripts/requirements-scope-classify.txt
+
+      # No continue-on-error: the script never raises past main() (every
+      # failure resolves to a written full/fallback decision), so if this
+      # step DOES fail red, that is real - pip, setup, or a bug - and must
+      # stay visible rather than leave $GITHUB_OUTPUT empty, which would
+      # make every downstream `if: needs.scope.outputs.ci == 'full'` read
+      # false and skip required work behind a green board.
+      - name: Classify CI scope
+        id: classify
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          REPO_PRIVATE: ${{ github.event.repository.private }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: python3 scripts/scope_classify.py

@@ -737,3 +737,54 @@ mints a GitHub App installation token from `GH_APP_CLAUDE_BOT_ID` /
 `GH_APP_CLAUDE_BOT_PRIVATE_KEY` when available (org-wide in sweep mode) and
 falls back to `GITHUB_TOKEN` with a per-thread warning instead of a run
 failure.
+
+---
+
+## Scope Classify Pattern
+
+`scope-classify.yml` is a `workflow_call` reusable workflow that gates a
+caller's CI scope through a third-party classifier (typesafe.ai's `choice`
+primitive, "Jev", via the official `typesafe-sdk` Python package). It runs
+first and exports `outputs` — `ci`, `molecule`, `ai_review`,
+`release_notes`, `e2e`, `reason`, `source` — that downstream reusable jobs
+gate on, e.g. `if: needs.scope.outputs.ci == 'full'`. A skipped job still
+satisfies a required status check, so the merge gate stays green on a
+narrowed run. The job itself always runs and always writes its decision,
+reason, and source to its own summary as an audit trail.
+
+All decision logic lives in `scripts/scope_classify.py`, unit tested by
+`scripts/test_scope_classify.py` (mocks the SDK client; no network call,
+no API key needed to run it). The workflow step is a single invocation
+(`python3 scripts/scope_classify.py`) — no inline `jq`/`curl`/bash
+branching in the YAML.
+
+**Rubric**: `.github/scope-rubric.md` — job classes with measured cost and
+the per-output decision rules — is read by the script and rendered into
+the classifier prompt, so the text a caller is gated on is reviewable and
+diffable.
+
+**Deterministic overrides**: evaluated in the script before the model is
+ever called (`check_overrides()`, unit tested) — a matching change skips
+the API call and every output resolves to `full`/`yes`.
+
+**Input by repository visibility**: public repos send title, body head,
+labels, changed-file paths with line stats, and the unified diff (capped
+at 60 KiB, fetched via the GitHub API). Private repos send changed-file
+paths, line stats, and title only — no diff content leaves the runner.
+
+**Fail-safe**: `timeout-minutes: 2` on the job, a 10s client-side timeout
+on the SDK call. Any request failure, non-2xx response, timeout,
+unparsable answer, or **out-of-enum choice value** resolves every output
+to `full`/`yes` with `source: fallback` — the same safe value an override
+produces. `run()` never lets an exception escape without returning that
+fallback decision, and the classify step has no `continue-on-error`: a
+red step must stay visibly red, not leave `outputs` empty behind a green
+board.
+
+**Output hygiene**: every value written to `$GITHUB_OUTPUT`, the summary,
+or the `::notice::` line is passed through `_sanitize()` (strips CR/LF)
+first — PR title/body/diff text is untrusted model input, and the
+override `reason` embeds raw file paths, so nothing derived from them
+reaches an Actions output unsanitized. A rename's `previous_path` is
+included alongside its new path when checking overrides, so renaming a
+file out of an always-full location can't evade it.
