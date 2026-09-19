@@ -10,9 +10,6 @@ permissions:
 jobs:
   thread-triage:
     uses: ./.github/workflows/thread-triage.yml
-    with:
-      # Exercise the reviewed pull request's own scripts.
-      scripts_ref: ${{ github.event.pull_request.head.sha }}
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

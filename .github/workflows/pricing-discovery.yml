@@ -31,11 +31,6 @@ on:
         type: string
         required: false
         default: develop
-      scripts_ref:
-        description: Commit or ref of dryvist/ai-workflows to take the scripts from.
-        type: string
-        required: false
-        default: ""
       dry_run:
         description: >-
           Print the PR and Vikunja task bodies as a job summary; open nothing,
@@ -67,21 +62,15 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     timeout-minutes: 10
     steps:
-      # `scripts_ref` is CHECKED OUT THEN EXECUTED (run.js/open-pr-cli.js), so it
-      # must be empty (default branch) or a full commit SHA — never a
-      # branch/tag name a future write-access change could re-point to
-      # untrusted content. Same shape as docs-publisher.yml's
-      # `implementation_ref` validation. `registry_ref` is only ever parsed
-      # as YAML data, never executed, so a branch name is fine there — still
-      # restricted to a safe ref character set as defense in depth.
-      - name: Validate refs before checkout
+      # `registry_ref` is only ever parsed as YAML data, never executed, so a
+      # branch name is fine there — still restricted to a safe ref character
+      # set as defense in depth. The scripts come from this workflow's own
+      # commit (`job.workflow_sha`), never from an input.
+      - name: Validate the registry ref before checkout
         env:
-          SCRIPTS_REF: ${{ inputs.scripts_ref }}
           REGISTRY_REF: ${{ inputs.registry_ref }}
         run: |
-          [[ "$SCRIPTS_REF" != *$'\n'* ]] || { echo "::error::SCRIPTS_REF must be a single line"; exit 1; }
           [[ "$REGISTRY_REF" != *$'\n'* ]] || { echo "::error::REGISTRY_REF must be a single line"; exit 1; }
-          [[ -z "$SCRIPTS_REF" ]] || grep -Exq '[0-9a-f]{40}' <<<"$SCRIPTS_REF"
           grep -Exq '[A-Za-z0-9._/-]+' <<<"$REGISTRY_REF"
 
       - name: Checkout the model registry (read-write target)
@@ -96,7 +85,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ inputs.scripts_ref }}
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: |
             .github/scripts
             package.json

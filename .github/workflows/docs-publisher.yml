@@ -7,10 +7,6 @@ on:
         description: "Curate the private projection or publish it"
         type: string
         required: true
-      implementation_ref:
-        description: "Full ai-workflows commit SHA used to load scripts"
-        type: string
-        required: true
       runner_label:
         description: "Self-hosted runner label"
         type: string
@@ -82,10 +78,6 @@ jobs:
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: 30
     steps:
-      - name: Validate pinned implementation
-        env:
-          IMPLEMENTATION_REF: ${{ inputs.implementation_ref }}
-        run: grep -Eq '^[0-9a-f]{40}$' <<<"$IMPLEMENTATION_REF"
       - name: Checkout private documentation
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -95,7 +87,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ inputs.implementation_ref }}
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: |
             .github/scripts
             package.json
@@ -109,21 +101,31 @@ jobs:
         env:
           DOCS_LOCAL_AI_API_KEY: ${{ secrets.DOCS_LOCAL_AI_API_KEY }}
           DOCS_BASE_SHA: ${{ inputs.base_sha }}
+          SOURCE_ROOT: ${{ inputs.source_root }}
+          PROJECTION_ROOT: ${{ inputs.projection_root }}
+          MANIFEST_PATH: ${{ inputs.manifest_path }}
+          LOCAL_AI_ENDPOINT: ${{ inputs.local_ai_endpoint }}
+          LOCAL_AI_ALLOWED_HOSTS: ${{ inputs.local_ai_allowed_hosts }}
+          LOCAL_AI_MODEL: ${{ inputs.local_ai_model }}
         run: >-
           bun .ai-workflows/.github/scripts/docs-publisher/publisher.js curate
-          --source "${{ inputs.source_root }}"
-          --projection "${{ inputs.projection_root }}"
-          --manifest "${{ inputs.manifest_path }}"
-          --endpoint "${{ inputs.local_ai_endpoint }}"
-          --allowed-hosts "${{ inputs.local_ai_allowed_hosts }}"
-          --model "${{ inputs.local_ai_model }}"
+          --source "$SOURCE_ROOT"
+          --projection "$PROJECTION_ROOT"
+          --manifest "$MANIFEST_PATH"
+          --endpoint "$LOCAL_AI_ENDPOINT"
+          --allowed-hosts "$LOCAL_AI_ALLOWED_HOSTS"
+          --model "$LOCAL_AI_MODEL"
       - name: Validate curated projection
+        env:
+          PROJECTION_ROOT: ${{ inputs.projection_root }}
+          MANIFEST_PATH: ${{ inputs.manifest_path }}
+          SITE_TEMPLATE_PATH: ${{ inputs.site_template_path }}
         run: >-
           bun .ai-workflows/.github/scripts/docs-publisher/publisher.js convert
           --repository .
-          --source "${{ inputs.projection_root }}"
-          --manifest "${{ inputs.manifest_path }}"
-          --template "${{ inputs.site_template_path }}"
+          --source "$PROJECTION_ROOT"
+          --manifest "$MANIFEST_PATH"
+          --template "$SITE_TEMPLATE_PATH"
           --output "$RUNNER_TEMP/docs-public"
       - name: Scan curated output
         run: bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan --source "$RUNNER_TEMP/docs-public"
@@ -160,10 +162,6 @@ jobs:
     runs-on: ${{ inputs.runner_label }}
     timeout-minutes: 15
     steps:
-      - name: Validate pinned implementation
-        env:
-          IMPLEMENTATION_REF: ${{ inputs.implementation_ref }}
-        run: grep -Eq '^[0-9a-f]{40}$' <<<"$IMPLEMENTATION_REF"
       - name: Checkout private projection
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -172,7 +170,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ inputs.implementation_ref }}
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: |
             .github/scripts
             package.json
@@ -183,12 +181,16 @@ jobs:
         working-directory: .ai-workflows
         run: bun install --frozen-lockfile
       - name: Build deterministic Mintlify projection
+        env:
+          PROJECTION_ROOT: ${{ inputs.projection_root }}
+          MANIFEST_PATH: ${{ inputs.manifest_path }}
+          SITE_TEMPLATE_PATH: ${{ inputs.site_template_path }}
         run: >-
           bun .ai-workflows/.github/scripts/docs-publisher/publisher.js convert
           --repository .
-          --source "${{ inputs.projection_root }}"
-          --manifest "${{ inputs.manifest_path }}"
-          --template "${{ inputs.site_template_path }}"
+          --source "$PROJECTION_ROOT"
+          --manifest "$MANIFEST_PATH"
+          --template "$SITE_TEMPLATE_PATH"
           --output "$RUNNER_TEMP/docs-public"
       - name: Scan public output
         run: bun .ai-workflows/.github/scripts/docs-publisher/publisher.js scan --source "$RUNNER_TEMP/docs-public"

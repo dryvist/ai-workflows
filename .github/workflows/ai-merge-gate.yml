@@ -4,5 +4,3 @@ permissions: read-all
 jobs:
   gate:
     uses: ./.github/workflows/_ai-merge-gate.yml
-    with:
-      scripts_ref: ${{ github.event.pull_request.head.sha }}

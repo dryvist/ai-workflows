@@ -51,6 +51,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
@@ -107,6 +108,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-workflows
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: .github/scripts/issue-triage
           path: .ai-workflows-publisher
           persist-credentials: false
