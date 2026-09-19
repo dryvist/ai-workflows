@@ -8,9 +8,9 @@
 # artifact, and — when the push came from a merged pull request — one sticky
 # comment on that pull request so the author sees it.
 #
-# A router outage makes the job WAIT (exponential backoff, five-minute cap) and
-# then FAIL when timeout-minutes runs out; it never reports success having
-# checked nothing. It needs a runner that can reach the router. Do not make
+# A router outage FAILS the job, releasing the runner (the router admits or
+# refuses at once; the job is capped at ten minutes); it never reports
+# success having checked nothing. It needs a runner that can reach the router. Do not make
 # this a required check.
 #
 # This is a reusable workflow that can be called from other repositories.
@@ -95,7 +95,7 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
       contents: read
-    timeout-minutes: 60
+    timeout-minutes: 10
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
     steps:
@@ -122,16 +122,25 @@ jobs:
         run: bash .ai-workflows/.github/scripts/docs-drift/collect.sh
 
       - name: Request drift report
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-          MODEL: ${{ inputs.model }}
-          MAX_TOKENS: ${{ inputs.max_tokens }}
-          REPO: ${{ github.repository }}
-        run: bash .ai-workflows/.github/scripts/docs-drift/request.sh
+        id: drift
+        if: hashFiles('drift.skip') == ''
+        uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
+        with:
+          endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          token: ${{ secrets.LLM_ROUTER_API_KEY }}
+          model: ${{ inputs.model }}
+          max-completion-tokens: ${{ inputs.max_tokens }}
+          temperature: "0"
+          prompt-file: .ai-workflows/.github/scripts/docs-drift/docs-drift.prompt.yml
+          file_input: |
+            changed: changed.txt
+            diff: diff.txt
+            docs: docs.txt
+          custom-headers: "x-langfuse-trace-name: docs-drift"
 
       - name: Render report
         env:
+          RESPONSE_FILE: ${{ steps.drift.outputs.response-file }}
           MODEL: ${{ inputs.model }}
           COMMIT_SHA: ${{ github.sha }}
         run: bash .ai-workflows/.github/scripts/docs-drift/render.sh
@@ -171,7 +180,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7

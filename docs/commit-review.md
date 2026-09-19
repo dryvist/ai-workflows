@@ -17,9 +17,10 @@ failing.
 
 ## Failure contract
 
-Same as PR-Agent: if the router is unreachable the review job waits with
-exponential backoff and fails on `timeout-minutes` (60). A wrong key, base
-URL or alias fails in seconds. It never succeeds having reviewed nothing.
+If the router is unreachable or at capacity the review job fails, releasing
+the runner: `actions/ai-inference` retries a connection failure or 5xx twice,
+and the job is capped at ten minutes. A wrong key, base URL or alias fails
+at once. It never succeeds having reviewed nothing.
 Never make it a required check — a failure should be visible without blocking
 a push or a merge.
 

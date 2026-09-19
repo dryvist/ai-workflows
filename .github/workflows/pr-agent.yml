@@ -14,11 +14,12 @@
 #    is the shared self-hosted pool, the only one that reaches the internal
 #    router; a GitHub-hosted runner can only be paired with an endpoint on the
 #    public internet.
-# 2. An endpoint outage makes the job WAIT (exponential backoff, five-minute
-#    cap) and then FAIL when timeout-minutes runs out. It never reports success
-#    having reviewed nothing. The org ruleset injects this workflow into every
-#    pull request as a required check, so an outage blocks merges until it
-#    clears; timeout-minutes is the bound on how long each waits.
+# 2. A router that is down or at capacity FAILS the job, releasing the
+#    runner: the router admits or refuses at once, and the job is capped at
+#    ten minutes. It never reports success having reviewed nothing. The org
+#    ruleset injects this workflow
+#    into every pull request as a required check, so an outage blocks merges
+#    until it clears and the review is re-fired by a push or a close/reopen.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -57,10 +58,8 @@ on:
         default: ""
       model:
         description: >-
-          Model to call, as the endpoint names it. Against the router this is
-          always a ROLE alias it resolves (e.g. cheap, subagent), never a
-          vendor id; against an external endpoint it is that vendor's model
-          id, because nothing else resolves it.
+          Router ROLE alias to call (e.g. cheap, subagent), never a vendor
+          model id; the router resolves it and walks the role's own chain.
         type: string
         required: false
         default: cheap
@@ -125,8 +124,8 @@ permissions:
 # cancels the older pending run when a newer one queues; with a per-repository
 # group, two sibling pull requests pushing inside one review window cancelled
 # the third's required check and left it blocked. A per-PR group means a
-# router outage can park one runner per open pull request; timeout-minutes is
-# the bound. cancel-in-progress stays false — a superseded head's review is
+# router outage costs one runner per open pull request for one refused
+# request, no more. cancel-in-progress stays false — a superseded head's review is
 # still queued behind the new one rather than thrown away.
 concurrency:
   group: pr-agent-${{ github.repository }}-${{ github.event.pull_request.number }}
@@ -143,7 +142,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -153,12 +152,6 @@ jobs:
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
-
-      - name: Wait for the router
-        env:
-          BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-        run: bash .ai-workflows/.github/scripts/shared/wait-for-router.sh
 
       - name: Run PR-Agent
         env:

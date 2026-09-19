@@ -29,15 +29,10 @@ on:
         type: string
         default: "5"
     secrets:
-      # Declaring any secret ends the implicit "inherit is the only contract"
-      # state, so every secret is declared - all optional, so a caller using
-      # `secrets: inherit` is unaffected.
-      GH_ACTION_AI_API_KEY:
-        description: "Anthropic API key for the claude-mode agent"
-        required: false
-      OPENAI_API_KEY:
-        description: "OpenAI API key for the claude-mode agent's codex backend"
-        required: false
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
       GH_APP_CLAUDE_BOT_PRIVATE_KEY:
         description: "Private key of the App that opens the claude-mode PR"
         required: false
@@ -115,9 +110,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    timeout-minutes: 15
-    env:
-      ANTHROPIC_BASE_URL: ${{ vars.GH_ACTION_AI_BASE_URL }}
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -156,9 +149,8 @@ jobs:
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh search:*)"
           permission_profile: workspace
-          anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          openai_responses_api_endpoint: ${{ vars.GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT }}
+          base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
 

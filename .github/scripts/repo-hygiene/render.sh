@@ -10,10 +10,10 @@ out="${OUT_FILE:-repo-hygiene-digest.md}"
   echo "_Read-only advisory. Nothing here was changed, deleted, or merged._"
   echo
 
-  if [ -s summary.txt ]; then
+  if [ -s "${RESPONSE_FILE:-}" ]; then
     echo "### Summary"
     echo
-    cat summary.txt
+    head -n 5 "$RESPONSE_FILE"
     echo
   fi
 

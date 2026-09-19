@@ -29,7 +29,7 @@ repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
     commit-review/
     release-notes/
     review-thread-resolver/
-    shared/                         # incl. router-chat.sh, wait-for-router.sh
+    shared/
     verification/
   workflows/
     *.yml                           # Pure YAML workflow definitions (no embedded content)
@@ -47,13 +47,17 @@ There are three families, and they do not share a credential contract:
    repository's own `.pr_agent.toml`; see docs/pr-agent.md.
 3. **Router workflows** (`commit-review`, `thread-triage`, `docs-drift`,
    `repo-hygiene-digest`)
-   make one chat completion through `scripts/shared/router-chat.sh`. They take
-   `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY` — both secrets — and default
-   to a `self-hosted` runner, because only such a runner reaches the router.
+   make one chat completion with `actions/ai-inference` (a `.prompt.yml`
+   beside the workflow's scripts holds the messages and, where the answer is
+   JSON, the schema). They take `LLM_ROUTER_BASE_URL` and
+   `LLM_ROUTER_API_KEY` — both secrets — and default to a `self-hosted`
+   runner, because only such a runner reaches the router.
 
-A router workflow that cannot reach the router WAITS with exponential backoff
-and then FAILS on the job timeout. Never restore a skip-and-succeed path: a
-green check that did no work is what these replaced.
+A router workflow that cannot reach the router FAILS, releasing the runner:
+the action's client retries a connection failure or 5xx twice and gives up,
+and the job is capped at ten minutes. CI never waits for a model beyond that.
+Never restore a skip-and-succeed path: a green check that did no work is what
+these replaced.
 
 Non-AI utility workflows (`ci-fail-issue`, `review-thread-resolver`) use plain
 `actions/github-script` — see docs/PATTERNS.md "Non-AI Utility Workflow
@@ -186,21 +190,18 @@ park the whole shared pool.
 ### Authentication
 
 Agentic workflows select their implementation with org/repo variable
-`GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Keep the credentials
-separate: Claude uses `GH_ACTION_AI_API_KEY`; Codex uses `OPENAI_API_KEY`.
-Explicit-secret callers forward both so the selector is the only switch.
+`GH_ACTION_AI_AGENT=claude|codex` (default `claude`). Both agents talk to the
+org's model router through the `run-ai-agent` adapter, which derives the
+Messages route (Claude Code) and the Responses route (Codex) from one pair
+of secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The
+base URL is a secret, not a variable — a run log prints each step's
+environment verbatim, and these repositories are public. `pr-agent.yml` and
+the router workflows speak the OpenAI protocol to the router with the same
+pair.
 
-Provider tuning stays optional. Claude uses `GH_ACTION_AI_BASE_URL` and the
-existing `GH_ACTION_AI_MODEL*` variables. Codex uses
-`GH_ACTION_AI_CODEX_RESPONSES_API_ENDPOINT`, `GH_ACTION_AI_CODEX_MODEL`,
-`GH_ACTION_AI_CODEX_EFFORT`, and `GH_ACTION_AI_CODEX_VERSION`. Never hard-code
-model IDs. See `docs/AUTHENTICATION.md`.
-
-`pr-agent.yml` and the router workflows use a different contract, because the
-router speaks the OpenAI protocol rather than Anthropic's: secrets
-`LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required. The base URL is a
-secret, not a variable — a run log prints each step's environment verbatim, and
-these repositories are public.
+A model variable (`GH_ACTION_AI_MODEL*`, `GH_ACTION_AI_CODEX_MODEL`) names a
+router role alias, never a vendor model id. `GH_ACTION_AI_CODEX_EFFORT` and
+`GH_ACTION_AI_CODEX_VERSION` stay optional. See `docs/AUTHENTICATION.md`.
 
 Agent jobs must not receive a write-capable GitHub token or App token. Publish
 comments, labels, commits, and PRs deterministically from a fresh job with the

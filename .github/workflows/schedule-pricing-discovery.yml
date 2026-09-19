@@ -1,6 +1,8 @@
 # Weekly trigger for Pricing Discovery (agents file W1 D1). Runs on the
-# proxmox-fleet self-hosted runner: it already mints its own OpenBao/GitHub
-# credentials and needs no Mac and no GPU.
+# shared self-hosted pool (no Mac, no GPU needed). timeout-minutes bounds a
+# job only once it has a runner: the previous `proxmox-fleet` label matched no
+# runner, so each weekly run sat queued for the 24 h GitHub allows and was
+# cancelled having done nothing.
 name: Schedule Pricing Discovery
 
 on:
@@ -22,7 +24,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/pricing-discovery.yml
     with:
-      runner_label: proxmox-fleet
+      runner_label: self-hosted
       dry_run: ${{ inputs.dry_run || false }}
     secrets:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

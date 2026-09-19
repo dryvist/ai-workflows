@@ -1,5 +1,9 @@
 name: Run AI agent
-description: Run the selected AI coding agent with a common, least-privilege interface.
+description: >-
+  Run the selected AI coding agent with a common, least-privilege interface.
+  Both agents talk to the org's model router and nothing else: Claude Code
+  through its /v1/messages route, Codex through its /v1/responses route. A
+  model name is a router role alias, never a vendor id.
 
 inputs:
   agent:
@@ -14,7 +18,10 @@ inputs:
     required: false
     default: ""
   codex_model:
-    description: Optional Codex model override. An empty value uses the provider default.
+    description: >-
+      Optional Codex role override. An empty value uses claude_model: a
+      router role is provider-neutral, and the provider default would be a
+      vendor id the router does not serve.
     required: false
     default: ""
   model:
@@ -35,28 +42,14 @@ inputs:
     description: Additional arguments passed to Codex.
     required: false
     default: ""
-  anthropic_api_key:
-    description: Anthropic API key used when agent is claude.
-    required: false
-    default: ""
-  claude_code_oauth_token:
+  base_url:
     description: >-
-      Deprecated compatibility alias for anthropic_api_key. The value is sent
-      to Claude as an Anthropic API key, not as an OAuth token.
-    required: false
-    default: ""
-  openai_api_key:
-    description: OpenAI API key used when agent is codex.
-    required: false
-    default: ""
-  openai_responses_api_endpoint:
-    description: Optional Responses API endpoint override for Codex.
-    required: false
-    default: ""
-  responses_api_endpoint:
-    description: Deprecated compatibility alias for openai_responses_api_endpoint.
-    required: false
-    default: ""
+      Router base URL ending in /v1. Claude Code is pointed at its parent
+      (it appends /v1/messages itself) and Codex at its /responses child.
+    required: true
+  api_key:
+    description: Router key sent as the bearer token by both agents.
+    required: true
   openai_effort:
     description: Optional Codex reasoning-effort override.
     required: false
@@ -95,9 +88,8 @@ inputs:
 outputs:
   agent:
     description: >-
-      Agent that ran. Reflects a prepare-time fallback (openai_api_key
-      missing) or a runtime fallback (codex ran but failed, e.g. exhausted
-      provider quota) to claude.
+      Agent that ran. Reflects a runtime fallback (codex ran but failed,
+      e.g. exhausted provider quota) to claude.
     value: >-
       ${{ steps.codex.outcome == 'failure' && steps.claude.outcome == 'success' && 'claude (codex fallback)' || steps.prepare.outputs.effective-agent }}
   result:
@@ -128,10 +120,10 @@ runs:
       env:
         AGENT: ${{ inputs.agent }}
         ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
-        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+        API_KEY: ${{ inputs.api_key }}
+        BASE_URL: ${{ inputs.base_url }}
         CLAUDE_ARGS: ${{ inputs.claude_args }}
         CLAUDE_MODEL: ${{ inputs.claude_model || inputs.model }}
-        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         PERMISSION_PROFILE: ${{ inputs.permission_profile }}
       run: '"$GITHUB_ACTION_PATH/prepare.sh" validate'
 
@@ -178,11 +170,11 @@ runs:
         GH_TOKEN: ${{ github.token }}
       with:
         prompt: ${{ inputs.prompt }}
-        openai-api-key: ${{ inputs.openai_api_key }}
-        responses-api-endpoint: ${{ inputs.openai_responses_api_endpoint || inputs.responses_api_endpoint }}
+        openai-api-key: ${{ inputs.api_key }}
+        responses-api-endpoint: ${{ steps.prepare.outputs.responses-endpoint }}
         working-directory: ${{ inputs.working_directory }}
         permission-profile: ${{ steps.prepare.outputs.permission-profile }}
-        model: ${{ inputs.codex_model }}
+        model: ${{ inputs.codex_model || inputs.claude_model || inputs.model }}
         effort: ${{ inputs.openai_effort || inputs.effort }}
         codex-version: ${{ inputs.codex_version }}
         codex-args: ${{ inputs.codex_args }}
@@ -198,11 +190,15 @@ runs:
         steps.prepare.outputs.effective-agent == 'claude' ||
         steps.codex.outcome == 'failure'
       uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
+      env:
+        # The CLI's own variable name; it points at the router.
+        ANTHROPIC_BASE_URL: ${{ steps.prepare.outputs.claude-base-url }}
       with:
         # Supplying the job-scoped token prevents Claude Code Action from
         # exchanging OIDC for its own write-capable GitHub App token.
         github_token: ${{ github.token }}
-        anthropic_api_key: ${{ inputs.anthropic_api_key || inputs.claude_code_oauth_token }}
+        # The action's own input name; it carries the router key.
+        anthropic_api_key: ${{ inputs.api_key }}
         allowed_bots: ${{ inputs.allowed_bots }}
         use_commit_signing: "false"
         prompt: ${{ inputs.prompt }}

@@ -82,5 +82,7 @@ while read -r thread; do
 done < <(jq -c '.[]' unresolved.json)
 
 jq -s '.' threads.jsonl > threads.json
-rm -f threads.raw.json unresolved.json threads.jsonl
+rm -f threads.raw.json unresolved.json threads.jsonl triage.empty
 echo "Collected $(jq 'length' threads.json) unresolved thread(s)."
+# The marker the workflow gates the model call on.
+[ "$(jq 'length' threads.json)" -gt 0 ] || echo "no unresolved review threads" > triage.empty

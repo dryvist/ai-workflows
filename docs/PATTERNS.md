@@ -27,8 +27,8 @@ Used by most workflows. Static prompt, least-privilege agent access.
   uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
   with:
     agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
-    anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-    openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+    base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+    api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
     allowed_bots: "github-actions"
     prompt: ${{ steps.prompt.outputs.content }}
     allowed_tools: "Read,Glob,Grep,LS"
@@ -128,8 +128,8 @@ steps:
       claude_model: ${{ vars.GH_ACTION_AI_MODEL_PLAN || vars.GH_ACTION_AI_MODEL }}
       codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
       allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git status:*)"
-      anthropic_api_key: ${{ secrets.GH_ACTION_AI_API_KEY }}
-      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
       permission_profile: workspace
       use_commit_signing: "false"
 
