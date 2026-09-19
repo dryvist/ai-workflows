@@ -34,10 +34,11 @@ on every pull request, so an outage blocks merges until the review is re-fired
 ## Runner
 
 `runner_label` defaults to `self-hosted`. The router is only reachable from
-inside the estate, so a GitHub-hosted runner cannot review anything against
-it. The runner must reach whatever `LLM_ROUTER_BASE_URL` names: pair a
-GitHub-hosted label only with an external endpoint, as the org-required
-caller does for public repositories.
+inside the estate, so nothing else can review anything. Repository visibility
+picks the router key and role — a private repo uses `LLM_ROUTER_API_KEY` with
+`model`, a public repo `LLM_PUBLIC_REVIEW_API_KEY` with `public_model` — and
+each role carries its own fallback ladder on the router, so where a diff may
+travel is decided there, never here.
 
 PR-Agent runs as its published container through the CLI it documents, not as
 a container action: the shared runner pool passes the Docker socket through
@@ -50,9 +51,11 @@ request over the API — and the image is pinned by digest in
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `self-hosted` | Runner label; must reach the endpoint in `LLM_ROUTER_BASE_URL` |
-| `model` | `cheap` | Model as the endpoint names it: a router **role alias** (never a vendor id), or the vendor's id against an external endpoint |
-| `fallback_model` | `subagent` | Comma-separated ladder to retry on after an error, named the same way; same key and endpoint |
+| `runner_label` | `self-hosted` | Runner label; must reach the router |
+| `model` | `review-private` | Private repos: router **role alias** (never a vendor id) one `LLM_ROUTER_API_KEY` may call |
+| `public_model` | `review-public` | Public repos: router role alias one `LLM_PUBLIC_REVIEW_API_KEY` may call |
+| `fallback_models` | empty | Private repos: further roles, comma-separated, walked in order on any error |
+| `public_fallback_models` | empty | Public repos: the same after `public_model` |
 | `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
 | `improve` | `false` | Run the improve tool |
@@ -62,11 +65,12 @@ request over the API — and the image is pinned by digest in
 
 | Name | Kind | Holds |
 | --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions **secret** | The endpoint's OpenAI-compatible base URL: the router's (ending in `/v1`) or an external provider's |
-| `LLM_ROUTER_API_KEY` | Actions **secret** | Key for that endpoint: the scoped router key for CI (never the router's master key) or the provider's key |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1` |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | Scoped router virtual key for private repositories (never the router's master key) |
+| `LLM_PUBLIC_REVIEW_API_KEY` | Actions **secret** | A second router virtual key, scoped to the public role; read only on a public repo |
 
-Both are secrets, and both are required. The base URL is a secret rather than a
-variable because a run log prints each step's environment verbatim, and these
+The first two are required. The base URL is a secret rather than a variable
+because a run log prints each step's environment verbatim, and these
 repositories are public.
 
 ## Prompts live in the consumer repository
@@ -112,6 +116,7 @@ jobs:
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+      LLM_PUBLIC_REVIEW_API_KEY: ${{ secrets.LLM_PUBLIC_REVIEW_API_KEY }}
 ```
 
 Do **not** give the caller a `concurrency:` block that repeats this workflow's

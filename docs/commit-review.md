@@ -8,19 +8,20 @@ unreviewed.
 
 ## Where it runs
 
-Repository visibility decides, inside the reusable workflow, unless the caller
-pins `runner_label`:
+Every review goes through the org's model router, on the `self-hosted` pool
+(the only runners that reach it). Repository visibility, read inside the
+reusable workflow, picks the router key and role — nothing else:
 
-| Visibility | Runner | Endpoint secrets | Model |
-| --- | --- | --- | --- |
-| private | `self-hosted` | `LLM_ROUTER_BASE_URL` / `LLM_ROUTER_API_KEY` | `model` (router role alias) |
-| public | `ubuntu-latest` | `LLM_PUBLIC_REVIEW_BASE_URL` / `LLM_PUBLIC_REVIEW_API_KEY` | `public_model` (the vendor's id) |
+| Visibility | Key | Role |
+| --- | --- | --- |
+| private | `LLM_ROUTER_API_KEY` | `model` (default `review-private`) |
+| public | `LLM_PUBLIC_REVIEW_API_KEY` | `public_model` (default `review-public`) |
 
-Only the self-hosted pool reaches the router, so private diffs never leave the
-estate. The expressions hand a private repo the router pair and never read
-the public one there; the only fall-through is public to router, which a
-GitHub-hosted runner cannot reach — a missing public secret fails at the
-endpoint probe instead of reviewing on the wrong path.
+Each role carries its own fallback ladder on the router — local rungs first,
+then whatever overflow the role allows — so where a diff may travel is
+decided by the role and the key that may call it, never by this workflow.
+The expressions never read the public key on a private repo; the only
+fall-through is public to `LLM_ROUTER_API_KEY` when the public key is unset.
 
 ## What it reviews
 
@@ -45,13 +46,13 @@ a push or a merge.
 
 Two things absorb a burst of pushes:
 
-- The per-repository concurrency group queues pushes (`cancel-in-progress:
-  false`); one repository's backlog holds one runner slot, never the pool.
-- On the router, the role alias (`model`, default `cheap`) carries its own
-  fallback ladder, edited in the router's admin UI. A busy first rung falls
-  through to the next rather than failing the review, and the ladder can be
-  re-ranked without touching this workflow. The external endpoint has no
-  ladder; its own capacity is the bound.
+- The per-ref concurrency group queues pushes (`cancel-in-progress: false`);
+  one branch's backlog holds one runner slot, never the pool.
+- On the router, the role carries its own fallback ladder, edited in the
+  router's admin UI. A busy first rung falls through to the next rather than
+  failing the review, and the ladder can be re-ranked without touching this
+  workflow. `fallback_models` / `public_fallback_models` add further roles
+  after that, each inside its own fifteen-second retry budget.
 
 ## Permissions
 
@@ -63,18 +64,20 @@ endpoint requires; that job runs no model and reads no secret.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | empty | Runner label; empty picks by visibility (see above). Must reach the endpoint the job is given |
+| `runner_label` | `self-hosted` | Runner label; must reach the router |
 | `scripts_ref` | default branch | Ref of this repository to take the scripts from |
-| `model` | `cheap` | Private repos: router **role alias** — never a vendor model id; must be one the CI key may reach |
-| `public_model` | `glm-5.3-flash` | Public repos: the external endpoint's model id |
-| `public_fallback_models` | `glm-4.7-flash,glm-4.5-flash` | Public repos: ladder walked in order, each with its own retry budget, when `public_model` errors |
+| `model` | `review-private` | Private repos: router **role alias** — never a vendor model id; one `LLM_ROUTER_API_KEY` may call |
+| `public_model` | `review-public` | Public repos: router role alias one `LLM_PUBLIC_REVIEW_API_KEY` may call |
+| `fallback_models` | empty | Private repos: further roles, comma-separated, walked in order when `model` errors |
+| `public_fallback_models` | empty | Public repos: the same after `public_model` |
 | `max_diff_kb` | `150` | Truncate the pushed diff at this many KiB |
 | `max_tokens` | `1500` | Completion ceiling |
 
 Secrets: `LLM_ROUTER_BASE_URL` and `LLM_ROUTER_API_KEY`, both required, same
-contract as [PR-Agent](pr-agent.md#configuration); `LLM_PUBLIC_REVIEW_BASE_URL`
-and `LLM_PUBLIC_REVIEW_API_KEY`, optional, passed by every caller and read
-only on a public repo.
+contract as [PR-Agent](pr-agent.md#configuration); `LLM_PUBLIC_REVIEW_API_KEY`,
+optional, a second router key scoped to the public role, read only on a
+public repo. `LLM_PUBLIC_REVIEW_BASE_URL` is deprecated and ignored — still
+accepted so existing callers validate; drop it.
 
 ## Caller
 
@@ -91,6 +94,5 @@ jobs:
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
-      LLM_PUBLIC_REVIEW_BASE_URL: ${{ secrets.LLM_PUBLIC_REVIEW_BASE_URL }}
       LLM_PUBLIC_REVIEW_API_KEY: ${{ secrets.LLM_PUBLIC_REVIEW_API_KEY }}
 ```
