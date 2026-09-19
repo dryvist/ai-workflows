@@ -3,8 +3,8 @@
 # Runs PR-Agent's review, improve and describe tools against the org's model
 # router, on the self-hosted pool (the only runners that reach it).
 # Repository visibility picks the router KEY and ROLE, nothing else: a private
-# repo uses LLM_ROUTER_API_KEY with `model`, a public repo
-# LLM_PUBLIC_REVIEW_API_KEY with `public_model`. Each role carries its own
+# repo uses LLM_ROUTER_API_KEY with `model`, an open-source repo
+# LLM_ROUTER_OSS_API_KEY with `oss_model`. Each role carries its own
 # fallback ladder on the router, so where a diff may travel is decided by the
 # role and the key that may call it, never here.
 # Per-repository prompt customisation — the review checklist, what "simplify"
@@ -63,13 +63,13 @@ on:
         type: string
         required: false
         default: review-private
-      public_model:
+      oss_model:
         description: >-
-          Router ROLE alias called on a public repo, one
-          LLM_PUBLIC_REVIEW_API_KEY is scoped to reach.
+          Router ROLE alias called on an open-source repo, one
+          LLM_ROUTER_OSS_API_KEY is scoped to reach.
         type: string
         required: false
-        default: review-public
+        default: review-oss
       max_tokens:
         description: >-
           Input context the alias can be assumed to hold, for PR-Agent's own
@@ -106,10 +106,15 @@ on:
           Scoped router virtual key for private repositories (never the
           router's master key).
         required: true
+      LLM_ROUTER_OSS_API_KEY:
+        description: >-
+          A second router virtual key, scoped to the role open-source
+          repositories may call. Read only on such a repo.
+        required: false
       LLM_PUBLIC_REVIEW_API_KEY:
         description: >-
-          A second router virtual key, scoped to the public role. Read only
-          on a public repo.
+          Deprecated and ignored, removed next release: pass
+          LLM_ROUTER_OSS_API_KEY. Still accepted so existing callers validate.
         required: false
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -154,9 +159,9 @@ jobs:
       - name: Run PR-Agent
         env:
           BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          API_KEY: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          API_KEY: ${{ !github.event.repository.private && secrets.LLM_ROUTER_OSS_API_KEY || secrets.LLM_ROUTER_API_KEY }}
           JOB_TOKEN: ${{ github.token }}
-          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.oss_model }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
           CONFIG_BRANCH: ${{ github.head_ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}

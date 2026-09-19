@@ -10,8 +10,8 @@
 # and ROLE, nothing else:
 #
 #   private repo -> LLM_ROUTER_API_KEY with `model` (default review-private)
-#   public repo  -> LLM_PUBLIC_REVIEW_API_KEY with `public_model`
-#                   (default review-public)
+#   open-source repo -> LLM_ROUTER_OSS_API_KEY with `oss_model`
+#                       (default review-oss)
 #
 # Each role carries its own fallback ladder on the router — local rungs first,
 # then whatever overflow the role allows — so where a diff may travel is
@@ -61,13 +61,13 @@ on:
         type: string
         required: false
         default: review-private
-      public_model:
+      oss_model:
         description: >-
-          Router ROLE alias called on a public repo, one
-          LLM_PUBLIC_REVIEW_API_KEY is scoped to reach.
+          Router ROLE alias called on an open-source repo, one
+          LLM_ROUTER_OSS_API_KEY is scoped to reach.
         type: string
         required: false
-        default: review-public
+        default: review-oss
       max_diff_kb:
         description: "Truncate the pushed diff at this many KiB"
         type: number
@@ -89,10 +89,15 @@ on:
           Scoped router virtual key for private repositories (never the
           router's master key).
         required: true
+      LLM_ROUTER_OSS_API_KEY:
+        description: >-
+          A second router virtual key, scoped to the role open-source
+          repositories may call. Read only on such a repo.
+        required: false
       LLM_PUBLIC_REVIEW_API_KEY:
         description: >-
-          A second router virtual key, scoped to the public role. Read only
-          on a public repo.
+          Deprecated and ignored, removed next release: pass
+          LLM_ROUTER_OSS_API_KEY. Still accepted so existing callers validate.
         required: false
       LLM_PUBLIC_REVIEW_BASE_URL:
         description: >-
@@ -156,8 +161,8 @@ jobs:
         uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
         with:
           endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          token: ${{ !github.event.repository.private && secrets.LLM_PUBLIC_REVIEW_API_KEY || secrets.LLM_ROUTER_API_KEY }}
-          model: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
+          token: ${{ !github.event.repository.private && secrets.LLM_ROUTER_OSS_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          model: ${{ github.event.repository.private && inputs.model || inputs.oss_model }}
           max-completion-tokens: ${{ inputs.max_tokens }}
           temperature: "0"
           prompt-file: .ai-workflows/.github/scripts/commit-review/commit-review.prompt.yml
@@ -170,7 +175,7 @@ jobs:
       - name: Render the comment
         env:
           RESPONSE_FILE: ${{ steps.review.outputs.response-file }}
-          MODEL: ${{ github.event.repository.private && inputs.model || inputs.public_model }}
+          MODEL: ${{ github.event.repository.private && inputs.model || inputs.oss_model }}
           COMMIT_SHA: ${{ github.sha }}
           REF_NAME: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
