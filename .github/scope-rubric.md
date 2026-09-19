@@ -48,9 +48,12 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
 
 ## Deterministic ALWAYS-FULL overrides (not left to the model)
 
-Applied in the workflow itself, before the API call — matching any of
-these skips the call entirely and sets every output to `full`/`yes` with
-`source: fallback` and a reason naming the matched condition:
+Applied in `scripts/scope_classify.py`'s `check_overrides()`, before the
+API call — matching any of these skips the call entirely and sets every
+output to `full`/`yes` with `source: fallback` and a reason naming the
+matched condition. A request failure, timeout, or unparsable answer
+produces the same `full`/`yes`/`source: fallback` result; `source: jev`
+means the classifier itself answered:
 
 - Any file under `.github/workflows/**`.
 - Any file under `roles/openbao/**`.
