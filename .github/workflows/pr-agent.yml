@@ -108,6 +108,12 @@ on:
           Key for that endpoint: the scoped router key for CI (never the
           router's master key), or the external provider's key.
         required: true
+      LLM_PUBLIC_REVIEW_API_KEY:
+        description: >-
+          Accepted so the org-required caller validates; not read yet. The
+          router key scoped to the public role, selected by repository
+          visibility once the router serves that role.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
