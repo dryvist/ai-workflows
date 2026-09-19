@@ -124,7 +124,7 @@ jobs:
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"
-          claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL_CHEAP || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ inputs.model || vars.GH_ACTION_AI_CODEX_MODEL }}
           prompt: ${{ steps.render-prompt.outputs.content }}
           permission_profile: workspace

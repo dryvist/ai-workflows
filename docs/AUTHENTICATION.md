@@ -54,12 +54,13 @@ router's default for the request apply.
 
 | Name | Purpose |
 | --- | --- |
-| `GH_ACTION_AI_MODEL` | Global Claude role |
+| `GH_ACTION_AI_MODEL` | Global role; every task falls back to it |
+| `GH_ACTION_AI_MODEL_CHEAP` | Issue-task fallback before the global role |
 | `GH_ACTION_AI_MODEL_CODE` | Code-task role |
 | `GH_ACTION_AI_MODEL_ISSUES` | Issue-task role |
 | `GH_ACTION_AI_MODEL_PLAN` | Planning-task role |
 | `GH_ACTION_AI_MODEL_REVIEW` | Review-task role |
-| `GH_ACTION_AI_CODEX_MODEL` | Codex role |
+| `GH_ACTION_AI_CODEX_MODEL` | Codex role; empty uses the Claude role for the same task |
 
 ## Optional Codex configuration
 

@@ -143,7 +143,7 @@ jobs:
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions"
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL_CHEAP || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           permission_profile: workspace
           allowed_tools: "Read,Glob,Grep,LS,Write,Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*)"

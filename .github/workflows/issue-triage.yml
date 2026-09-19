@@ -75,7 +75,7 @@ jobs:
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL_CHEAP || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           permission_profile: workspace
           allowed_tools: >-

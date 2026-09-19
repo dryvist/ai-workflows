@@ -18,7 +18,10 @@ inputs:
     required: false
     default: ""
   codex_model:
-    description: Optional Codex model override. An empty value uses the provider default.
+    description: >-
+      Optional Codex role override. An empty value uses claude_model: a
+      router role is provider-neutral, and the provider default would be a
+      vendor id the router does not serve.
     required: false
     default: ""
   model:
@@ -180,7 +183,7 @@ runs:
         responses-api-endpoint: ${{ steps.prepare.outputs.responses-endpoint }}
         working-directory: ${{ inputs.working_directory }}
         permission-profile: ${{ steps.prepare.outputs.permission-profile }}
-        model: ${{ inputs.codex_model }}
+        model: ${{ inputs.codex_model || inputs.claude_model || inputs.model }}
         effort: ${{ inputs.openai_effort || inputs.effort }}
         codex-version: ${{ inputs.codex_version }}
         codex-args: ${{ inputs.codex_args }}
