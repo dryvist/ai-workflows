@@ -4,7 +4,9 @@ on a live typesafe-sdk installation - the SDK client is mocked.
 
     python3 -m unittest scripts/test_scope_classify.py
 """
+import os
 import sys
+import tempfile
 import types
 import unittest
 from unittest import mock
@@ -51,6 +53,30 @@ class CheckOverridesTests(unittest.TestCase):
         matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["roles/app/tasks/auth.yml"])
         self.assertTrue(matched)
         self.assertIn("auth", reason)
+
+    def test_roles_openbao_prefix_forces_full(self):
+        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["roles/openbao/vars/main.yml"])
+        self.assertTrue(matched)
+        self.assertIn("roles/openbao/vars/main.yml", reason)
+
+    def test_prefix_and_keyword_matches_are_case_insensitive(self):
+        matched, reason = sc.check_overrides(
+            "pull_request", "develop", "feature/x", "main", [".GITHUB/WORKFLOWS/ci.yml", "roles/APP/AUTH.yml"]
+        )
+        self.assertTrue(matched)
+        self.assertIn(".GITHUB/WORKFLOWS/ci.yml", reason)
+
+    def test_rename_evasion_is_caught_via_previous_path(self):
+        # check_overrides() only sees the paths it's handed; run() is
+        # responsible for including previous_path alongside path so a
+        # rename OUT of an always-full location can't dodge the override -
+        # this proves check_overrides() itself still catches it once that
+        # old path is in the list.
+        matched, reason = sc.check_overrides(
+            "pull_request", "develop", "feature/x", "main", ["renamed.yml", "roles/openbao/old-name.yml"]
+        )
+        self.assertTrue(matched)
+        self.assertIn("roles/openbao/old-name.yml", reason)
 
 
 class ClassifyTests(unittest.TestCase):
@@ -180,6 +206,80 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(source, "fallback")
         self.assertEqual(decision, sc.FULL_DECISION)
         self.assertIn("event is push", reason)
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(
+        sc,
+        "fetch_changed_files",
+        return_value=[{"path": "roles/app/renamed.yml", "previous_path": "roles/openbao/old.yml", "additions": 1, "deletions": 1}],
+    )
+    def test_run_includes_previous_path_so_a_rename_cannot_evade_the_override(
+        self, _fetch_files, _fetch_default_branch
+    ):
+        env = self._base_env()
+        with mock.patch.object(sc, "fetch_diff", return_value=""), mock.patch.object(
+            sc, "TypeSafeClient"
+        ) as client_cls:
+            decision, reason, source = sc.run(env)
+        client_cls.assert_not_called()
+        self.assertEqual(source, "fallback")
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertIn("roles/openbao/old.yml", reason)
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_private_repo_sends_no_diff_body_or_labels(self, _read_rubric, _fetch_files, _fetch_default_branch):
+        env = self._base_env(REPO_PRIVATE="true", PR_BODY="secret internal detail", PR_LABELS_JSON='["internal"]')
+        with mock.patch.object(sc, "fetch_diff") as fetch_diff, mock.patch.object(
+            sc, "classify", return_value=(dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90")
+        ) as classify_call:
+            sc.run(env)
+        fetch_diff.assert_not_called()
+        _rubric, state, _api_key = classify_call.call_args[0]
+        self.assertNotIn("diff", state)
+        self.assertNotIn("body", state)
+        self.assertNotIn("labels", state)
+        self.assertIn("files", state)
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_diff", return_value="")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_out_of_enum_answer_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
+        mock_client = mock.MagicMock()
+        mock_client.__enter__.return_value.system_one.return_value = types.SimpleNamespace(
+            answers={
+                "ci": _answer("YOLO"),  # not in VALID_CHOICES["ci"]
+                "molecule": _answer("none"),
+                "ai_review": _answer("no"),
+                "release_notes": _answer("no"),
+                "e2e": _answer("no"),
+            }
+        )
+        with mock.patch.object(sc, "TypeSafeClient", return_value=mock_client):
+            decision, reason, source = sc.run(self._base_env())
+        self.assertEqual(source, "fallback")
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertIn("out-of-enum", reason)
+
+
+class SanitizeTests(unittest.TestCase):
+    def test_sanitize_strips_cr_and_lf(self):
+        self.assertEqual(sc._sanitize("full\nci=none\r\nextra=1"), "full ci=none  extra=1")
+
+    def test_write_outputs_strips_newlines_from_every_field(self):
+        decision = dict(sc.FULL_DECISION)
+        decision["ci"] = "full\nfake_output=injected"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "github_output")
+            open(path, "w", encoding="utf-8").close()
+            sc.write_outputs(path, decision, "reason\nwith\nnewlines", "fallback")
+            with open(path, encoding="utf-8") as handle:
+                content = handle.read()
+        self.assertNotIn("\n\n", content)
+        for line in content.splitlines():
+            self.assertIn("=", line)  # every line is still a clean key=value
 
 
 if __name__ == "__main__":

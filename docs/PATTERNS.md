@@ -773,7 +773,18 @@ at 60 KiB, fetched via the GitHub API). Private repos send changed-file
 paths, line stats, and title only — no diff content leaves the runner.
 
 **Fail-safe**: `timeout-minutes: 2` on the job, a 10s client-side timeout
-on the SDK call. Any request failure, non-2xx response, timeout, or
-unparsable answer resolves every output to `full`/`yes` with `source:
-fallback` — the same safe value an override produces. `run()` never lets
-an exception escape without returning that fallback decision.
+on the SDK call. Any request failure, non-2xx response, timeout,
+unparsable answer, or **out-of-enum choice value** resolves every output
+to `full`/`yes` with `source: fallback` — the same safe value an override
+produces. `run()` never lets an exception escape without returning that
+fallback decision, and the classify step has no `continue-on-error`: a
+red step must stay visibly red, not leave `outputs` empty behind a green
+board.
+
+**Output hygiene**: every value written to `$GITHUB_OUTPUT`, the summary,
+or the `::notice::` line is passed through `_sanitize()` (strips CR/LF)
+first — PR title/body/diff text is untrusted model input, and the
+override `reason` embeds raw file paths, so nothing derived from them
+reaches an Actions output unsanitized. A rename's `previous_path` is
+included alongside its new path when checking overrides, so renaming a
+file out of an always-full location can't evade it.

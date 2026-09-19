@@ -70,3 +70,10 @@ These conditions are the one guaranteed full sweep this rubric cannot
 narrow — the same "narrow at the consumer, force full at the promotion
 boundary" policy the org's existing `dorny/paths-filter` gates already
 follow.
+
+## When in doubt
+
+Choose `full`/`yes`. A wrongly-full decision costs CI minutes; a
+wrongly-narrow one costs a real check silently skipping. An ambiguous
+change, a diff that doesn't clearly match one category, or genuine
+uncertainty about which rule applies is not a reason to guess narrow.

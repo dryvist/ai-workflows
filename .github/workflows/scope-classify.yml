@@ -93,9 +93,14 @@ jobs:
 
       - run: pip install -r scripts/requirements-scope-classify.txt
 
+      # No continue-on-error: the script never raises past main() (every
+      # failure resolves to a written full/fallback decision), so if this
+      # step DOES fail red, that is real - pip, setup, or a bug - and must
+      # stay visible rather than leave $GITHUB_OUTPUT empty, which would
+      # make every downstream `if: needs.scope.outputs.ci == 'full'` read
+      # false and skip required work behind a green board.
       - name: Classify CI scope
         id: classify
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}

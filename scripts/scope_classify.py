@@ -30,8 +30,23 @@ FULL_DECISION = {
     "e2e": "yes",
 }
 
+# The only values each question may answer. Validated after the SDK
+# response comes back (post underscore-to-hyphen translation) - an
+# out-of-enum answer, however it got there, is treated the same as a
+# request failure: full/yes, source=fallback. Never trust model output
+# to already be one of these.
+VALID_CHOICES = {
+    "ci": {"full", "lint-only", "none"},
+    "molecule": {"full", "changed-roles", "none"},
+    "ai_review": {"yes", "no"},
+    "release_notes": {"yes", "no"},
+    "e2e": {"yes", "no"},
+}
+
 # Paths that always force a full run, regardless of what the classifier
 # would say. Evaluated here, in the script, never left to the model.
+# Case-insensitive, same as the keyword match below - a path's casing is
+# not something a change author should be able to use to dodge either.
 ALWAYS_FULL_PATH_PREFIXES = (".github/workflows/", "roles/openbao/")
 ALWAYS_FULL_PATH_KEYWORDS = ("secret", "auth", "ssh", "firewall", "sudo", "policy")
 
@@ -56,14 +71,14 @@ def check_overrides(
         reasons.append(f"event is {event_name}")
     elif base_ref == default_branch and head_ref == "develop":
         reasons.append(f"promotion into {default_branch} from develop")
-    for path in changed_paths:
-        if any(path.startswith(prefix) for prefix in ALWAYS_FULL_PATH_PREFIXES):
-            reasons.append(f"{path} matches an always-full path")
-            break
     lowered = [p.lower() for p in changed_paths]
-    for path in lowered:
+    for original, path in zip(changed_paths, lowered):
+        if any(path.startswith(prefix) for prefix in ALWAYS_FULL_PATH_PREFIXES):
+            reasons.append(f"{original} matches an always-full path")
+            break
+    for original, path in zip(changed_paths, lowered):
         if any(keyword in path for keyword in ALWAYS_FULL_PATH_KEYWORDS):
-            reasons.append(f"{path} matches secret/auth/ssh/firewall/sudo/policy")
+            reasons.append(f"{original} matches secret/auth/ssh/firewall/sudo/policy")
             break
     if reasons:
         return True, "always-full override: " + "; ".join(reasons)
@@ -85,6 +100,10 @@ def fetch_default_branch(repo: str, token: str) -> str:
 
 
 def fetch_changed_files(repo: str, pr_number: str, token: str) -> list[dict]:
+    """Each item carries `previous_path` (the old path, for a rename) so a
+    rename OUT of an always-full path/keyword can still be caught by
+    check_overrides() - only reading the new filename would let a rename
+    evade the override entirely."""
     files: list[dict] = []
     page = 1
     while True:
@@ -93,7 +112,12 @@ def fetch_changed_files(repo: str, pr_number: str, token: str) -> list[dict]:
         if not batch:
             break
         files.extend(
-            {"path": item["filename"], "additions": item["additions"], "deletions": item["deletions"]}
+            {
+                "path": item["filename"],
+                "previous_path": item.get("previous_filename"),
+                "additions": item["additions"],
+                "deletions": item["deletions"],
+            }
             for item in batch
         )
         if len(batch) < 100:
@@ -176,30 +200,52 @@ def classify(rubric: str, state: dict, api_key: str):
     except Exception as exc:
         return None, f"unparseable response: {exc}"
 
+    # Never trust the response to already be one of the declared options -
+    # an out-of-enum value (a model error, or a value shaped by whatever
+    # untrusted text ended up in `state`) must not reach $GITHUB_OUTPUT.
+    for question, value in decision.items():
+        if value not in VALID_CHOICES[question]:
+            return None, f"out-of-enum answer for {question!r}: {value!r}"
+
     return decision, f"jev choice, avg confidence {avg_confidence:.2f}"
+
+
+def _sanitize(value: str) -> str:
+    """Strips CR/LF from anything headed for $GITHUB_OUTPUT, the summary,
+    or a `::notice::` line. PR title/body/diff text and the override
+    reason (which embeds raw file paths) are untrusted/attacker-influenced
+    input; a literal newline in a `$GITHUB_OUTPUT` value can inject
+    additional `key=value` lines, and one in a workflow-command line can
+    forge another command. Never write an unsanitized value to any of
+    those three sinks."""
+    return str(value).replace("\r", " ").replace("\n", " ")
 
 
 def write_outputs(output_path: str | None, decision: dict, reason: str, source: str) -> None:
     if not output_path:
         return
     with open(output_path, "a", encoding="utf-8") as handle:
-        handle.writelines(f"{key}={value}\n" for key, value in decision.items())
-        handle.write(f"source={source}\n")
-        handle.write(f"reason={reason}\n")
+        handle.writelines(f"{key}={_sanitize(value)}\n" for key, value in decision.items())
+        handle.write(f"source={_sanitize(source)}\n")
+        handle.write(f"reason={_sanitize(reason)}\n")
 
 
 def write_summary(summary_path: str | None, decision: dict, reason: str, source: str) -> None:
     if not summary_path:
         return
+    ci, molecule, ai_review, release_notes, e2e = (
+        _sanitize(decision["ci"]),
+        _sanitize(decision["molecule"]),
+        _sanitize(decision["ai_review"]),
+        _sanitize(decision["release_notes"]),
+        _sanitize(decision["e2e"]),
+    )
     with open(summary_path, "a", encoding="utf-8") as handle:
         handle.write("### Scope Classify\n\n")
         handle.write("| ci | molecule | ai_review | release_notes | e2e | source |\n")
         handle.write("| --- | --- | --- | --- | --- | --- |\n")
-        handle.write(
-            f"| {decision['ci']} | {decision['molecule']} | {decision['ai_review']} | "
-            f"{decision['release_notes']} | {decision['e2e']} | {source} |\n\n"
-        )
-        handle.write(f"reason: {reason}\n")
+        handle.write(f"| {ci} | {molecule} | {ai_review} | {release_notes} | {e2e} | {_sanitize(source)} |\n\n")
+        handle.write(f"reason: {_sanitize(reason)}\n")
 
 
 def run(env: dict[str, str]) -> tuple[dict, str, str]:
@@ -225,6 +271,7 @@ def run(env: dict[str, str]) -> tuple[dict, str, str]:
         if event_name == "pull_request" and pr_number:
             files = fetch_changed_files(repo, pr_number, token)
             changed_paths = [item["path"] for item in files]
+            changed_paths += [item["previous_path"] for item in files if item.get("previous_path")]
             default_branch = fetch_default_branch(repo, token)
             if not repo_private:
                 diff = fetch_diff(repo, pr_number, token)
@@ -248,9 +295,9 @@ def main() -> None:
     write_outputs(os.environ.get("GITHUB_OUTPUT"), decision, reason, source)
     write_summary(os.environ.get("GITHUB_STEP_SUMMARY"), decision, reason, source)
     print(
-        f"::notice::Scope Classify: ci={decision['ci']} molecule={decision['molecule']} "
-        f"ai_review={decision['ai_review']} release_notes={decision['release_notes']} "
-        f"e2e={decision['e2e']} source={source} reason={reason}"
+        f"::notice::Scope Classify: ci={_sanitize(decision['ci'])} molecule={_sanitize(decision['molecule'])} "
+        f"ai_review={_sanitize(decision['ai_review'])} release_notes={_sanitize(decision['release_notes'])} "
+        f"e2e={_sanitize(decision['e2e'])} source={_sanitize(source)} reason={_sanitize(reason)}"
     )
 
 
