@@ -103,6 +103,7 @@ jobs:
           REPO: ${{ github.repository }}
           REPO_PRIVATE: ${{ github.event.repository.private }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}

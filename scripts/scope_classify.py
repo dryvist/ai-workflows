@@ -39,13 +39,19 @@ CLASSIFY_TIMEOUT_SECONDS = 10.0
 RUBRIC_PATH = ".github/scope-rubric.md"
 
 
-def check_overrides(event_name: str, base_ref: str, changed_paths: list[str]):
-    """Pure decision function -> (matched: bool, reason: str | None)."""
+def check_overrides(event_name: str, base_ref: str, head_ref: str, default_branch: str, changed_paths: list[str]):
+    """Pure decision function -> (matched: bool, reason: str | None).
+
+    The promotion override is git-flow's develop -> default-branch merge,
+    not "any PR targeting the default branch" - a trunk repo (ai-workflows
+    included) runs every feature PR straight into its default branch, and
+    forcing those full would make the classifier a permanent no-op there.
+    """
     reasons = []
     if event_name != "pull_request":
         reasons.append(f"event is {event_name}")
-    if base_ref == "main":
-        reasons.append("base branch is main")
+    elif base_ref == default_branch and head_ref == "develop":
+        reasons.append(f"promotion into {default_branch} from develop")
     for path in changed_paths:
         if any(path.startswith(prefix) for prefix in ALWAYS_FULL_PATH_PREFIXES):
             reasons.append(f"{path} matches an always-full path")
@@ -67,6 +73,11 @@ def _github_api(path: str, token: str, accept: str = "application/vnd.github+jso
     )
     with urllib.request.urlopen(request, timeout=10) as response:
         return response.read()
+
+
+def fetch_default_branch(repo: str, token: str) -> str:
+    raw = _github_api(f"/repos/{repo}", token)
+    return json.loads(raw)["default_branch"]
 
 
 def fetch_changed_files(repo: str, pr_number: str, token: str) -> list[dict]:
@@ -193,6 +204,7 @@ def run(env: dict) -> tuple[dict, str, str]:
     try:
         event_name = env.get("EVENT_NAME", "")
         base_ref = env.get("BASE_REF", "")
+        head_ref = env.get("HEAD_REF", "")
         repo = env.get("REPO", "")
         repo_private = env.get("REPO_PRIVATE", "") == "true"
         token = env.get("GITHUB_TOKEN", "")
@@ -205,13 +217,15 @@ def run(env: dict) -> tuple[dict, str, str]:
         files: list[dict] = []
         diff = ""
         changed_paths: list[str] = []
+        default_branch = ""
         if event_name == "pull_request" and pr_number:
             files = fetch_changed_files(repo, pr_number, token)
             changed_paths = [item["path"] for item in files]
+            default_branch = fetch_default_branch(repo, token)
             if not repo_private:
                 diff = fetch_diff(repo, pr_number, token)
 
-        matched, override_reason = check_overrides(event_name, base_ref, changed_paths)
+        matched, override_reason = check_overrides(event_name, base_ref, head_ref, default_branch, changed_paths)
         if matched:
             return dict(FULL_DECISION), override_reason, "fallback"
 

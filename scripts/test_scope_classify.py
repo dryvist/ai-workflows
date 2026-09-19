@@ -19,27 +19,36 @@ def _answer(choice: str, confidence: float = 0.9):
 
 class CheckOverridesTests(unittest.TestCase):
     def test_pull_request_with_no_matching_path_does_not_override(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", ["README.md"])
+        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["README.md"])
         self.assertFalse(matched)
         self.assertIsNone(reason)
 
     def test_workflow_path_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", [".github/workflows/ci.yml"])
+        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", [".github/workflows/ci.yml"])
         self.assertTrue(matched)
         self.assertIn(".github/workflows/ci.yml", reason)
 
     def test_push_event_forces_full(self):
-        matched, reason = sc.check_overrides("push", "main", [])
+        matched, reason = sc.check_overrides("push", "main", "", "main", [])
         self.assertTrue(matched)
         self.assertIn("event is push", reason)
 
-    def test_base_main_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "main", [])
+    def test_trunk_repo_feature_pr_into_default_branch_is_not_overridden(self):
+        # A trunk repo's PRs all target its default branch. Only a
+        # develop -> default-branch PROMOTION should force full, or every
+        # feature PR on a trunk repo would always be full and the
+        # classifier could never save anything there.
+        matched, reason = sc.check_overrides("pull_request", "main", "feature/add-thing", "main", [])
+        self.assertFalse(matched)
+        self.assertIsNone(reason)
+
+    def test_develop_to_main_promotion_forces_full(self):
+        matched, reason = sc.check_overrides("pull_request", "main", "develop", "main", [])
         self.assertTrue(matched)
-        self.assertIn("base branch is main", reason)
+        self.assertIn("promotion into main from develop", reason)
 
     def test_secret_like_path_forces_full(self):
-        matched, reason = sc.check_overrides("pull_request", "develop", ["roles/app/tasks/auth.yml"])
+        matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["roles/app/tasks/auth.yml"])
         self.assertTrue(matched)
         self.assertIn("auth", reason)
 
@@ -59,6 +68,7 @@ class ClassifyTests(unittest.TestCase):
         env = {
             "EVENT_NAME": "pull_request",
             "BASE_REF": "develop",
+            "HEAD_REF": "feature/x",
             "REPO": "dryvist/example",
             "REPO_PRIVATE": "false",
             "GITHUB_TOKEN": "gh-token",
@@ -71,10 +81,11 @@ class ClassifyTests(unittest.TestCase):
         env.update(overrides)
         return env
 
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="diff --git a b")
     @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
-    def test_success_returns_jev_source(self, _read_rubric, _fetch_files, _fetch_diff):
+    def test_success_returns_jev_source(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         mock_client = mock.MagicMock()
         mock_client.__enter__.return_value.system_one.return_value = types.SimpleNamespace(
             answers={
@@ -92,10 +103,11 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(decision["molecule"], "none")
         self.assertIn("confidence", reason)
 
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
     @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
-    def test_api_error_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff):
+    def test_api_error_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         mock_client = mock.MagicMock()
         mock_client.__enter__.return_value.system_one.side_effect = RuntimeError("422 Unprocessable Entity")
         with mock.patch.object(sc, "TypeSafeClient", return_value=mock_client):
@@ -104,10 +116,11 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(decision, sc.FULL_DECISION)
         self.assertIn("422", reason)
 
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
     @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
-    def test_timeout_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff):
+    def test_timeout_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         # The SDK's own exception type for a deadline isn't documented
         # publicly; classify() catches broadly, so any exception (a
         # built-in TimeoutError stands in for whatever the SDK raises)
@@ -119,6 +132,45 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(source, "fallback")
         self.assertEqual(decision, sc.FULL_DECISION)
         self.assertIn("TimeoutError", reason)
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_diff", return_value="")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_trunk_repo_feature_pr_into_main_reaches_the_classifier(
+        self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch
+    ):
+        # Regression test: a trunk repo's feature PRs all target `main`.
+        # Only a develop -> main promotion should force full; this PR
+        # (head "feature/x", base "main") must reach the real call.
+        mock_client = mock.MagicMock()
+        mock_client.__enter__.return_value.system_one.return_value = types.SimpleNamespace(
+            answers={
+                "ci": _answer("lint_only"),
+                "molecule": _answer("none"),
+                "ai_review": _answer("no"),
+                "release_notes": _answer("no"),
+                "e2e": _answer("no"),
+            }
+        )
+        env = self._base_env(BASE_REF="main", HEAD_REF="feature/x")
+        with mock.patch.object(sc, "TypeSafeClient", return_value=mock_client) as client_cls:
+            decision, _reason, source = sc.run(env)
+        client_cls.assert_called_once()
+        self.assertEqual(source, "jev")
+        self.assertEqual(decision["ci"], "lint-only")
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_diff", return_value="")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[])
+    def test_develop_to_main_promotion_skips_the_api_call(self, _fetch_files, _fetch_diff, _fetch_default_branch):
+        env = self._base_env(BASE_REF="main", HEAD_REF="develop")
+        with mock.patch.object(sc, "TypeSafeClient") as client_cls:
+            decision, reason, source = sc.run(env)
+        client_cls.assert_not_called()
+        self.assertEqual(source, "fallback")
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertIn("promotion into main from develop", reason)
 
     def test_override_skips_the_api_call_entirely(self):
         env = self._base_env(EVENT_NAME="push", BASE_REF="")

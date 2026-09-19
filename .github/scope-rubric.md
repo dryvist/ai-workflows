@@ -59,8 +59,12 @@ means the classifier itself answered:
 - Any file under `roles/openbao/**`.
 - Any changed file path matching
   `*secret*|*auth*|*ssh*|*firewall*|*sudo*|*policy*` (case-insensitive).
-- The pull request's base branch is `main`.
-- The triggering event is `push`.
+- The pull request promotes `develop` into the repository's default
+  branch (git-flow's release promotion) — not any PR that merely
+  *targets* the default branch, which on a trunk repo (this one
+  included) is every feature PR and would make the classifier a
+  permanent no-op.
+- The triggering event is not `pull_request` (e.g. `push`).
 
 These conditions are the one guaranteed full sweep this rubric cannot
 narrow — the same "narrow at the consumer, force full at the promotion
