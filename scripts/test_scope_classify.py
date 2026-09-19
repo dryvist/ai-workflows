@@ -21,7 +21,7 @@ class CheckOverridesTests(unittest.TestCase):
     def test_pull_request_with_no_matching_path_does_not_override(self):
         matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", ["README.md"])
         self.assertFalse(matched)
-        self.assertIsNone(reason)
+        self.assertEqual(reason, "")
 
     def test_workflow_path_forces_full(self):
         matched, reason = sc.check_overrides("pull_request", "develop", "feature/x", "main", [".github/workflows/ci.yml"])
@@ -40,7 +40,7 @@ class CheckOverridesTests(unittest.TestCase):
         # classifier could never save anything there.
         matched, reason = sc.check_overrides("pull_request", "main", "feature/add-thing", "main", [])
         self.assertFalse(matched)
-        self.assertIsNone(reason)
+        self.assertEqual(reason, "")
 
     def test_develop_to_main_promotion_forces_full(self):
         matched, reason = sc.check_overrides("pull_request", "main", "develop", "main", [])

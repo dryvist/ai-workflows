@@ -39,8 +39,12 @@ CLASSIFY_TIMEOUT_SECONDS = 10.0
 RUBRIC_PATH = ".github/scope-rubric.md"
 
 
-def check_overrides(event_name: str, base_ref: str, head_ref: str, default_branch: str, changed_paths: list[str]):
-    """Pure decision function -> (matched: bool, reason: str | None).
+def check_overrides(
+    event_name: str, base_ref: str, head_ref: str, default_branch: str, changed_paths: list[str]
+) -> tuple[bool, str]:
+    """Pure decision function -> (matched, reason). reason is "" when
+    matched is False, never None, so callers never have to narrow an
+    Optional they only read on the matched branch.
 
     The promotion override is git-flow's develop -> default-branch merge,
     not "any PR targeting the default branch" - a trunk repo (ai-workflows
@@ -63,7 +67,7 @@ def check_overrides(event_name: str, base_ref: str, head_ref: str, default_branc
             break
     if reasons:
         return True, "always-full override: " + "; ".join(reasons)
-    return False, None
+    return False, ""
 
 
 def _github_api(path: str, token: str, accept: str = "application/vnd.github+json") -> bytes:
@@ -198,7 +202,7 @@ def write_summary(summary_path: str | None, decision: dict, reason: str, source:
         handle.write(f"reason: {reason}\n")
 
 
-def run(env: dict) -> tuple[dict, str, str]:
+def run(env: dict[str, str]) -> tuple[dict, str, str]:
     """Orchestrates one classification. Returns (decision, reason, source).
     Never raises - any failure resolves to FULL_DECISION/fallback."""
     try:
@@ -240,7 +244,7 @@ def run(env: dict) -> tuple[dict, str, str]:
 
 
 def main() -> None:
-    decision, reason, source = run(os.environ)
+    decision, reason, source = run(dict(os.environ))
     write_outputs(os.environ.get("GITHUB_OUTPUT"), decision, reason, source)
     write_summary(os.environ.get("GITHUB_STEP_SUMMARY"), decision, reason, source)
     print(
