@@ -20,13 +20,22 @@ nothing about a point the diff does not touch.
   reach a `run:` block by interpolation instead of through `env:`?
 - Does new logic duplicate a helper that already exists under
   `.github/scripts/shared/`?
+- Does the diff introduce a custom script, glue wrapper, daemon, or parsing loop
+  where a native platform feature, tool CLI flag, standard library module, or
+  existing infrastructure (e.g. Cribl Edge file monitoring/pipeline, OTEL
+  collector, systemd/launchd native logging) exists? Flag any custom script that
+  lacks documented justification under the Native-First ladder.
 - Does a workflow report success on a path where it did no work?
 - Does changed behaviour update `README.md` and the workflow's own doc page?
 """
 
 [pr_code_suggestions]
 extra_instructions = """
-Suggest simplifications only: reuse an existing helper, collapse a repeated
-block, delete unreachable code, shorten logic that is equivalent. Do not hunt
-for bugs and do not propose new abstractions.
+Suggest simplifications only:
+- Prioritize replacing bespoke scripts, manual file watchers, and custom parsing
+  code with native platform features, CLI flags, standard library modules, or
+  existing infrastructure forwarders (e.g. Cribl Edge, OTEL).
+- Reuse an existing helper, collapse a repeated block, delete unreachable code,
+  shorten logic that is equivalent. Do not hunt for bugs and do not propose new
+  abstractions.
 """

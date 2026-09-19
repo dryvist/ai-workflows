@@ -81,6 +81,8 @@ Answer each point for this diff, citing the hunk you relied on:
 - Is every third-party action pinned to a commit SHA?
 - Are job permissions explicit and minimal?
 - Does the diff add a credential, token, hostname, or address literal?
+- Does the diff introduce an unevidenced custom script where a native platform
+  feature or tool capability exists?
 """
 ```
 

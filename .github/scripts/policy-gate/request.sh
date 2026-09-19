@@ -9,7 +9,7 @@ rm -f findings.json
 export SYSTEM_PROMPT='You review a pull request diff against exactly five checks. For each, return pass or fail with the file and line the finding is about (empty string/0 when the check passes or does not apply to a specific line).
 
 - dry: the diff adds a block that substantially duplicates logic already present elsewhere in the diff or obviously duplicates a well-known existing helper by name/behaviour.
-- native_first: a custom script or dependency does something a standard library, language builtin, or the tooling already visible in the diff could do instead.
+- native_first: a custom script or dependency does something a standard library, language builtin, tool CLI flag, or existing platform/infrastructure feature (e.g. Cribl Edge, OTEL, systemd/launchd) could do instead.
 - disclosure: committed text (code, comments, commit-adjacent strings) names an internal hostname, IP address, internal topology, or maps a real value to a placeholder, rather than describing capability generically.
 - missing_test: the diff adds non-trivial branching logic (a conditional, a loop, a parser, a money/security-relevant path) with no accompanying runnable test.
 - token_budget: a listed file is unusually large relative to its peers and risks a hard token-count limit (informational only; do not fail this unless the line count for a file in FILE SIZES is far larger than every other file).
