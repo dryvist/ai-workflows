@@ -1,20 +1,24 @@
 # PR Agent
 #
-# Runs PR-Agent's review, improve and describe tools against the org's
-# OpenAI-compatible model router. Per-repository prompt customisation — the
-# review checklist, what "simplify" means here, which files to ignore — lives
-# in the consumer's own `.pr_agent.toml`, so this workflow carries wiring only.
+# Runs PR-Agent's review, improve and describe tools against an
+# OpenAI-compatible endpoint: by default the org's internal model router, or
+# whatever base URL and key the caller passes — the org-required caller hands
+# public repositories an external endpoint and a GitHub-hosted runner.
+# Per-repository prompt customisation — the review checklist, what "simplify"
+# means here, which files to ignore — lives in the consumer's own
+# `.pr_agent.toml`, so this workflow carries wiring only.
 #
 # Two contracts worth knowing before you call it:
 #
-# 1. It runs on a runner that can reach the router. The default runner label is
-#    the shared self-hosted pool; a GitHub-hosted runner cannot reach the
-#    router and would review nothing.
-# 2. A router outage makes the job WAIT (exponential backoff, five-minute cap)
-#    and then FAIL when timeout-minutes runs out. It never reports success
+# 1. The runner must reach the endpoint it is given. The default runner label
+#    is the shared self-hosted pool, the only one that reaches the internal
+#    router; a GitHub-hosted runner can only be paired with an endpoint on the
+#    public internet.
+# 2. An endpoint outage makes the job WAIT (exponential backoff, five-minute
+#    cap) and then FAIL when timeout-minutes runs out. It never reports success
 #    having reviewed nothing. The org ruleset injects this workflow into every
-#    pull request as a required check, so a router outage blocks merges until
-#    it clears; timeout-minutes is the bound on how long each waits.
+#    pull request as a required check, so an outage blocks merges until it
+#    clears; timeout-minutes is the bound on how long each waits.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -33,8 +37,10 @@ on:
     inputs:
       runner_label:
         description: >-
-          Runner label for the job. Must be a runner that can reach the model
-          router.
+          Runner label for the job. Must be a runner that can reach the
+          endpoint in LLM_ROUTER_BASE_URL: the self-hosted pool for the
+          internal router, a GitHub-hosted label only with an external
+          endpoint.
         type: string
         required: false
         default: self-hosted
@@ -51,15 +57,17 @@ on:
         default: ""
       model:
         description: >-
-          Router ROLE alias to call (e.g. cheap, subagent). Always an alias the
-          router resolves — never a vendor model id.
+          Model to call, as the endpoint names it. Against the router this is
+          always a ROLE alias it resolves (e.g. cheap, subagent), never a
+          vendor id; against an external endpoint it is that vendor's model
+          id, because nothing else resolves it.
         type: string
         required: false
         default: cheap
       fallback_model:
         description: >-
-          Router role alias to retry on once the first model errors. Must be an
-          alias the calling key is allowed to reach.
+          Model to retry on once the first errors, named the same way as
+          `model`. Must be reachable with the same key and endpoint.
         type: string
         required: false
         default: subagent
@@ -91,12 +99,14 @@ on:
     secrets:
       LLM_ROUTER_BASE_URL:
         description: >-
-          The router's OpenAI-compatible base URL, ending in /v1. A secret
-          rather than a variable: run logs print step environments verbatim.
+          The endpoint's OpenAI-compatible base URL (the router's, ending in
+          /v1, or an external provider's). A secret rather than a variable:
+          run logs print step environments verbatim.
         required: true
       LLM_ROUTER_API_KEY:
         description: >-
-          Scoped router key for CI (never the router's master key).
+          Key for that endpoint: the scoped router key for CI (never the
+          router's master key), or the external provider's key.
         required: true
 
 # Workflow-level permissions set the maximum for all jobs.

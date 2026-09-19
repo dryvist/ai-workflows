@@ -32,8 +32,10 @@ visible without blocking a merge.
 ## Runner
 
 `runner_label` defaults to `self-hosted`. The router is only reachable from
-inside the estate, so a GitHub-hosted runner cannot review anything. If you
-override this input, override it with another runner that can reach the router.
+inside the estate, so a GitHub-hosted runner cannot review anything against
+it. The runner must reach whatever `LLM_ROUTER_BASE_URL` names: pair a
+GitHub-hosted label only with an external endpoint, as the org-required
+caller does for public repositories.
 
 PR-Agent runs as its published container through the CLI it documents, not as
 a container action: the shared runner pool passes the Docker socket through
@@ -46,10 +48,10 @@ request over the API — and the image is pinned by digest in
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `self-hosted` | Runner label; must reach the router |
-| `model` | `cheap` | Router **role alias** — never a vendor model id |
-| `fallback_model` | `subagent` | Alias to retry on after a model error; must be one the key may reach |
-| `max_tokens` | `32000` | Input context to assume for the alias (`custom_model_max_tokens`) |
+| `runner_label` | `self-hosted` | Runner label; must reach the endpoint in `LLM_ROUTER_BASE_URL` |
+| `model` | `cheap` | Model as the endpoint names it: a router **role alias** (never a vendor id), or the vendor's id against an external endpoint |
+| `fallback_model` | `subagent` | Model to retry on after an error, named the same way; same key and endpoint |
+| `max_tokens` | `32000` | Input context to assume for the model (`custom_model_max_tokens`) |
 | `review` | `true` | Run the review tool |
 | `improve` | `false` | Run the improve tool |
 | `describe` | `false` | Run the describe tool (rewrites title and body) |
@@ -58,8 +60,8 @@ request over the API — and the image is pinned by digest in
 
 | Name | Kind | Holds |
 | --- | --- | --- |
-| `LLM_ROUTER_BASE_URL` | Actions **secret** | The router's OpenAI-compatible base URL, ending in `/v1` |
-| `LLM_ROUTER_API_KEY` | Actions **secret** | The scoped router key for CI. Never the router's master key. |
+| `LLM_ROUTER_BASE_URL` | Actions **secret** | The endpoint's OpenAI-compatible base URL: the router's (ending in `/v1`) or an external provider's |
+| `LLM_ROUTER_API_KEY` | Actions **secret** | Key for that endpoint: the scoped router key for CI (never the router's master key) or the provider's key |
 
 Both are secrets, and both are required. The base URL is a secret rather than a
 variable because a run log prints each step's environment verbatim, and these
