@@ -10,8 +10,6 @@ jobs:
   # what should run, same reason dogfood-pr-agent.yml does it.
   policy-gate:
     uses: ./.github/workflows/policy-gate.yml
-    with:
-      scripts_ref: ${{ github.event.pull_request.head.sha }}
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

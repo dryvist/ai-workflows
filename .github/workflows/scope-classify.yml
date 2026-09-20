@@ -84,14 +84,13 @@ jobs:
       # repo) - this job needs nothing from the caller's checkout (every
       # PR fact it needs comes from the GitHub API, not local git), only
       # its own scripts/ and rubric, which live here regardless of who
-      # calls this reusable workflow. `ref: github.job_workflow_sha` pins
-      # to the commit THIS reusable workflow was loaded from (not `main`,
-      # which could be ahead or behind) - same pattern `_ci-gate.yml`
-      # already uses in dryvist/.github for its own shared scripts.
+      # calls this reusable workflow. `ref: job.workflow_sha` pins to the
+      # commit THIS reusable workflow was loaded from (not `main`, which
+      # could be ahead or behind), however deep the workflow_call nesting.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ github.job_workflow_sha }}
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: |
             scripts
             .github/scope-rubric.md

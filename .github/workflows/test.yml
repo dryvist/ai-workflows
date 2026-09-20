@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - '.github/scripts/**'
+      - '.github/workflows/**'
       - 'tests/**'
       - 'package.json'
   push:
     branches: [main]
     paths:
       - '.github/scripts/**'
+      - '.github/workflows/**'
       - 'tests/**'
       - 'package.json'
   workflow_dispatch:

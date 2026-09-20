@@ -114,18 +114,18 @@ jobs:
 
 Workflows check out this repo for scripts and the immutable prompt catalog for prompt assets:
 
-The scripts checkout takes its ref from a `scripts_ref` input, empty by
-default, which checks out this repository's default branch. Do not reach for
-`github.job_workflow_sha`: it is empty whenever a reusable workflow is reached
-through another reusable workflow, and an empty `ref:` resolves to the default
-branch silently. A dogfood caller passes the pull request head SHA, so a pull
-request exercises its own scripts.
+The scripts checkout is pinned to `job.workflow_sha`, the commit the called
+workflow itself was loaded from, at any `workflow_call` nesting depth. Never
+take the ref from an input, and never leave it empty (an empty `ref:` resolves
+to the default branch silently). A dogfood caller in this repository runs on
+the pull request's own commit for free. `tests/workflow-checkout-ref.test.js`
+enforces both.
 
 ```yaml
 - uses: actions/checkout@v7
   with:
     repository: dryvist/ai-workflows
-    ref: ${{ inputs.scripts_ref }}
+    ref: ${{ job.workflow_sha }}
     sparse-checkout: .github/scripts
     path: .ai-workflows
 - uses: actions/checkout@v7

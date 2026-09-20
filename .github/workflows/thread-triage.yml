@@ -30,17 +30,6 @@ on:
         type: string
         required: false
         default: self-hosted
-      scripts_ref:
-        description: >-
-          Commit or ref of dryvist/ai-workflows to take the scripts from.
-          Defaults to its default branch, which is what a consumer wants.
-          `github.job_workflow_sha` is not used: it is empty whenever the
-          workflow is reached through another reusable workflow. A dogfood
-          caller in this repository passes the pull request head SHA so the
-          pull request exercises its own scripts.
-        type: string
-        required: false
-        default: ""
       model:
         description: >-
           Router ROLE alias to call (e.g. cheap, judge, subagent). Always an
@@ -99,7 +88,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           repository: dryvist/ai-workflows
-          ref: ${{ inputs.scripts_ref }}
+          ref: ${{ job.workflow_sha }}
           sparse-checkout: .github/scripts
           path: .ai-workflows
           persist-credentials: false
