@@ -91,9 +91,7 @@ concurrency:
 jobs:
   gate:
     name: Policy gate
-    # The caller's label plus `review`: a dedicated slot, so a review never
-    # queues behind the rest of the self-hosted pool.
-    runs-on: ${{ fromJSON(format('["{0}", "review"]', inputs.runner_label || 'self-hosted')) }}
+    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     timeout-minutes: 10
     steps:
       - name: Require the router secrets
