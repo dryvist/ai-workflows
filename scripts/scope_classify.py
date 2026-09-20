@@ -226,21 +226,17 @@ def write_outputs(output_path: str | None, decision: dict, reason: str, source: 
 
 
 def write_summary(summary_path: str | None, decision: dict, reason: str, source: str) -> None:
+    """Native job summary: one row per output, so the decision reads on the
+    run page and the PR checks view without opening a log. The ::notice::
+    line in main() is the same data as a one-line annotation."""
     if not summary_path:
         return
-    ci, molecule, ai_review, release_notes, e2e = (
-        _sanitize(decision["ci"]),
-        _sanitize(decision["molecule"]),
-        _sanitize(decision["ai_review"]),
-        _sanitize(decision["release_notes"]),
-        _sanitize(decision["e2e"]),
-    )
+    rows = [*decision.items(), ("source", source), ("reason", reason)]
     with open(summary_path, "a", encoding="utf-8") as handle:
         handle.write("### Scope Classify\n\n")
-        handle.write("| ci | molecule | ai_review | release_notes | e2e | source |\n")
-        handle.write("| --- | --- | --- | --- | --- | --- |\n")
-        handle.write(f"| {ci} | {molecule} | {ai_review} | {release_notes} | {e2e} | {_sanitize(source)} |\n\n")
-        handle.write(f"reason: {_sanitize(reason)}\n")
+        handle.write("| output | value |\n")
+        handle.write("| --- | --- |\n")
+        handle.writelines(f"| {key} | {_sanitize(value)} |\n" for key, value in rows)
 
 
 def run(env: dict[str, str]) -> tuple[dict, str, str]:
