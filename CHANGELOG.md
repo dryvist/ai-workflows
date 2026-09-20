@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.7](https://github.com/dryvist/ai-workflows/compare/v0.43.6...v0.43.7) (2026-09-20)
+
+
+### Bug Fixes
+
+* **ci:** run reusable-workflow scripts from the called workflow's own ref ([36d72a0](https://github.com/dryvist/ai-workflows/commit/36d72a0782f6ce459d6cf895db938a802ef508f4))
+
 ## [0.43.6](https://github.com/dryvist/ai-workflows/compare/v0.43.5...v0.43.6) (2026-09-20)
 
 
