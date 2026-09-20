@@ -3,8 +3,6 @@
 # Status aggregator: checks if any Copilot agent runs have failed on this PR.
 # Passes immediately if no failures detected (agents still running = pass).
 # Branch protection requires only "AI Merge Gate" as the single AI check.
-# The decision, with every Copilot check-run it counted, is written to the
-# job summary by .github/scripts/ai-merge-gate/check.sh.
 #
 # Usage:
 #   uses: dryvist/ai-workflows/.github/workflows/_ai-merge-gate.yml@main
@@ -35,19 +33,22 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout ai-workflows scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-        with:
-          repository: dryvist/ai-workflows
-          ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
-          path: .ai-workflows
-          persist-credentials: false
-
-      # The decision - curl's own retry against the check-runs API, the
-      # Copilot filter, the job-summary table - lives in the script; this
-      # step is one invocation.
       - name: Verify Copilot agent checks
-        env:
-          REPO: ${{ github.repository }}
-        run: bash .ai-workflows/.github/scripts/ai-merge-gate/check.sh
+        run: |
+          # The API occasionally returns a transient HTML error page; piping it
+          # straight into --jq crashed the gate (false-negative merge block).
+          # Retry with backoff and require a numeric answer before judging.
+          for i in 1 2 3; do
+            FAILED=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/check-runs" \
+              --jq '[.check_runs[] | select(.app.slug | test("copilot"; "i")) | select(.conclusion == "failure" or .conclusion == "timed_out")] | length') && break
+            sleep $((i * 5))
+          done
+          if ! [[ "$FAILED" =~ ^[0-9]+$ ]]; then
+            echo "::error::check-runs API unreadable after retries"
+            exit 1
+          fi
+          echo "Copilot agent failures: $FAILED"
+          if [ "$FAILED" -gt "0" ]; then
+            echo "::error::$FAILED Copilot agent check(s) failed"
+            exit 1
+          fi
