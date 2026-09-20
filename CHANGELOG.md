@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.8](https://github.com/dryvist/ai-workflows/compare/v0.43.7...v0.43.8) (2026-09-20)
+
+
+### Bug Fixes
+
+* **pr-agent:** derive the client deadline from the job cap ([55a3358](https://github.com/dryvist/ai-workflows/commit/55a33587eb9d2414b42ac401a9eb17849d22f6e3))
+* **pr-agent:** derive the client deadline from the job cap ([48d5301](https://github.com/dryvist/ai-workflows/commit/48d53013c2f6d7e5feb823ed647c67e531cb1154))
+
 ## [0.43.7](https://github.com/dryvist/ai-workflows/compare/v0.43.6...v0.43.7) (2026-09-20)
 
 
