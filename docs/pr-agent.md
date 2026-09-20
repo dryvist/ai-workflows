@@ -19,8 +19,8 @@ release pull requests, or a provenance footer.
 ## Failure contract
 
 Not advisory. If the router is down or at capacity the job fails, releasing
-the runner: the router admits or refuses at once, and the job is capped at
-ten minutes. The router role's fallback ladder absorbs load. A wrong key,
+the runner: the router admits or refuses at once, and the job is capped
+(`timeout_minutes`, ten by default). The router role's fallback ladder absorbs load. A wrong key,
 base URL or model fails at once. A
 model error fails the job rather than being swallowed: PR-Agent 0.45.0's
 CLI exits 0 either way (`config.propagate_tool_errors` only changes what it
@@ -30,8 +30,11 @@ one request: a timed-out call is not replayed on the same model
 (`config.retry_same_model_on_timeout=false`) and the completion client adds
 no retries of its own (`config.num_retries=0`). The router bounds the
 request and walks the role's ladder; a Gateway Timeout from it is final.
-`config.ai_timeout` is unset (`@none`), so the job's `timeout-minutes` is
-the only client-side deadline.
+`config.ai_timeout` is the job cap in seconds, derived from the same
+`timeout_minutes`, so the client never gives up before the job does. It is a
+number rather than the settings loader's null token because PR-Agent
+re-reads its environment with casting off once it applies repo settings, and
+the token then reaches the completion client as a literal string.
 
 This is deliberate: the workflow this replaced reported success while doing
 nothing for weeks, because "router credential not configured" was a

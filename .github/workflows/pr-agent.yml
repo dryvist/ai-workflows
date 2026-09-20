@@ -15,10 +15,10 @@
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
 # 2. A router that is down or at capacity FAILS the job, releasing the
-#    runner: the router admits or refuses at once, and the job is capped at
-#    ten minutes. It never reports success having reviewed nothing. The org
-#    ruleset injects this workflow
-#    into every pull request as a required check, so an outage blocks merges
+#    runner: the router admits or refuses at once, and the job is capped
+#    (`timeout_minutes`, ten by default). It never reports success having
+#    reviewed nothing. The org ruleset injects this workflow into every pull
+#    request as a required check, so an outage blocks merges
 #    until it clears and the review is re-fired by a push or a close/reopen.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
@@ -66,6 +66,13 @@ on:
         type: number
         required: false
         default: 32000
+      timeout_minutes:
+        description: >-
+          Job cap, and the client deadline PR-Agent hands its completion
+          client: one number, so the client never gives up before the job.
+        type: number
+        required: false
+        default: 10
       review:
         description: "Run the review tool: verdicts on the diff as one sticky comment."
         type: boolean
@@ -134,7 +141,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    timeout-minutes: 10
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     steps:
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -152,6 +159,7 @@ jobs:
           JOB_TOKEN: ${{ github.token }}
           MODEL: ${{ github.event.repository.private && inputs.model || inputs.oss_model }}
           MAX_TOKENS: ${{ inputs.max_tokens }}
+          JOB_TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
           CONFIG_BRANCH: ${{ github.head_ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           RUN_REVIEW: ${{ inputs.review }}

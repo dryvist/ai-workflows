@@ -9,7 +9,7 @@
 # branch, so a change to that file is reviewable in the pull request that makes
 # it instead of only after merge.
 #
-# Env: BASE_URL API_KEY JOB_TOKEN MODEL MAX_TOKENS CONFIG_BRANCH
+# Env: BASE_URL API_KEY JOB_TOKEN MODEL MAX_TOKENS JOB_TIMEOUT_MINUTES CONFIG_BRANCH
 #      PR_URL RUN_REVIEW RUN_IMPROVE RUN_DESCRIBE
 set -euo pipefail
 
@@ -41,16 +41,19 @@ trap 'rm -f "$env_file"' EXIT
   # leaving it at its default turns the first model error into an auth error.
   # The role carries its own fallback chain on the router; nothing to add.
   echo "CONFIG__FALLBACK_MODELS=[]"
-  echo "CONFIG__CUSTOM_MODEL_MAX_TOKENS=${MAX_TOKENS:-32000}"
+  echo "CONFIG__CUSTOM_MODEL_MAX_TOKENS=${MAX_TOKENS:?MAX_TOKENS is required}"
   # Exactly one request per model call. The router bounds a request and
   # walks the role's ladder itself; a Gateway Timeout from it is final, and a
   # client-side replay is a second full walk. PR-Agent 0.45.0 replays a
   # timed-out call on the same model unless told not to, and its completion
-  # client retries underneath unless capped. No client-side deadline: @none
-  # is the settings loader's null, so the completion client's own default
-  # (beyond the job cap) applies and the job's timeout-minutes is the only
-  # backstop - a 240 s value here never fired before the router's did.
-  echo "CONFIG__AI_TIMEOUT=@none"
+  # client retries underneath unless capped. The client deadline is the job
+  # cap itself, derived from the one value the workflow already holds, so the
+  # client never gives up before the job does. It has to be a number: the
+  # settings loader's null token does not survive PR-Agent's own environment
+  # replay (it re-reads the environment with casting off once it applies repo
+  # settings), so it reaches the completion client as a literal string and
+  # the request fails before it is sent.
+  echo "CONFIG__AI_TIMEOUT=$(( ${JOB_TIMEOUT_MINUTES:?JOB_TIMEOUT_MINUTES is required} * 60 ))"
   echo "CONFIG__RETRY_SAME_MODEL_ON_TIMEOUT=false"
   echo "CONFIG__NUM_RETRIES=0"
   # Without this a tool that fails internally still exits 0, which is the
