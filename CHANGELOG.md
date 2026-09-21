@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.9](https://github.com/dryvist/ai-workflows/compare/v0.43.8...v0.43.9) (2026-09-21)
+
+
+### Bug Fixes
+
+* **scope-rubric:** a change to Molecule's own workflow forces molecule:full ([#436](https://github.com/dryvist/ai-workflows/issues/436)) ([1fc1a7d](https://github.com/dryvist/ai-workflows/commit/1fc1a7de2c65a18df002ad2503d3395428a83da6))
+
 ## [0.43.8](https://github.com/dryvist/ai-workflows/compare/v0.43.7...v0.43.8) (2026-09-20)
 
 
