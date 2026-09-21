@@ -74,7 +74,7 @@ jobs:
           grep -Exq '[A-Za-z0-9._/-]+' <<<"$REGISTRY_REF"
 
       - name: Checkout the model registry (read-write target)
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ansible-proxmox-ai
           ref: ${{ inputs.registry_ref }}
@@ -82,7 +82,7 @@ jobs:
           fetch-depth: 1
 
       - name: Checkout ai-workflows scripts
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
