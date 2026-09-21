@@ -1,0 +1,10 @@
+name: Cancel on close
+on:
+  pull_request:
+    types: [closed]
+permissions: {}
+jobs:
+  cancel-on-close:
+    permissions:
+      actions: write
+    uses: dryvist/.github/.github/workflows/_cancel-on-close.yml@main
