@@ -60,6 +60,9 @@ otherwise looks like:
   added or modified file under `.github/workflows/**`. A workflow the
   pull request **deletes** cannot run again, so its removal alone widens
   nothing — classify the rest of the change on its own merits.
+- Any added or modified `_molecule.yml`, or any file under a
+  `molecule/resources/**` directory: this sets `molecule: full`
+  specifically (not just `ci: full`) — the job under test is the change.
 - Any file under `roles/openbao/**`.
 - Any changed path (including a rename's previous path) whose name
   contains `secret`, `auth`, `ssh`, `firewall`, `sudo` or `policy`,
