@@ -27,6 +27,39 @@ nothing about a point the diff does not touch.
   lacks documented justification under the Native-First ladder.
 - Does a workflow report success on a path where it did no work?
 - Does changed behaviour update `README.md` and the workflow's own doc page?
+
+Estate rules — request changes on any violation, citing the hunk:
+
+- No custom scripts: flag any new `.sh`/script file, or growth of an existing
+  script/helper (new subcommands, code paths, wrappers, aliases). Prefer stock
+  CLIs, Nix/IaC declarations, or native platform features. Exempt only short,
+  human-readable zsh/rc/profile login setup that makes the environment ready.
+- No lint/check bypasses: flag new ignore/exclude/disable entries, `# noqa`,
+  `shellcheck disable`, `nolint`-style suppressions, raised thresholds, or
+  skipped checks. The underlying problem must be fixed, not silenced.
+- Public disclosure: flag internal hostnames, IPs, ports, or private topology;
+  a real-value-to-placeholder scrub mapping written out in the PR text; and
+  "why"/roadmap narrative in committed text (commit messages, code, docs).
+  Flag any mention of the operator's private screen-recording tool by name —
+  refer to it, if at all, only as "a private tool" and never write its name.
+- No secrets: flag secrets, tokens, or keys in the diff; `printenv`/`env`/`set`
+  dumps in scripts or CI steps; and secrets written to disk.
+- Git-flow safety: flag a pull request whose head branch is `main` or
+  `develop`. Promotions and back-merges must use a `promote/*` or `backmerge/*`
+  head.
+- Harness parity: in an AI-harness-config repository (e.g. nix-ai,
+  nix-claude-code, nix-agy), flag a change that configures one agent harness
+  without the equivalent change for the other harnesses that support it.
+- Skill descriptions: flag a `SKILL.md` `description` field over 1024
+  characters.
+- Cost-aware authoring: flag a new always-loaded rule or context file, an
+  oversized `SKILL.md` that should split into `references/`, and unbounded
+  tool output returned from a skill.
+- Secret-backend agnostic: in a reusable repo (shared Nix modules, workflows,
+  plugins, shared roles), flag any reference to a specific secret store by
+  name — OpenBao or Doppler. Secrets must be consumed as plain env vars or
+  inputs so any source works, even a `.env` file. Exempt the operator's own
+  implementation layer: shell rc/profile, host configs, and private repos.
 """
 
 [pr_code_suggestions]
