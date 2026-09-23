@@ -55,6 +55,11 @@ Estate rules — request changes on any violation, citing the hunk:
 - Cost-aware authoring: flag a new always-loaded rule or context file, an
   oversized `SKILL.md` that should split into `references/`, and unbounded
   tool output returned from a skill.
+- Secret-backend agnostic: in a reusable repo (shared Nix modules, workflows,
+  plugins, shared roles), flag any reference to a specific secret store by
+  name — OpenBao or Doppler. Secrets must be consumed as plain env vars or
+  inputs so any source works, even a `.env` file. Exempt the operator's own
+  implementation layer: shell rc/profile, host configs, and private repos.
 """
 
 [pr_code_suggestions]
