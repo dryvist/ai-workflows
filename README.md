@@ -18,6 +18,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies changed code and opens a PR |
 | `cc-release-notes.yml` | `pull_request` | On release PR | Posts sticky AI release-highlights comment on release-please PRs (refreshed per head SHA) |
 | `docs-drift.yml` | `workflow_call` | On push to default branch | Cheap model lists docs the merge contradicts; summary, artifact, sticky PR comment |
+| `docs-sync.yml` | `workflow_call` (dispatch pattern) | On merge (consumer) | Per-merged-PR check; drafts a docs-starlight correction when needed |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
 | `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
 | `issue-backlog-sweep.yml` | `workflow_call` | Weekly (consumer) | Labels the oldest untriaged issues so `ai:ready` ones enter the resolver |

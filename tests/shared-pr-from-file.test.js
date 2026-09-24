@@ -86,4 +86,19 @@ describe('pr-from-file', () => {
     expect(github.rest.pulls.create.mock.calls[0][0].draft).toBe(true);
     delete process.env.PR_DRAFT;
   });
+
+  it('opens the PR against PR_REPO when set, instead of context.repo', async () => {
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'one\ntwo\n');
+    fs.writeFileSync(path.join(dir, '.claude-pr.md'), 'docs(network): sync with other-repo#12\n\nBody.');
+    process.env.PR_REPO = 'dryvist/docs-starlight';
+
+    await runIn(dir, { github, context, core });
+
+    const pr = github.rest.pulls.create.mock.calls[0][0];
+    expect(pr.owner).toBe('dryvist');
+    expect(pr.repo).toBe('docs-starlight');
+    const commitInput = github.graphql.mock.calls[0][1].input;
+    expect(commitInput.branch.repositoryNameWithOwner).toBe('dryvist/docs-starlight');
+    delete process.env.PR_REPO;
+  });
 });
