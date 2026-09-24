@@ -22,6 +22,22 @@ if [ -f override.flag ]; then
   exit 0
 fi
 
+# The router returned something, but not a JSON object (a truncated
+# completion, a plain-text refusal, ...). This is advisory by contract — it
+# reports "unable to score" and exits 0, it never crashes the job over a
+# malformed response.
+if ! jq -e 'type == "object"' "$RESPONSE_FILE" > /dev/null 2>&1; then
+  {
+    echo "## Policy gate"
+    echo
+    echo "Unable to score: the router response was not a JSON object."
+    echo
+    echo "_Advisory only for the first two weeks. Router role \`${MODEL:-?}\`._"
+  } > "$out"
+  cat "$out"
+  exit 0
+fi
+
 {
   echo "## Policy gate"
   echo

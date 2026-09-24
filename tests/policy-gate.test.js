@@ -91,6 +91,20 @@ test('render.sh marks exit 1 when any check fails, and still renders the table',
   });
 });
 
+test('render.sh reports "unable to score" and exits 0 on a non-JSON response', () => {
+  withTempDir((dir) => {
+    // A truncated completion or plain-text refusal — not a JSON object.
+    writeFileSync(join(dir, 'response.json'), '150ms budget exceeded, retry later');
+
+    const result = run(dir, 'render.sh', { MODEL: 'cheap', RESPONSE_FILE: join(dir, 'response.json') });
+
+    expect(result.exitCode).toBe(0);
+    const body = readFileSync(join(dir, 'policy-gate.md'), 'utf8');
+    expect(body).toContain('Unable to score');
+    expect(readFileSync(join(dir, 'policy-gate.exit'), 'utf8').trim()).toBe('0');
+  });
+});
+
 test('collect.sh requires BASE_SHA and HEAD_SHA', () => {
   withTempDir((dir) => {
     const result = run(dir, 'collect.sh', {});

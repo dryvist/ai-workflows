@@ -167,7 +167,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: dryvist/ai-llm-prompts
-          ref: ad9697cb92c54e4a41eb778df251cd0b76152eca # bump to the merged commit once dryvist/ai-llm-prompts#62 lands
+          ref: 5ba59716e046eb6dc5101ce7505b7dd251460bec # dryvist/ai-llm-prompts#62, merged to main
           sparse-checkout: automation/ai-workflows-docs-sync.md
           sparse-checkout-cone-mode: false
           path: .ai-llm-prompts
