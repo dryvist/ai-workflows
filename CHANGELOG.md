@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.44.0](https://github.com/dryvist/ai-workflows/compare/v0.43.9...v0.44.0) (2026-09-24)
+
+
+### Features
+
+* **workflows:** add docs-sync reusable workflow ([094480c](https://github.com/dryvist/ai-workflows/commit/094480cdb7d61dabfbc39ab80147e784923f7a28))
+* **workflows:** add docs-sync reusable workflow ([f1de81e](https://github.com/dryvist/ai-workflows/commit/f1de81e58f5d4b64636a46c1e9fbed9ba5685a2c))
+
 ## [0.43.9](https://github.com/dryvist/ai-workflows/compare/v0.43.8...v0.43.9) (2026-09-21)
 
 
