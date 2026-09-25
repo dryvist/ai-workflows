@@ -3,6 +3,14 @@
 set -euo pipefail
 
 out=docs-drift.md
+
+if [ ! -f drift.skip ] && ! jq -e 'has("items")' "$RESPONSE_FILE" > /dev/null 2>&1; then
+  echo "The model's response has no \"items\" key - not valid JSON:" >&2
+  head -c 300 "$RESPONSE_FILE" >&2
+  echo >&2
+  exit 1
+fi
+
 {
   echo "## Docs drift"
   echo
