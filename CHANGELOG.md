@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.44.1](https://github.com/dryvist/ai-workflows/compare/v0.44.0...v0.44.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **scope-rubric:** route Molecule-executed test fixture changes to molecule:full ([#445](https://github.com/dryvist/ai-workflows/issues/445)) ([25e7312](https://github.com/dryvist/ai-workflows/commit/25e7312adcd886f6b29576cbbcc292e7483aba15))
+
 ## [0.44.0](https://github.com/dryvist/ai-workflows/compare/v0.43.9...v0.44.0) (2026-09-24)
 
 
