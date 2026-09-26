@@ -33,12 +33,18 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
 - **`ci: none`** — the change touches nothing that any check depends on
   (e.g. a comment-only README typo across files no other filter watches).
 
-- **`molecule: full`** — any role, playbook, or shared inventory/variable
-  file changed.
+- **`molecule: full`** — any role, playbook, shared inventory/variable
+  file, or Molecule-executed test fixture changed. A test whose job is to
+  render or exercise a role/playbook through Molecule (for example
+  `tests/template_render/**`, `tests/molecule/**`, or any other test
+  directory a repo's own Molecule workflow renders from or runs) is part
+  of the surface Molecule verifies — a change there is exactly the case
+  Molecule exists to catch, never a reason to skip it. This applies even
+  when the PR title or body frames the change as "just a test fix."
 - **`molecule: changed-roles`** — only specific role directories changed
-  and nothing shared.
-- **`molecule: none`** — no `roles/**`, `playbooks/**`, or `molecule/**`
-  path touched.
+  and nothing shared, and no Molecule-executed test fixture changed either.
+- **`molecule: none`** — no `roles/**`, `playbooks/**`, `molecule/**`, or
+  Molecule-executed test path touched.
 
 - **`ai_review: yes`** — any non-trivial source, workflow, or role change.
 - **`ai_review: no`** — docs-only or lockfile/renovate-only changes.
