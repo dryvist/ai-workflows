@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.44.2](https://github.com/dryvist/ai-workflows/compare/v0.44.1...v0.44.2) (2026-10-02)
+
+
+### Bug Fixes
+
+* **docs-drift:** fail loudly on a non-JSON drift response ([#444](https://github.com/dryvist/ai-workflows/issues/444)) ([62e28a1](https://github.com/dryvist/ai-workflows/commit/62e28a143b364312aa93327d70247dae54efee5b))
+
 ## [0.44.1](https://github.com/dryvist/ai-workflows/compare/v0.44.0...v0.44.1) (2026-09-26)
 
 
