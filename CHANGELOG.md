@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.5](https://github.com/dryvist/ai-workflows/compare/v0.45.4...v0.45.5) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** run workflows via dispatch ([#463](https://github.com/dryvist/ai-workflows/issues/463)) ([3942788](https://github.com/dryvist/ai-workflows/commit/3942788015fe25c5856ed03abf23e2e97988048a))
+
 ## [0.45.4](https://github.com/dryvist/ai-workflows/compare/v0.45.3...v0.45.4) (2026-10-04)
 
 
