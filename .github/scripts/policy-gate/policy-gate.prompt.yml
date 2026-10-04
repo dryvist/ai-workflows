@@ -26,6 +26,7 @@ responseFormat: json_schema
 jsonSchema: |-
   {
     "name": "policy_gate",
+    "strict": true,
     "schema": {
       "type": "object",
       "properties": {

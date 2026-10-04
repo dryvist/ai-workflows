@@ -18,6 +18,7 @@ responseFormat: json_schema
 jsonSchema: |-
   {
     "name": "docs_drift",
+    "strict": true,
     "schema": {
       "type": "object",
       "properties": {
