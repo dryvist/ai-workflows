@@ -157,6 +157,7 @@ jobs:
           claude_model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(gh search:*)"
+          allowed_bots: "github-actions,jacobpevans-claude"
           permission_profile: workspace
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
           api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
