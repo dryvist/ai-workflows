@@ -48,6 +48,9 @@ on:
       VIKUNJA_API_TOKEN:
         description: Bearer token for the Vikunja API. act.sh's `:?` guard fails closed if it's missing.
         required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: Private key used to mint the scoped pricing pull request token.
+        required: true
 
 permissions:
   contents: read
@@ -115,18 +118,24 @@ jobs:
             if [ ! -f pr-body.md ] && [ ! -f vikunja-body.md ]; then echo; echo 'Nothing changed.'; fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # The App token is minted and consumed inside this one step's shell: it
-      # never touches $GITHUB_ENV or a step output, so no later step or log
-      # line can see it. open-pr-cli.js builds its own minimal REST/GraphQL
-      # client from GITHUB_TOKEN instead of relying on actions/github-script's
-      # pre-authenticated `github` object, which is fixed before a step runs.
+      - name: Mint scoped PR token
+        id: app-token
+        if: ${{ !inputs.dry_run }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          owner: dryvist
+          repositories: ansible-proxmox-ai
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Open the pricing PR (App-signed, satisfies required_signatures)
         if: ${{ !inputs.dry_run }}
         env:
           REGISTRY_REF: ${{ inputs.registry_ref }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          eval "$(openbao-github-creds claim dryvist/ansible-proxmox-ai)"
-          echo "::add-mask::${GITHUB_TOKEN}"
           bun .ai-workflows/.github/scripts/pricing-discovery/open-pr-cli.js
 
       - name: File the Vikunja review task, if one was proposed

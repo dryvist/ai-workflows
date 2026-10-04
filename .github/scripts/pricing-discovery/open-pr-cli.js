@@ -1,16 +1,13 @@
 // Plain-bun entry point for open-pr.js — NOT run via actions/github-script.
-// The workflow mints an ansible-proxmox-ai-scoped App token with
-// `eval "$(openbao-github-creds claim ...)"` in the same shell that invokes
-// this file, so GITHUB_TOKEN lives only in that one step's process: never
-// written to $GITHUB_ENV, never a step output. This module builds the same
-// {github, context, core} shape actions/github-script would have injected,
-// using bun's native fetch instead of an Octokit dependency.
+// The workflow supplies a short-lived, repository-scoped App token through
+// GITHUB_TOKEN. This module builds the same {github, context, core} shape
+// actions/github-script would have injected, using bun's native fetch.
 const fs = require('fs');
 const run = require('./open-pr.js');
 
 const token = process.env.GITHUB_TOKEN;
 if (!token) {
-  console.error('open-pr-cli: GITHUB_TOKEN not set — run after `eval "$(openbao-github-creds claim <owner>/<repo>)"`.');
+  console.error('open-pr-cli: GITHUB_TOKEN not set — required to open the pricing pull request.');
   process.exit(1);
 }
 
