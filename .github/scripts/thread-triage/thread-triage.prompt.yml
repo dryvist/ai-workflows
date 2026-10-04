@@ -19,6 +19,7 @@ responseFormat: json_schema
 jsonSchema: |-
   {
     "name": "thread_triage",
+    "strict": true,
     "schema": {
       "type": "object",
       "properties": {
