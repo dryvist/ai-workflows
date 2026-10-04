@@ -74,6 +74,12 @@ inputs:
     description: Comma-separated trusted bot logins that may invoke the provider action.
     required: false
     default: github-actions
+  show_full_output:
+    description: >-
+      Show full Claude output, including tool results, in action logs. Enable
+      only for private, non-sensitive debugging because output may contain secrets.
+    required: false
+    default: "false"
   allowed_users:
     description: Comma-separated GitHub users Codex may allow in addition to repository writers.
     required: false
@@ -203,6 +209,7 @@ runs:
         # The action's own input name; it carries the router key.
         anthropic_api_key: ${{ inputs.api_key }}
         allowed_bots: ${{ inputs.allowed_bots }}
+        show_full_output: ${{ inputs.show_full_output }}
         use_commit_signing: "false"
         prompt: ${{ inputs.prompt }}
         claude_args: ${{ steps.prepare.outputs.claude-args }}
