@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.44.3](https://github.com/dryvist/ai-workflows/compare/v0.44.2...v0.44.3) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** allow scheduled Actions bot in Codex adapter ([#450](https://github.com/dryvist/ai-workflows/issues/450)) ([a8a33ea](https://github.com/dryvist/ai-workflows/commit/a8a33ead49230cdffa32c4e3a905b42a63160a29))
+
 ## [0.44.2](https://github.com/dryvist/ai-workflows/compare/v0.44.1...v0.44.2) (2026-10-02)
 
 
