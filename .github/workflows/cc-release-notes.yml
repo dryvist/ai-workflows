@@ -18,11 +18,11 @@ on:
     inputs:
       runner_label:
         description: >-
-          GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest.
+          GitHub Actions runner label for the highlights job. Defaults to
+          self-hosted.
         type: string
         required: false
-        default: ubuntu-latest
+        default: self-hosted
       model:
         description: "Selected provider model override"
         type: string
@@ -52,7 +52,7 @@ concurrency:
 jobs:
   check-eligibility:
     name: Check eligibility
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
@@ -62,6 +62,12 @@ jobs:
       head_sha: ${{ steps.check.outputs.head_sha }}
       release_bot_bare: ${{ steps.check.outputs.release_bot_bare }}
     steps:
+      - name: Explain fork pull request skip
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "::notice::Release highlights are skipped for pull requests from forks."
+
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -84,8 +90,14 @@ jobs:
   highlights:
     name: Write release highlights
     needs: check-eligibility
-    if: needs.check-eligibility.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    if: >-
+      needs.check-eligibility.outputs.should_run == 'true' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: >-
+      ${{ (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      (inputs.runner_label || 'self-hosted') || 'ubuntu-latest' }}
     permissions:
       contents: read
       pull-requests: read
@@ -152,7 +164,7 @@ jobs:
       always() &&
       needs.check-eligibility.outputs.should_run == 'true' &&
       (needs.highlights.result == 'failure' || needs.highlights.result == 'cancelled')
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -164,7 +176,7 @@ jobs:
   publish:
     name: Publish release highlights
     needs: [check-eligibility, highlights]
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
