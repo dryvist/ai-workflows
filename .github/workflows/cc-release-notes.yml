@@ -62,6 +62,12 @@ jobs:
       head_sha: ${{ steps.check.outputs.head_sha }}
       release_bot_bare: ${{ steps.check.outputs.release_bot_bare }}
     steps:
+      - name: Explain fork pull request skip
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: echo "::notice::Release highlights are skipped for pull requests from forks."
+
       - name: Checkout ai-workflows scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -86,9 +92,12 @@ jobs:
     needs: check-eligibility
     if: >-
       needs.check-eligibility.outputs.should_run == 'true' &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: >-
+      ${{ (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository) &&
+      (inputs.runner_label || 'self-hosted') || 'ubuntu-latest' }}
     permissions:
       contents: read
       pull-requests: read
