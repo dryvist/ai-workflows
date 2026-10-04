@@ -180,9 +180,12 @@ runs:
         codex-args: ${{ inputs.codex_args }}
         codex-home: ${{ runner.temp }}/codex-home
         safety-strategy: drop-sudo
-        allow-users: ${{ inputs.allowed_users }}
         allow-bots: ${{ inputs.allowed_bots != '' && 'true' || 'false' }}
         allow-bot-users: ${{ inputs.allowed_bots }}
+        # The runner's GITHUB_ACTOR omits the [bot] suffix for scheduled runs.
+        # Match that normalized identity only for GitHub's scheduled actor.
+        allow-users: >-
+          ${{ github.event_name == 'schedule' && github.actor == 'github-actions[bot]' && format('{0}{1}github-actions', inputs.allowed_users, inputs.allowed_users != '' && ',' || '') || inputs.allowed_users }}
 
     - name: Run Claude Code
       id: claude
