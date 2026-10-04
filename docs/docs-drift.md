@@ -1,8 +1,8 @@
 # Docs Drift
 
-`docs-drift.yml` runs after a merge to the default branch and asks the judge
-model, served through the org's OpenAI-compatible model router, which documented
-behaviours the merged change contradicts or leaves undocumented.
+`docs-drift.yml` runs after a merge to the default branch and asks the subagent
+role through the org's OpenAI-compatible model router which documented behaviours
+the merged change contradicts or leaves undocumented.
 
 It **never edits a file**. The output is a job summary, a `docs-drift.md`
 artifact, and — when the push came from a merged pull request — one sticky
@@ -28,7 +28,7 @@ this a required check — a failure should be visible without blocking a merge.
 | Input | Default | Meaning |
 | --- | --- | --- |
 | `runner_label` | `self-hosted` | Runner label for the job |
-| `model` | `judge` | Router **role alias** to call — never a vendor model id |
+| `model` | `subagent` | Router **role alias** to call — never a vendor model id |
 | `docs_globs` | `README.md,AGENTS.md,CLAUDE.md,docs/**/*.md` | Documentation considered |
 | `max_diff_kb` | `150` | The merged diff is truncated to this many KiB |
 | `max_docs_kb` | `200` | Ceiling on the total size of the documentation sent |
