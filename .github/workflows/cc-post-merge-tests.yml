@@ -32,7 +32,7 @@ on:
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
-  actions: read
+  actions: write
   contents: write
   pull-requests: write
 
@@ -40,7 +40,26 @@ concurrency:
   group: post-merge-tests-${{ github.repository }}
 
 jobs:
+  dispatch-push:
+    if: github.event_name == 'push'
+    name: Re-trigger as workflow dispatch
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-trigger the caller workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ inputs.commit_sha || github.sha }}
+        run: >-
+          gh workflow run "$WORKFLOW_NAME" --repo "$REPOSITORY" --ref "$REF_NAME"
+          -f "commit_sha=$COMMIT_SHA"
+
   check-pr-ceiling:
+    if: github.event_name != 'push'
     name: Check bot PR ceiling
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
@@ -65,6 +84,7 @@ jobs:
             await run({ github, context, core });
 
   check-test-infra:
+    if: github.event_name != 'push'
     name: Check test infrastructure
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
@@ -91,6 +111,7 @@ jobs:
             await run({ github, context, core });
 
   check-daily-limit:
+    if: github.event_name != 'push'
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
@@ -120,7 +141,7 @@ jobs:
   post-merge-tests:
     name: Analyze and create tests
     needs: [check-pr-ceiling, check-test-infra, check-daily-limit]
-    if: needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
+    if: github.event_name != 'push' && needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
