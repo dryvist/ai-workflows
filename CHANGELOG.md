@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.1](https://github.com/dryvist/ai-workflows/compare/v0.45.0...v0.45.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **ci:** allow Code Simplifier dispatch bot ([e0ecd7c](https://github.com/dryvist/ai-workflows/commit/e0ecd7cdaae9f316a1182412c27b37ccbe9777c9))
+
 ## [0.45.0](https://github.com/dryvist/ai-workflows/compare/v0.44.3...v0.45.0) (2026-10-04)
 
 
