@@ -122,6 +122,8 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-release-notes.md PR_NUMBER
 
       - name: Run AI agent
+        id: agent
+        timeout-minutes: 8
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
@@ -135,6 +137,12 @@ jobs:
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,${{ needs.check-eligibility.outputs.release_bot_bare }}"
+
+      - name: Report AI agent failure
+        if: ${{ always() && (steps.agent.outcome == 'failure' || steps.agent.outcome == 'cancelled') }}
+        run: |
+          echo "::error::Release highlights agent failed or exceeded its 8-minute timeout. Check the Run AI agent step for details."
+          exit 1
 
       - name: Upload release highlights
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
