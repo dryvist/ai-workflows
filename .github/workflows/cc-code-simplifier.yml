@@ -28,6 +28,12 @@ on:
         description: "Max workflow runs per day (0 to disable)"
         type: string
         default: "5"
+      show_full_output:
+        description: >-
+          Include full Claude output in logs for private, non-sensitive debugging.
+        type: boolean
+        required: false
+        default: false
     secrets:
       LLM_ROUTER_BASE_URL:
         required: true
@@ -154,6 +160,7 @@ jobs:
           permission_profile: workspace
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
           api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          show_full_output: ${{ inputs.show_full_output }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
 
