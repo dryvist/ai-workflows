@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.0](https://github.com/dryvist/ai-workflows/compare/v0.44.3...v0.45.0) (2026-10-04)
+
+
+### Features
+
+* **ci:** add opt-in full Claude output ([f70f454](https://github.com/dryvist/ai-workflows/commit/f70f4546a8198b1f82a57728817d410e0413f60c))
+
 ## [0.44.3](https://github.com/dryvist/ai-workflows/compare/v0.44.2...v0.44.3) (2026-10-04)
 
 
