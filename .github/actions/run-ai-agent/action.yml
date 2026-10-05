@@ -212,3 +212,13 @@ runs:
         use_commit_signing: "false"
         prompt: ${{ inputs.prompt }}
         claude_args: ${{ steps.prepare.outputs.claude-args }}
+
+    - name: Report sanitized Claude error
+      if: always() && steps.claude.outcome != 'skipped'
+      shell: bash
+      env:
+        EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        STEP_OUTCOME: ${{ steps.claude.outcome }}
+        ROUTER_API_KEY: ${{ inputs.api_key }}
+        CLAUDE_GITHUB_TOKEN: ${{ steps.claude.outputs.github_token }}
+      run: node "$GITHUB_ACTION_PATH/report-error.js"
