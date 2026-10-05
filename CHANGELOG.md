@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.7](https://github.com/dryvist/ai-workflows/compare/v0.45.6...v0.45.7) (2026-10-05)
+
+
+### Bug Fixes
+
+* **docs-drift:** parse wrapped JSON responses ([d987fcd](https://github.com/dryvist/ai-workflows/commit/d987fcd068cd0fed55355d24543fad2302901849))
+
 ## [0.45.6](https://github.com/dryvist/ai-workflows/compare/v0.45.5...v0.45.6) (2026-10-05)
 
 
