@@ -28,7 +28,9 @@ for (const file of prompts) {
     expect(config.model).toBeUndefined();
     if (config.responseFormat) {
       expect(config.responseFormat).toBe('json_schema');
-      expect(JSON.parse(config.jsonSchema).schema.type).toBe('object');
+      const schema = JSON.parse(config.jsonSchema);
+      expect(schema.strict).toBe(true);
+      expect(schema.schema.type).toBe('object');
     }
     const use = workflows.slice(workflows.indexOf(`prompt-file: .ai-workflows/${file}`));
     expect(use.length).toBeGreaterThan(0);

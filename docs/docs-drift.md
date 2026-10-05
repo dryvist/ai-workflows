@@ -1,8 +1,8 @@
 # Docs Drift
 
-`docs-drift.yml` runs after a merge to the default branch and asks a cheap
-model, served through the org's OpenAI-compatible model router, which documented
-behaviours the merged change contradicts or leaves undocumented.
+`docs-drift.yml` runs after a merge to the default branch and asks the cheap
+role through the org's OpenAI-compatible model router which documented behaviours
+the merged change contradicts or leaves undocumented.
 
 It **never edits a file**. The output is a job summary, a `docs-drift.md`
 artifact, and — when the push came from a merged pull request — one sticky
