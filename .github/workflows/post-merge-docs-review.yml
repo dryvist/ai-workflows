@@ -1,0 +1,30 @@
+# Compatibility entry point for callers using the original workflow path.
+
+name: Post-Merge Docs Review
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        description: Commit SHA to review
+        required: false
+        type: string
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        required: false
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  review:
+    uses: ./.github/workflows/cc-post-merge-docs-review.yml
+    with:
+      commit_sha: ${{ inputs.commit_sha }}
+    secrets: inherit
