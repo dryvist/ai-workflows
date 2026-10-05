@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.8](https://github.com/dryvist/ai-workflows/compare/v0.45.7...v0.45.8) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ai-agent:** log sanitized Claude result errors ([#468](https://github.com/dryvist/ai-workflows/issues/468)) ([fd80e05](https://github.com/dryvist/ai-workflows/commit/fd80e055a5ba82076689c88a459aa3edbd289c39))
+
 ## [0.45.7](https://github.com/dryvist/ai-workflows/compare/v0.45.6...v0.45.7) (2026-10-05)
 
 
