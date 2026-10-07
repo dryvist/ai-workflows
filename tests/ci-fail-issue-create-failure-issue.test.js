@@ -143,4 +143,20 @@ describe('ci-fail-issue/create-failure-issue', () => {
     expect(core.getOutput('issue_number')).toBe('45');
     expect(core.getOutput('issue_url')).toBe('https://github.com/test-owner/test-repo/issues/45');
   });
+
+  it('uses caller-supplied run ID without workflow_run event payload', async () => {
+    context = createMockContext({ payload: {} });
+    process.env.FAILURE_RUN_ID = '789';
+    github.rest.issues.create.mockResolvedValueOnce({
+      data: { number: 46, html_url: 'https://github.com/test-owner/test-repo/issues/46' }
+    });
+    github.rest.issues.addAssignees.mockResolvedValueOnce({});
+    github.paginate.mockResolvedValueOnce([]);
+
+    await run({ github, context, core });
+
+    expect(github.paginate.mock.calls[0][1].run_id).toBe('789');
+    expect(core.getOutput('issue_number')).toBe('46');
+    delete process.env.FAILURE_RUN_ID;
+  });
 });

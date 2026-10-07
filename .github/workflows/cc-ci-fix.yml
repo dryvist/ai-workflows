@@ -3,8 +3,8 @@
 # Reusable workflow: called by consumer repos when CI fails on a PR branch.
 # Analyzes failure logs and pushes fixes (max 2 attempts per PR).
 #
-# Security: The fix job includes a fork guard to prevent untrusted code checkout
-# in the privileged workflow_run context (CodeQL actions/untrusted-checkout/high).
+# Security: The fix job includes a fork guard before checking out the failed
+# branch, regardless of whether the caller uses workflow_run or workflow_call.
 
 name: cc-CI Fix
 
@@ -38,6 +38,26 @@ on:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
         default: ""
+      failure_conclusion:
+        description: "Conclusion of the CI run being handled"
+        type: string
+        default: ""
+      failure_run_id:
+        description: "ID of the CI run being handled"
+        type: string
+        default: ""
+      failure_head_branch:
+        description: "Head branch of the failed CI run"
+        type: string
+        default: ""
+      failure_head_repository:
+        description: "Full name of the repository containing the failed head"
+        type: string
+        default: ""
+      failure_actor:
+        description: "Actor that started the failed CI run"
+        type: string
+        default: ""
     secrets:
       LLM_ROUTER_BASE_URL:
         required: true
@@ -56,20 +76,20 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ci-fix-${{ github.repository }}-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: ci-fix-${{ github.repository }}-${{ inputs.failure_head_branch || github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
 
 jobs:
   should-fix:
     name: Check if fix needed
-    # Gate on CI failure (or manual dispatch) so direct importers no-op on green
-    # builds. suite-ci applies the same conclusion gate one level up.
+    # Gate on CI failure so direct importers no-op on green builds. suite-ci
+    # applies the same conclusion gate one level up.
     if: >-
-      (github.event_name == 'workflow_dispatch' ||
+      (inputs.failure_conclusion == 'failure' ||
        github.event.workflow_run.conclusion == 'failure') &&
-      github.actor != 'renovate[bot]' &&
-      github.actor != 'dependabot[bot]' &&
-      github.actor != 'copilot[bot]'
+      (inputs.failure_actor || github.actor) != 'renovate[bot]' &&
+      (inputs.failure_actor || github.actor) != 'dependabot[bot]' &&
+      (inputs.failure_actor || github.actor) != 'copilot[bot]'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: read
@@ -90,6 +110,8 @@ jobs:
       - name: Find associated PR
         id: find-pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          FAILURE_HEAD_BRANCH: ${{ inputs.failure_head_branch || github.event.workflow_run.head_branch }}
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fix/find-pr.js');
@@ -137,7 +159,7 @@ jobs:
     name: Post attempt marker
     needs: [should-fix, check-daily-limit]
     if: >-
-      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -167,7 +189,7 @@ jobs:
     name: Get failure logs
     needs: [should-fix, check-daily-limit]
     if: >-
-      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -187,6 +209,8 @@ jobs:
       - name: Download failure logs
         id: get-logs
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          FAILURE_RUN_ID: ${{ inputs.failure_run_id || github.event.workflow_run.id }}
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fix/get-failure-logs.js');
@@ -199,7 +223,7 @@ jobs:
     # Also require upstream gate jobs to have passed (explicit `if` replaces the default
     # dependency-success check, so all conditions must be listed here).
     if: >-
-      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -211,7 +235,7 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ inputs.failure_head_branch || github.event.workflow_run.head_branch }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -241,10 +265,8 @@ jobs:
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE
 
-      # Claude only EDITS files (use_commit_signing: false) — claude-code-action's
-      # own commit path can't target a PR branch from a workflow_run trigger (no
-      # PR context in the event payload), so the edits stay in the working tree
-      # and the "Commit fix" step below commits them to the known PR branch.
+      # Claude only EDITS files (use_commit_signing: false); the "Commit fix"
+      # step below publishes the edits to the known PR branch.
       - name: Run AI agent
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
@@ -284,7 +306,7 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ inputs.failure_head_branch || github.event.workflow_run.head_branch }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -321,7 +343,7 @@ jobs:
       - name: Commit fix to PR branch
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_BRANCH: ${{ inputs.failure_head_branch || github.event.workflow_run.head_branch }}
           COMMIT_MESSAGE: "fix: resolve CI failure (auto-fix attempt ${{ needs.should-fix.outputs.attempt }})"
         with:
           github-token: ${{ steps.commit-token.outputs.token }}

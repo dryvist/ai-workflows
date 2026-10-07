@@ -3,9 +3,13 @@ const { get24hWindowStart } = require('../shared/utils');
 
 module.exports = async ({ github, context, core }) => {
   const { owner, repo } = context.repo;
-  const run = context.payload.workflow_run;
-  const sha = run.head_sha;
-  const shortSha = sha.slice(0, 7);
+  const eventRun = context.payload.workflow_run;
+  const run = {
+    conclusion: process.env.FAILURE_CONCLUSION || eventRun?.conclusion,
+    head_sha: process.env.FAILURE_HEAD_SHA || eventRun?.head_sha,
+    id: process.env.FAILURE_RUN_ID || eventRun?.id,
+    html_url: process.env.FAILURE_RUN_URL || eventRun?.html_url,
+  };
   const marker = '<!-- ci-fail-issue -->';
 
   // Gate 0: Unified daily issue ceiling — prevent automation loops
@@ -42,6 +46,15 @@ module.exports = async ({ github, context, core }) => {
     return;
   }
   core.info('Gate 1: conclusion is failure — pass');
+
+  if (!run.head_sha || !run.id || !run.html_url) {
+    core.setFailed('Failure run metadata is incomplete');
+    core.setOutput('eligible', 'false');
+    core.setOutput('skip_reason', 'failure run metadata is incomplete');
+    return;
+  }
+  const sha = run.head_sha;
+  const shortSha = sha.slice(0, 7);
 
   // Gate 2 & 3: skip if commit authored by a bot
   let authorLogin = '';

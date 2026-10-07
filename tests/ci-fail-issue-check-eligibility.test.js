@@ -11,6 +11,7 @@ function makeContext(conclusionOverride = 'failure') {
     payload: {
       workflow_run: {
         conclusion: conclusionOverride,
+        id: 999,
         head_sha: FULL_SHA,
         html_url: RUN_URL,
       },
@@ -140,5 +141,23 @@ describe('ci-fail-issue/check-eligibility', () => {
     expect(core.getOutput('eligible')).toBe('true');
     // Warning should be logged
     expect(core.infos.some(msg => msg.includes('Could not get commit author'))).toBe(true);
+  });
+
+  it('uses caller-supplied failed run metadata', async () => {
+    context = createMockContext({ payload: {} });
+    process.env.FAILURE_CONCLUSION = 'failure';
+    process.env.FAILURE_HEAD_SHA = FULL_SHA;
+    process.env.FAILURE_RUN_ID = '999';
+    process.env.FAILURE_RUN_URL = RUN_URL;
+
+    await run({ github, context, core });
+
+    expect(core.getOutput('eligible')).toBe('true');
+    expect(core.getOutput('commit_sha')).toBe(FULL_SHA);
+    expect(core.getOutput('run_url')).toBe(RUN_URL);
+    delete process.env.FAILURE_CONCLUSION;
+    delete process.env.FAILURE_HEAD_SHA;
+    delete process.env.FAILURE_RUN_ID;
+    delete process.env.FAILURE_RUN_URL;
   });
 });
