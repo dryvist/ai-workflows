@@ -80,6 +80,18 @@ inputs:
       only for private, non-sensitive debugging because output may contain secrets.
     required: false
     default: "false"
+  litellm_tags:
+    description: Comma-separated LiteLLM request tags for flow attribution.
+    required: false
+    default: ""
+  otel_traces_endpoint:
+    description: Optional OTLP traces endpoint for Claude Code telemetry.
+    required: false
+    default: ""
+  otel_resource_attributes:
+    description: Comma-separated OpenTelemetry resource attributes.
+    required: false
+    default: ""
   allowed_users:
     description: Comma-separated GitHub users Codex may allow in addition to repository writers.
     required: false
@@ -201,6 +213,20 @@ runs:
       env:
         # The CLI's own variable name; it points at the router.
         ANTHROPIC_BASE_URL: ${{ steps.prepare.outputs.claude-base-url }}
+        ANTHROPIC_CUSTOM_HEADERS: ${{ inputs.litellm_tags != '' && format('x-litellm-tags: {0}', inputs.litellm_tags) || '' }}
+        CLAUDE_CODE_ENABLE_TELEMETRY: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
+        CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
+        CLAUDE_CODE_PROPAGATE_TRACEPARENT: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
+        OTEL_TRACES_EXPORTER: ${{ inputs.otel_traces_endpoint != '' && 'otlp' || 'none' }}
+        OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
+        OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${{ inputs.otel_traces_endpoint }}
+        OTEL_RESOURCE_ATTRIBUTES: ${{ inputs.otel_resource_attributes }}
+        OTEL_METRICS_EXPORTER: none
+        OTEL_LOGS_EXPORTER: none
+        OTEL_LOG_USER_PROMPTS: "0"
+        OTEL_LOG_TOOL_DETAILS: "0"
+        OTEL_LOG_TOOL_CONTENT: "0"
+        OTEL_LOG_RAW_API_BODIES: "0"
       with:
         # Supplying the job-scoped token prevents Claude Code Action from
         # exchanging OIDC for its own write-capable GitHub App token.

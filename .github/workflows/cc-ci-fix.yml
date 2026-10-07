@@ -20,9 +20,24 @@ on:
         required: false
         default: ubuntu-latest
       daily_run_limit:
-        description: "Max workflow runs per day (0 to disable)"
+        description: "Maximum workflow runs per day"
         type: string
         default: "5"
+      local_only:
+        description: Route every model request through the local-only router role.
+        type: boolean
+        required: false
+        default: false
+      local_model:
+        description: Existing router role to use when local_only is true.
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: Generate an artifact without publishing a patch or failure reply.
+        type: boolean
+        required: false
+        default: false
       repo_context:
         description: >-
           Brief description of the repository. Optional — defaults to the
@@ -42,7 +57,10 @@ on:
       LLM_ROUTER_BASE_URL:
         required: true
       LLM_ROUTER_API_KEY:
-        required: true
+        required: false
+      OPENBAO_ADDR:
+        description: OpenBao service URL used by the local-only OIDC identity.
+        required: false
       GH_APP_CLAUDE_BOT_PRIVATE_KEY:
         required: false
   workflow_dispatch:
@@ -158,6 +176,7 @@ jobs:
         env:
           PR_NUMBER: ${{ needs.should-fix.outputs.pr_number }}
           ATTEMPT: ${{ needs.should-fix.outputs.attempt }}
+          DRY_RUN: ${{ inputs.dry_run }}
         with:
           script: |
             const run = require('./.ai-workflows/.github/scripts/ci-fix/post-attempt-comment.js');
@@ -206,6 +225,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      id-token: write
     timeout-minutes: 10
     steps:
       - name: Checkout PR branch
@@ -241,6 +261,36 @@ jobs:
           FAILURE_LOGS: ${{ needs.get-failure-details.outputs.failure_logs }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-ci-fix.md FAILURE_LOGS REPO_CONTEXT CI_STRUCTURE
 
+      - name: Validate local model flow configuration
+        if: inputs.local_only
+        env:
+          LOCAL_MODEL: ${{ inputs.local_model }}
+          LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          OPENBAO_ADDR: ${{ secrets.OPENBAO_ADDR }}
+          OTEL_ENDPOINT: ${{ vars.AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT }}
+          DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
+        run: |
+          test -n "$LOCAL_MODEL" || { echo "local_model is required when local_only is true" >&2; exit 1; }
+          test -n "$LLM_ROUTER_BASE_URL" || { echo "LLM_ROUTER_BASE_URL is required when local_only is true" >&2; exit 1; }
+          test -n "$OPENBAO_ADDR" || { echo "OPENBAO_ADDR is required when local_only is true" >&2; exit 1; }
+          test -n "$OTEL_ENDPOINT" || { echo "AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required when local_only is true" >&2; exit 1; }
+          case "$DAILY_RUN_LIMIT" in ''|*[!0-9]*|0) echo "daily_run_limit must be positive" >&2; exit 1 ;; esac
+
+      - name: Read CI-fix router key through OpenBao OIDC
+        id: router-key
+        if: inputs.local_only
+        uses: hashicorp/vault-action@892a26828f195e65540a40b4768ae4571f51ebfc
+        with:
+          url: ${{ secrets.OPENBAO_ADDR }}
+          method: jwt
+          path: github-actions
+          role: github-agent-ci-fix
+          jwtGithubAudience: https://github.com/dryvist
+          exportEnv: false
+          exportToken: false
+          secrets: |
+            secret/data/apps/github-actions-ci-fix github_actions_ci_fix_llm_router_key | LLM_ROUTER_API_KEY
+
       # Claude only EDITS files (use_commit_signing: false) — claude-code-action's
       # own commit path can't target a PR branch from a workflow_run trigger (no
       # PR context in the event payload), so the edits stay in the working tree
@@ -248,14 +298,17 @@ jobs:
       - name: Run AI agent
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
-          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
+          agent: ${{ inputs.local_only && 'claude' || vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ inputs.local_only && inputs.local_model || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*),Bash(git branch:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           permission_profile: workspace
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          api_key: ${{ inputs.local_only && steps.router-key.outputs.LLM_ROUTER_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          litellm_tags: ${{ inputs.local_only && 'agent-flow:ci-failure-fixer,agent-trigger:workflow_run' || '' }}
+          otel_traces_endpoint: ${{ inputs.local_only && vars.AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || '' }}
+          otel_resource_attributes: ${{ inputs.local_only && 'langfuse.environment=production,service.name=ci-failure-fixer,agent.flow=ci-failure-fixer,agent.trigger=workflow_run' || '' }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,claude"
@@ -277,6 +330,7 @@ jobs:
   publish:
     name: Publish CI fix
     needs: [should-fix, fix]
+    if: ${{ !inputs.dry_run }}
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write
@@ -332,7 +386,7 @@ jobs:
   notify-failure:
     name: Report CI fix failure
     needs: [should-fix, fix, publish]
-    if: failure()
+    if: failure() && !inputs.dry_run
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       pull-requests: write

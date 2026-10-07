@@ -34,4 +34,4 @@ jobs:
       repo_context: "Describe your repo: language, frameworks, how it builds."
       ci_structure: "Describe what CI checks (lint, unit tests, typecheck, ...)."
       # extra_tools: "Bash(bun:*)"   # optional extra allowed tools for the fix
-      # daily_run_limit: "5"          # optional, default 5 (0 disables the cap)
+      # daily_run_limit: "5"          # optional, default 5; must be a positive integer
