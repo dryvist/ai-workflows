@@ -29,7 +29,7 @@ on:
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
   contents: read
-  issues: write
+  issues: read
 
 concurrency:
   group: issue-triage-${{ github.repository }}
@@ -102,7 +102,6 @@ jobs:
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
-      issues: write
     steps:
       - name: Checkout publisher
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
