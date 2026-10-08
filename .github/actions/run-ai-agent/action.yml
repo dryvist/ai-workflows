@@ -177,6 +177,17 @@ runs:
     # to run afterward as a fallback — continue-on-error keeps that failure
     # from stopping the job here. If Claude's own key is unavailable or also
     # fails, the Claude step below fails for real and the job fails honestly.
+    # drop-sudo refuses to run as root, so on a root runner Codex runs as a
+    # dedicated non-root user instead (see select-codex-user.sh).
+    - name: Select Codex run user
+      id: codex-user
+      if: steps.prepare.outputs.effective-agent == 'codex'
+      shell: bash
+      env:
+        CODEX_HOME_DIR: ${{ runner.temp }}/codex-home
+        CODEX_WORK_DIR: ${{ inputs.working_directory || github.workspace }}
+      run: bash "$GITHUB_ACTION_PATH/select-codex-user.sh"
+
     - name: Run Codex
       id: codex
       if: steps.prepare.outputs.effective-agent == 'codex'
@@ -197,7 +208,8 @@ runs:
         codex-version: ${{ inputs.codex_version }}
         codex-args: ${{ inputs.codex_args }}
         codex-home: ${{ runner.temp }}/codex-home
-        safety-strategy: drop-sudo
+        safety-strategy: ${{ steps.codex-user.outputs.safety-strategy }}
+        codex-user: ${{ steps.codex-user.outputs.codex-user }}
         allow-bots: ${{ inputs.allowed_bots != '' && 'true' || 'false' }}
         allow-bot-users: ${{ inputs.allowed_bots }}
         # The runner and event context expose the scheduled actor as the bare login.
