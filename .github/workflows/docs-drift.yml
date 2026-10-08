@@ -33,7 +33,7 @@ on:
           alias the router resolves — never a vendor model id.
         type: string
         required: false
-        default: cheap
+        default: review-private
       docs_globs:
         description: >-
           Comma-separated documentation globs to consider. Only the files that
