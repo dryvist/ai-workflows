@@ -75,7 +75,9 @@ Inputs: `repo_context` (required), `file_patterns` (optional)
 
 #### `cc-ci-fix.yml`
 
-Call after the CI jobs fail. The reusable workflow reads the originating run and routes same-repository PR failures to repair and default-branch failures to issue creation. Existing `workflow_run` callers remain compatible during migration.
+Call after the CI jobs fail. The reusable workflow reads the originating run and routes same-repository PR
+failures to repair and default-branch failures to issue creation. Existing `workflow_run` callers remain
+compatible during migration.
 
 ```yaml
 jobs:
@@ -100,7 +102,10 @@ jobs:
       failure_run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       failure_head_branch: ${{ github.head_ref || github.ref_name }}
       failure_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-      failure_head_repository: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name || github.event_name != 'pull_request' && github.repository }}
+      failure_head_repository: >-
+        ${{ github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name ||
+        github.event_name != 'pull_request' && github.repository }}
       failure_actor: ${{ github.actor }}
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
