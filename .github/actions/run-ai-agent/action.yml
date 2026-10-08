@@ -213,7 +213,7 @@ runs:
       env:
         # The CLI's own variable name; it points at the router.
         ANTHROPIC_BASE_URL: ${{ steps.prepare.outputs.claude-base-url }}
-        ANTHROPIC_CUSTOM_HEADERS: ${{ inputs.litellm_tags != '' && format('x-litellm-tags: {0}', inputs.litellm_tags) || '' }}
+        ANTHROPIC_CUSTOM_HEADERS: "${{ inputs.litellm_tags != '' && format('x-litellm-tags: {0}', inputs.litellm_tags) || '' }}"
         CLAUDE_CODE_ENABLE_TELEMETRY: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
         CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
         CLAUDE_CODE_PROPAGATE_TRACEPARENT: ${{ inputs.otel_traces_endpoint != '' && '1' || '0' }}
