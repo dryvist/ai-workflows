@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.46.2](https://github.com/dryvist/ai-workflows/compare/v0.46.1...v0.46.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** pass failure context to reusable handler ([#471](https://github.com/dryvist/ai-workflows/issues/471)) ([38ff7ee](https://github.com/dryvist/ai-workflows/commit/38ff7eef1523aad094bd11d675e7b0766e398799))
+
 ## [0.46.1](https://github.com/dryvist/ai-workflows/compare/v0.46.0...v0.46.1) (2026-10-08)
 
 
