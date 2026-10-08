@@ -176,7 +176,7 @@ jobs:
     name: Post attempt marker
     needs: [should-fix, check-daily-limit]
     if: >-
-      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
+      (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -207,7 +207,7 @@ jobs:
     name: Get failure logs
     needs: [should-fix, check-daily-limit]
     if: >-
-      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
+      (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -241,7 +241,7 @@ jobs:
     # Also require upstream gate jobs to have passed (explicit `if` replaces the default
     # dependency-success check, so all conditions must be listed here).
     if: >-
-      (inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name) == github.repository &&
+      (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
