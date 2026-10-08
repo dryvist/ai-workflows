@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.46.8](https://github.com/dryvist/ai-workflows/compare/v0.46.7...v0.46.8) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** grant actions: read to daily run limit callers ([#487](https://github.com/dryvist/ai-workflows/issues/487)) ([a080970](https://github.com/dryvist/ai-workflows/commit/a080970b5038987fa7ba0a11669a848bdd462367))
+
 ## [0.46.7](https://github.com/dryvist/ai-workflows/compare/v0.46.6...v0.46.7) (2026-10-08)
 
 
