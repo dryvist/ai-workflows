@@ -121,10 +121,12 @@ jobs:
     name: Respond to review feedback
     needs: check-daily-limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    # No id-token grant: callers grant only the standard set, and a reusable job
+    # that requests more fails at startup for every caller. local_only's OpenBao
+    # OIDC step therefore cannot mint a token from this job and fails closed.
     permissions:
       contents: read
       pull-requests: read
-      id-token: write
     # Fork guard: only same-repo PR heads (never check out a fork with write scope).
     # Loop guard: never act on our own bot's review/comment (its reply is itself a
     # pull_request_review_comment event). workflow_dispatch has no actor/PR to guard,
