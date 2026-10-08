@@ -5,6 +5,7 @@ module.exports = async ({ github, context, core }) => {
     return;
   }
   const attempt = process.env.ATTEMPT || '?';
+  const dryRun = process.env.DRY_RUN === 'true';
   await github.rest.issues.createComment({
     owner: context.repo.owner,
     repo: context.repo.repo,
@@ -13,7 +14,8 @@ module.exports = async ({ github, context, core }) => {
       '<!-- claude-ci-fix-attempt -->',
       `### CI Auto-Fix Attempt ${attempt}/2`,
       '',
-      'Claude is analyzing the CI failure and attempting a fix...'
+      'The AI agent is analyzing the CI failure and preparing a proposed fix...',
+      ...(dryRun ? ['Dry run: no patch was published.'] : [])
     ].join('\n')
   });
 };

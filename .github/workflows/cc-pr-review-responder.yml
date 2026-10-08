@@ -36,11 +36,34 @@ on:
         description: "Additional allowed tools beyond defaults (e.g., Bash(tofu:*))"
         type: string
         default: ""
+      daily_run_limit:
+        description: Maximum workflow runs per day.
+        type: string
+        required: false
+        default: "5"
+      local_only:
+        description: Route every model request through the local-only router role.
+        type: boolean
+        required: false
+        default: false
+      local_model:
+        description: Existing router role to use when local_only is true.
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: Generate an artifact without publishing a patch or review response.
+        type: boolean
+        required: false
+        default: false
     secrets:
       LLM_ROUTER_BASE_URL:
         required: true
       LLM_ROUTER_API_KEY:
-        required: true
+        required: false
+      OPENBAO_ADDR:
+        description: OpenBao service URL used by the local-only OIDC identity.
+        required: false
       GH_APP_CLAUDE_BOT_PRIVATE_KEY:
         description: >-
           JacobPEvans-claude App private key. Mints the App token used for the
@@ -58,6 +81,7 @@ on:
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
+  actions: read
   contents: write
   pull-requests: write
 
@@ -66,22 +90,52 @@ concurrency:
   cancel-in-progress: false  # Never cancel — queue instead to avoid wasting AI tokens
 
 jobs:
+  check-daily-limit:
+    name: Check daily run limit
+    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    permissions:
+      actions: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Checkout ai-workflows scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: dryvist/ai-workflows
+          ref: ${{ job.workflow_sha }}
+          sparse-checkout: .github/scripts
+          path: .ai-workflows
+
+      - name: Check daily run limit
+        id: check
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
+          WORKFLOW_FILE: ${{ github.workflow_ref }}
+        with:
+          script: |
+            const run = require('./.ai-workflows/.github/scripts/shared/check-daily-limit.js');
+            await run({ github, context, core });
+
   respond:
     name: Respond to review feedback
+    needs: check-daily-limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: read
       pull-requests: read
+      id-token: write
     # Fork guard: only same-repo PR heads (never check out a fork with write scope).
     # Loop guard: never act on our own bot's review/comment (its reply is itself a
     # pull_request_review_comment event). workflow_dispatch has no actor/PR to guard,
     # so it is always allowed through for manual/E2E runs.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.check-daily-limit.outputs.should_run == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.sender.login != 'jacobpevans-claude[bot]' &&
        github.event.sender.login != 'claude[bot]' &&
-       github.event.sender.login != 'github-actions[bot]')
+       github.event.sender.login != 'github-actions[bot]'))
     timeout-minutes: 10
     outputs:
       pr_number: ${{ github.event.pull_request.number || steps.pr.outputs.number }}
@@ -143,19 +197,52 @@ jobs:
           REPO_CONTEXT: ${{ inputs.repo_context || github.event.repository.description }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-pr-review-responder.md PR_NUMBER REPO_CONTEXT
 
+      - name: Validate local model flow configuration
+        if: inputs.local_only
+        env:
+          LOCAL_MODEL: ${{ inputs.local_model }}
+          LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          OPENBAO_ADDR: ${{ secrets.OPENBAO_ADDR }}
+          OTEL_ENDPOINT: ${{ vars.AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT }}
+          DAILY_RUN_LIMIT: ${{ inputs.daily_run_limit }}
+        run: |
+          test -n "$LOCAL_MODEL" || { echo "local_model is required when local_only is true" >&2; exit 1; }
+          test -n "$LLM_ROUTER_BASE_URL" || { echo "LLM_ROUTER_BASE_URL is required when local_only is true" >&2; exit 1; }
+          test -n "$OPENBAO_ADDR" || { echo "OPENBAO_ADDR is required when local_only is true" >&2; exit 1; }
+          test -n "$OTEL_ENDPOINT" || { echo "AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is required when local_only is true" >&2; exit 1; }
+          case "$DAILY_RUN_LIMIT" in ''|*[!0-9]*|0) echo "daily_run_limit must be positive" >&2; exit 1 ;; esac
+
+      - name: Read PR-review router key through OpenBao OIDC
+        id: router-key
+        if: inputs.local_only
+        uses: hashicorp/vault-action@892a26828f195e65540a40b4768ae4571f51ebfc
+        with:
+          url: ${{ secrets.OPENBAO_ADDR }}
+          method: jwt
+          path: github-actions
+          role: github-agent-pr-review
+          jwtGithubAudience: https://github.com/dryvist
+          exportEnv: false
+          exportToken: false
+          secrets: |
+            secret/data/apps/github-actions-pr-review github_actions_pr_review_llm_router_key | LLM_ROUTER_API_KEY
+
       # The model edits files and writes a typed review-action handoff. It never
       # receives the App token used by the fresh publisher job.
       - name: Run AI agent
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
-          agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
+          agent: ${{ inputs.local_only && 'claude' || vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
-          claude_model: ${{ vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ inputs.local_only && inputs.local_model || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git status:*)${{ inputs.extra_tools != '' && format(',{0}', inputs.extra_tools) || '' }}"
           permission_profile: workspace
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          api_key: ${{ inputs.local_only && steps.router-key.outputs.LLM_ROUTER_API_KEY || secrets.LLM_ROUTER_API_KEY }}
+          litellm_tags: ${{ inputs.local_only && format('agent-flow:pr-review-responder,agent-trigger:{0}', github.event_name) || '' }}
+          otel_traces_endpoint: ${{ inputs.local_only && vars.AI_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT || '' }}
+          otel_resource_attributes: ${{ inputs.local_only && format('langfuse.environment=production,service.name=pr-review-responder,agent.flow=pr-review-responder,agent.trigger={0}', github.event_name) || '' }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "gemini-code-assist,copilot-pull-request-reviewer,github-actions"
@@ -180,6 +267,7 @@ jobs:
   publish:
     name: Publish review response
     needs: respond
+    if: ${{ !inputs.dry_run }}
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
       contents: write

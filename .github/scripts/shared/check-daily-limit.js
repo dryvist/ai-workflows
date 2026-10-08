@@ -2,15 +2,9 @@ const { get24hWindowStart } = require('./utils');
 
 module.exports = async ({ github, context, core }) => {
   const rawLimit = process.env.DAILY_RUN_LIMIT || '5';
-  const dailyRunLimit = parseInt(rawLimit, 10);
-  if (!Number.isFinite(dailyRunLimit) || dailyRunLimit < 0) {
-    core.setFailed(`Invalid DAILY_RUN_LIMIT: "${rawLimit}" — must be a non-negative integer`);
-    return;
-  }
-
-  if (dailyRunLimit === 0) {
-    core.setOutput('should_run', 'true');
-    core.info('Daily run limit disabled');
+  const dailyRunLimit = Number(rawLimit);
+  if (!Number.isSafeInteger(dailyRunLimit) || dailyRunLimit < 1) {
+    core.setFailed(`Invalid DAILY_RUN_LIMIT: "${rawLimit}" — must be a positive integer`);
     return;
   }
 
@@ -32,8 +26,8 @@ module.exports = async ({ github, context, core }) => {
 
   const since = get24hWindowStart();
 
-  // Paginate to count all runs within the 24h window.
-  // Runs are returned newest-first, so we stop once we hit one older than the cutoff.
+  // Paginate all statuses to count queued and in-progress runs as well as
+  // completed ones. Runs are returned newest-first, so stop at the cutoff.
   const perPage = 100;
   let page = 1;
   let count = 0;
@@ -45,7 +39,6 @@ module.exports = async ({ github, context, core }) => {
         owner: context.repo.owner,
         repo: context.repo.repo,
         workflow_id: workflowId,
-        status: 'completed',
         per_page: perPage,
         page,
       });
@@ -74,12 +67,9 @@ module.exports = async ({ github, context, core }) => {
       }
     }
   } catch (err) {
-    // Listing runs needs `actions: read`. If a caller's token lacks it the API
-    // 403s — fail OPEN (allow the run) rather than blocking. This lets the
-    // reusable drop its `actions: read` requirement so callers no longer
-    // startup-fail for omitting it; a caller that DOES grant it still gets the cap.
-    core.warning(`Could not read workflow runs (${err.message}); skipping daily-limit enforcement for this run.`);
-    core.setOutput('should_run', 'true');
+    // Listing runs needs `actions: read`. If the API cannot prove the run is
+    // under budget, stop instead of silently bypassing the cap.
+    core.setFailed(`Could not read workflow runs; refusing to bypass the daily limit (${err.message}).`);
     return;
   }
 

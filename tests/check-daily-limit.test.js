@@ -24,7 +24,25 @@ describe('check-daily-limit', () => {
 
     await run({ github, context, core });
 
+    expect(github.rest.actions.listWorkflowRuns.mock.calls[0][0]).not.toHaveProperty('status');
     expect(core.getOutput('should_run')).toBe('true');
+    expect(core.failures).toHaveLength(0);
+  });
+
+  it('counts queued and in-progress runs against the daily limit', async () => {
+    process.env.WORKFLOW_FILE = 'owner/repo/.github/workflows/test.yml@refs/heads/main';
+    process.env.DAILY_RUN_LIMIT = '2';
+    const activeRuns = [
+      { created_at: new Date().toISOString(), status: 'queued' },
+      { created_at: new Date().toISOString(), status: 'in_progress' },
+    ];
+    github.rest.actions.listWorkflowRuns.mockResolvedValue({
+      data: { workflow_runs: activeRuns },
+    });
+
+    await run({ github, context, core });
+
+    expect(core.getOutput('should_run')).toBe('false');
     expect(core.failures).toHaveLength(0);
   });
 
@@ -62,13 +80,14 @@ describe('check-daily-limit', () => {
     expect(core.failures).toHaveLength(0);
   });
 
-  it('disables limit when DAILY_RUN_LIMIT=0', async () => {
+  it('fails when DAILY_RUN_LIMIT=0 rather than disabling the cap', async () => {
     process.env.DAILY_RUN_LIMIT = '0';
     process.env.WORKFLOW_FILE = 'owner/repo/.github/workflows/test.yml@refs/heads/main';
 
     await run({ github, context, core });
 
-    expect(core.getOutput('should_run')).toBe('true');
+    expect(core.failures).toHaveLength(1);
+    expect(core.getOutput('should_run')).toBeUndefined();
     expect(github.rest.actions.listWorkflowRuns.mock.calls).toHaveLength(0);
   });
 
@@ -153,15 +172,11 @@ describe('check-daily-limit', () => {
     process.env.DAILY_RUN_LIMIT = '3.7';
     process.env.WORKFLOW_FILE = 'owner/repo/.github/workflows/test.yml@refs/heads/main';
 
-    // parseInt('3.7', 10) => 3 which is valid, so this should work
-    github.rest.actions.listWorkflowRuns.mockResolvedValue({
-      data: { workflow_runs: [] },
-    });
-
     await run({ github, context, core });
 
-    expect(core.getOutput('should_run')).toBe('true');
-    expect(core.failures).toHaveLength(0);
+    expect(core.failures).toHaveLength(1);
+    expect(core.getOutput('should_run')).toBeUndefined();
+    expect(github.rest.actions.listWorkflowRuns.mock.calls).toHaveLength(0);
   });
 
   it('paginates when first page is full of recent runs', async () => {
@@ -213,7 +228,7 @@ describe('check-daily-limit', () => {
     expect(core.getOutput('should_run')).toBe('false');
   });
 
-  it('fails open (should_run=true, no failure) when listing runs errors', async () => {
+  it('fails closed when listing runs errors instead of bypassing the cap', async () => {
     process.env.WORKFLOW_FILE = 'owner/repo/.github/workflows/test.yml@refs/heads/main';
     process.env.DAILY_RUN_LIMIT = '5';
 
@@ -222,7 +237,8 @@ describe('check-daily-limit', () => {
 
     await run({ github, context, core });
 
-    expect(core.failures).toHaveLength(0);
-    expect(core.getOutput('should_run')).toBe('true');
+    expect(core.failures).toHaveLength(1);
+    expect(core.failures[0]).toMatch(/refusing to bypass the daily limit/);
+    expect(core.getOutput('should_run')).toBeUndefined();
   });
 });
