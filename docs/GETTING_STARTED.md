@@ -181,6 +181,7 @@ on:
     - cron: "0 3 * * 3"    # Wed 3am UTC
   workflow_dispatch:
 permissions:
+  actions: read # daily run limit check lists workflow runs
   contents: read
   issues: write
   pull-requests: read
@@ -196,6 +197,7 @@ on:
     - cron: "0 4 * * *"    # Daily 4am UTC
   workflow_dispatch:
 permissions:
+  actions: read # daily run limit check lists workflow runs
   contents: write
   pull-requests: write
 ```
@@ -240,6 +242,7 @@ on:
     - cron: "0 5 * * *"    # Daily 5am UTC
   workflow_dispatch:
 permissions:
+  actions: read # daily run limit check lists workflow runs
   contents: write
   issues: write
   pull-requests: write
