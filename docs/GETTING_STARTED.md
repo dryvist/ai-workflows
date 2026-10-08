@@ -90,6 +90,7 @@ jobs:
     permissions:
       actions: read
       contents: write
+      id-token: write # required by the OIDC credential step in the fix job
       issues: write
       pull-requests: write
     uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@main
@@ -112,6 +113,9 @@ jobs:
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
       GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 ```
+
+The caller must grant `id-token: write`. The fix job's OIDC credential step requires it, and a called workflow
+cannot elevate the caller's token, so a caller without it fails at startup.
 
 Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (optional)
 
