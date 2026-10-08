@@ -245,10 +245,12 @@ jobs:
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    # No id-token grant: callers grant only the standard set, and a reusable job
+    # that requests more fails at startup for every caller. local_only's OpenBao
+    # OIDC step therefore cannot mint a token from this job and fails closed.
     permissions:
       contents: read
       pull-requests: read
-      id-token: write
     timeout-minutes: 10
     steps:
       - name: Checkout PR branch
