@@ -15,16 +15,15 @@
 //   openPr         — create a NEW branch, commit the diff, open a PR (resolver,
 //                    code-simplifier, next-steps, post-merge-*).
 const { execFileSync } = require('child_process');
-const fs = require('fs');
 
 // execFileSync's default thrown Error carries git's real diagnostics on `.stderr`
 // but hides them from `.message` — so a failed commit surfaced only
 // "Command failed: git add ..." with no cause. Re-throw with stderr + exit code
 // folded into the message so CI logs show WHY git failed (e.g. index.lock,
 // embedded-repo refusal, pathspec error) instead of an opaque command string.
-const git = (args) => {
+const git = (args, encoding = 'utf8') => {
   try {
-    return execFileSync('git', args, { encoding: 'utf8' });
+    return execFileSync('git', args, { encoding });
   } catch (e) {
     // Defensive optional-chaining: execFileSync always throws an Error here, but
     // guard anyway so a non-Error throw can't mask the failure with a TypeError.
@@ -55,7 +54,20 @@ function stageChanges(extraExcludes = []) {
 
   const additions = [];
   const deletions = [];
-  const stage = (p) => additions.push({ path: p, contents: fs.readFileSync(p).toString('base64') });
+  const stage = (p) => {
+    const entries = git(['--literal-pathspecs', 'ls-files', '--stage', '--', p])
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    if (entries.length !== 1) throw new Error(`Cannot publish ambiguous staged path ${JSON.stringify(p)}`);
+    const [metadata] = entries[0].split('\t');
+    const [mode, oid, stageNumber] = metadata.split(' ');
+    if (stageNumber !== '0' || !['100644', '100755'].includes(mode)) {
+      throw new Error(`Cannot publish non-regular staged file ${JSON.stringify(p)} (mode ${mode || 'unknown'})`);
+    }
+    // GraphQL fileChanges publishes regular blobs; preserve the exact staged bytes.
+    additions.push({ path: p, contents: git(['cat-file', 'blob', oid], null).toString('base64') });
+  };
   for (const line of status.split('\n')) {
     const parts = line.split('\t');
     const code = parts[0][0];
