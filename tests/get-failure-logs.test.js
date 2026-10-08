@@ -70,4 +70,17 @@ describe('get-failure-logs', () => {
     const logs = core.getOutput('logs');
     expect(logs.length).toBeLessThanOrEqual(60000);
   });
+
+  it('uses caller-supplied failed run metadata', async () => {
+    context = createMockContext({ payload: {} });
+    process.env.FAILURE_RUN_ID = '456';
+    github.paginate.mockResolvedValue([{ name: 'build', conclusion: 'failure', id: 1 }]);
+    github.rest.actions.downloadJobLogsForWorkflowRun.mockResolvedValue({ data: 'caller log' });
+
+    await run({ github, context, core });
+
+    expect(github.paginate.mock.calls[0][1].run_id).toBe('456');
+    expect(core.getOutput('logs')).toContain('caller log');
+    delete process.env.FAILURE_RUN_ID;
+  });
 });

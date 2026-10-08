@@ -7,7 +7,11 @@ module.exports = async ({ github, context, core }) => {
   const marker = '<!-- ci-fail-issue -->';
 
   // Download failure logs
-  const runId = context.payload.workflow_run.id;
+  const runId = process.env.FAILURE_RUN_ID || context.payload.workflow_run?.id;
+  if (!runId) {
+    core.setFailed('FAILURE_RUN_ID is required');
+    return;
+  }
   const allJobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
     owner, repo, run_id: runId
   });

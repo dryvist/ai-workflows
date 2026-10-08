@@ -75,19 +75,47 @@ Inputs: `repo_context` (required), `file_patterns` (optional)
 
 #### `cc-ci-fix.yml`
 
-Triggered by `workflow_run` with `conclusion: failure`. Analyzes CI failure logs and pushes fixes.
+Call after the CI jobs fail. The reusable workflow reads the originating run and routes same-repository PR
+failures to repair and default-branch failures to issue creation. Existing `workflow_run` callers remain
+compatible during migration.
 
 ```yaml
-on:
-  workflow_run:
-    workflows: ["CI"]    # name of your CI workflow
-    types: [completed]
-permissions:
-  actions: read
-  contents: write
-  issues: write
-  pull-requests: write
+jobs:
+  ci-failure-handler:
+    needs: [ci]
+    if: >-
+      always() && !cancelled() && needs.ci.result == 'failure' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    permissions:
+      actions: read
+      contents: write
+      id-token: write # required by the OIDC credential step in the fix job
+      issues: write
+      pull-requests: write
+    uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@main
+    with:
+      workflow_name: CI
+      repo_context: Brief description of this repository
+      ci_structure: Description of the CI jobs and checks
+      failure_conclusion: failure
+      failure_run_id: ${{ github.run_id }}
+      failure_run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      failure_head_branch: ${{ github.head_ref || github.ref_name }}
+      failure_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      failure_head_repository: >-
+        ${{ github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name ||
+        github.event_name != 'pull_request' && github.repository }}
+      failure_actor: ${{ github.actor }}
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 ```
+
+The caller must grant `id-token: write`. The fix job's OIDC credential step requires it, and a called workflow
+cannot elevate the caller's token, so a caller without it fails at startup.
 
 Inputs: `repo_context` (required), `ci_structure` (required), `extra_tools` (optional)
 

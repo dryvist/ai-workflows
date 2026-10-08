@@ -1,5 +1,9 @@
 module.exports = async ({ github, context, core }) => {
-  const branch = context.payload.workflow_run.head_branch;
+  const branch = process.env.FAILURE_HEAD_BRANCH || context.payload.workflow_run?.head_branch;
+  if (!branch) {
+    core.setFailed('FAILURE_HEAD_BRANCH is required');
+    return;
+  }
   const { data: prs } = await github.rest.pulls.list({
     owner: context.repo.owner,
     repo: context.repo.repo,

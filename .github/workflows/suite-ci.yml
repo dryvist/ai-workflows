@@ -1,9 +1,9 @@
 # Suite: CI Failures
 #
 # Reusable workflow: bundles ci-fix + ci-fail-issue.
-# Routing is based on github.event.workflow_run context (branch == main → issue, else → fix).
+# Call after CI jobs fail and pass their run context as inputs. Existing
+# workflow_run callers remain supported while they migrate.
 # Fork guard is baked into ci-fix job condition.
-# Caller keeps repo-specific workflow_run trigger (workflows: ["<CI-GATE-NAME>"]).
 #
 # Internal uses: paths are relative — they resolve to the same ref as this
 # suite when called by a child repo (e.g., @main rides the whole chain).
@@ -54,6 +54,41 @@ on:
         description: "Max ci-fix runs per day (0 to disable)"
         type: string
         default: "5"
+      failure_conclusion:
+        description: "Conclusion of the CI run being handled"
+        type: string
+        default: ""
+      failure_run_id:
+        description: "ID of the CI run being handled"
+        type: string
+        default: ""
+      failure_run_url:
+        description: "URL of the CI run being handled"
+        type: string
+        default: ""
+      failure_head_branch:
+        description: "Head branch of the failed CI run"
+        type: string
+        default: ""
+      failure_head_sha:
+        description: "Head commit of the failed CI run"
+        type: string
+        default: ""
+      failure_head_repository:
+        description: "Full name of the repository containing the failed head"
+        type: string
+        default: ""
+      failure_actor:
+        description: "Actor that started the failed CI run"
+        type: string
+        default: ""
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        required: false
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -67,9 +102,9 @@ permissions:
 jobs:
   ci-fix:
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch != 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      (inputs.failure_conclusion || github.event.workflow_run.conclusion) == 'failure' &&
+      (inputs.failure_head_branch || github.event.workflow_run.head_branch) != 'main' &&
+      (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository
     uses: ./.github/workflows/cc-ci-fix.yml
     with:
       runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
@@ -77,14 +112,23 @@ jobs:
       ci_structure: ${{ inputs.ci_structure }}
       extra_tools: ${{ inputs.extra_tools }}
       daily_run_limit: ${{ inputs.daily_run_limit }}
+      failure_conclusion: ${{ inputs.failure_conclusion || github.event.workflow_run.conclusion }}
+      failure_run_id: ${{ inputs.failure_run_id || github.event.workflow_run.id }}
+      failure_head_branch: ${{ inputs.failure_head_branch || github.event.workflow_run.head_branch }}
+      failure_head_repository: ${{ inputs.failure_head_repository || github.event.workflow_run.head_repository.full_name }}
+      failure_actor: ${{ inputs.failure_actor || github.actor }}
     secrets: inherit
 
   ci-fail-issue:
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch == 'main'
+      (inputs.failure_conclusion || github.event.workflow_run.conclusion) == 'failure' &&
+      (inputs.failure_head_branch || github.event.workflow_run.head_branch) == 'main'
     uses: ./.github/workflows/ci-fail-issue.yml
     with:
       runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
       workflow_name: ${{ inputs.workflow_name }}
+      failure_conclusion: ${{ inputs.failure_conclusion || github.event.workflow_run.conclusion }}
+      failure_run_id: ${{ inputs.failure_run_id || github.event.workflow_run.id }}
+      failure_run_url: ${{ inputs.failure_run_url || github.event.workflow_run.html_url }}
+      failure_head_sha: ${{ inputs.failure_head_sha || github.event.workflow_run.head_sha }}
     secrets: inherit
