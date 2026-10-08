@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.46.0](https://github.com/dryvist/ai-workflows/compare/v0.45.8...v0.46.0) (2026-10-08)
+
+
+### Features
+
+* add local event agent modes ([1943ebe](https://github.com/dryvist/ai-workflows/commit/1943ebed73e9c3fb417b0691b6deb17ec9e190c7))
+* add local event agent workflows ([5e36fc3](https://github.com/dryvist/ai-workflows/commit/5e36fc3b09a4ef6a4f3863e98165e94422af59cf))
+
+
+### Bug Fixes
+
+* select an allowed local policy-gate model ([7043e4f](https://github.com/dryvist/ai-workflows/commit/7043e4f057eb667c85783694027c8434679c1fb2))
+
 ## [0.45.8](https://github.com/dryvist/ai-workflows/compare/v0.45.7...v0.45.8) (2026-10-05)
 
 
