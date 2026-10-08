@@ -4,6 +4,7 @@ const { readFileSync } = require('fs');
 const suite = Bun.YAML.parse(readFileSync('.github/workflows/suite-ci.yml', 'utf8'));
 const events = suite.on ?? suite[true];
 const inputs = events.workflow_call.inputs;
+const secrets = events.workflow_call.secrets;
 const jobs = suite.jobs;
 
 test('suite-ci accepts run metadata from a caller and retains workflow_run fallback', () => {
@@ -23,4 +24,12 @@ test('suite-ci accepts run metadata from a caller and retains workflow_run fallb
   expect(jobs['ci-fix'].if).toContain('github.event.workflow_run.head_repository.full_name');
   expect(jobs['ci-fix'].with.failure_run_id).toContain('inputs.failure_run_id');
   expect(jobs['ci-fail-issue'].with.failure_head_sha).toContain('inputs.failure_head_sha');
+});
+
+test('suite-ci declares only the credentials passed by caller workflows', () => {
+  expect(secrets).toEqual({
+    LLM_ROUTER_BASE_URL: { required: true },
+    LLM_ROUTER_API_KEY: { required: true },
+    GH_APP_CLAUDE_BOT_PRIVATE_KEY: { required: false },
+  });
 });

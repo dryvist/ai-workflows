@@ -82,6 +82,13 @@ on:
         description: "Actor that started the failed CI run"
         type: string
         default: ""
+    secrets:
+      LLM_ROUTER_BASE_URL:
+        required: true
+      LLM_ROUTER_API_KEY:
+        required: true
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        required: false
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
