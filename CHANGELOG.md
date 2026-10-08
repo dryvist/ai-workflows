@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.46.5](https://github.com/dryvist/ai-workflows/compare/v0.46.4...v0.46.5) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** run Codex as a non-root user on root self-hosted runners ([#481](https://github.com/dryvist/ai-workflows/issues/481)) ([09621ea](https://github.com/dryvist/ai-workflows/commit/09621ea75e723e1e047afe7c1840b019b9b660a3))
+
 ## [0.46.4](https://github.com/dryvist/ai-workflows/compare/v0.46.3...v0.46.4) (2026-10-08)
 
 
