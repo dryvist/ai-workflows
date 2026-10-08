@@ -63,9 +63,9 @@ on:
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
-  contents: write
+  contents: read
   issues: write
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   group: issue-resolver-${{ github.repository }}-${{ github.event.issue.number || github.run_id }}
@@ -197,8 +197,7 @@ jobs:
     needs: [eligibility-check, resolve]
     runs-on: ${{ inputs.runner_label }}
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
