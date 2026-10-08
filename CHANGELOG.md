@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.46.3](https://github.com/dryvist/ai-workflows/compare/v0.46.2...v0.46.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** quote router header expression in run-ai-agent action ([#476](https://github.com/dryvist/ai-workflows/issues/476)) ([92cea2f](https://github.com/dryvist/ai-workflows/commit/92cea2f9f0f4f33ab0acef9b0e0d62095a7b7e4e))
+
 ## [0.46.2](https://github.com/dryvist/ai-workflows/compare/v0.46.1...v0.46.2) (2026-10-08)
 
 
