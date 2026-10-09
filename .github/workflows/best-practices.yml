@@ -36,6 +36,7 @@ jobs:
   check-recent-activity:
     name: Check for recent human activity
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read
@@ -61,6 +62,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     # Listing runs needs actions: read. Callers must grant it, or the run fails at startup.
     permissions:
       actions: read
@@ -151,6 +153,7 @@ jobs:
     name: Publish recommendation
     needs: best-practices
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write

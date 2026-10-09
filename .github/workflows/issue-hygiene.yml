@@ -97,6 +97,7 @@ jobs:
     name: Publish issue hygiene
     needs: hygiene
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write

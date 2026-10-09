@@ -94,6 +94,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -216,6 +217,7 @@ jobs:
     name: Publish docs PR
     needs: docs-sync
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 10
     permissions: {}
     steps:
       - name: Mint write docs_repo token

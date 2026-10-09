@@ -75,6 +75,7 @@ jobs:
   eligibility-check:
     name: Check eligibility
     runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 10
     permissions:
       issues: read
       pull-requests: read
@@ -196,6 +197,7 @@ jobs:
     name: Publish resolution PR
     needs: [eligibility-check, resolve]
     runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -258,6 +260,7 @@ jobs:
     needs: [eligibility-check, resolve, publish]
     if: failure()
     runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 10
     permissions:
       issues: write
     steps:

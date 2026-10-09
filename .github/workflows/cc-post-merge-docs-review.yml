@@ -61,6 +61,7 @@ jobs:
     if: github.event_name == 'push'
     name: Re-trigger as workflow dispatch
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       actions: write
     steps:
@@ -79,6 +80,7 @@ jobs:
     if: github.event_name != 'push'
     name: Check bot PR ceiling
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: read
     outputs:
@@ -104,6 +106,7 @@ jobs:
     if: github.event_name != 'push'
     name: Check doc relevance
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: read
     outputs:
@@ -131,6 +134,7 @@ jobs:
     if: github.event_name != 'push'
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -237,6 +241,7 @@ jobs:
     name: Publish documentation PR
     needs: post-merge-docs-review
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

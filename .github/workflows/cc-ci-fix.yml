@@ -108,6 +108,7 @@ jobs:
       (inputs.failure_actor || github.actor) != 'dependabot[bot]' &&
       (inputs.failure_actor || github.actor) != 'copilot[bot]'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: read
       issues: read
@@ -148,6 +149,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -180,6 +182,7 @@ jobs:
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: write
       issues: write
@@ -211,6 +214,7 @@ jobs:
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -357,6 +361,7 @@ jobs:
     needs: [should-fix, fix]
     if: ${{ !inputs.dry_run }}
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
@@ -413,6 +418,7 @@ jobs:
     needs: [should-fix, fix, publish]
     if: failure() && !inputs.dry_run
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: write
     steps:

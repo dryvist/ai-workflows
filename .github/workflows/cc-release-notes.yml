@@ -53,6 +53,7 @@ jobs:
   check-eligibility:
     name: Check eligibility
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -165,6 +166,7 @@ jobs:
       needs.check-eligibility.outputs.should_run == 'true' &&
       (needs.highlights.result == 'failure' || needs.highlights.result == 'cancelled')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -177,6 +179,7 @@ jobs:
     name: Publish release highlights
     needs: [check-eligibility, highlights]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write

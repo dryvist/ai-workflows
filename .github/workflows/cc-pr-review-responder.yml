@@ -93,6 +93,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -271,6 +272,7 @@ jobs:
     needs: respond
     if: ${{ !inputs.dry_run }}
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
