@@ -46,7 +46,7 @@ on:
           never a vendor model id.
         type: string
         required: false
-        default: cheap
+        default: review-local
       max_diff_kb:
         description: "Truncate the pull request diff at this many KiB"
         type: number
