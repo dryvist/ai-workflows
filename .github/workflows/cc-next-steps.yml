@@ -39,6 +39,7 @@ jobs:
   check-pr-ceiling:
     name: Check bot PR ceiling
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: read
     outputs:
@@ -63,6 +64,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     # Listing runs needs actions: read. Callers must grant it, or the run fails at startup.
     permissions:
       actions: read
@@ -158,6 +160,7 @@ jobs:
     name: Publish next step
     needs: analyze
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       contents: write
       issues: write

@@ -63,6 +63,7 @@ jobs:
   should-create:
     name: Check eligibility
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
       contents: read
@@ -99,6 +100,7 @@ jobs:
     needs: should-create
     if: needs.should-create.outputs.eligible == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 10
     permissions:
       actions: read
       issues: write
