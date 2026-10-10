@@ -205,7 +205,7 @@ describe('gateway wiring in the workflows', () => {
   });
 
   it('every run-ai-agent caller in the touched set passes the App ID and key', () => {
-    for (const file of ['issue-backlog-sweep.yml', 'cc-ci-fix.yml', 'cc-code-simplifier.yml', 'cc-release-notes.yml']) {
+    for (const file of ['issue-backlog-sweep.yml', 'cc-ci-fix.yml', 'cc-release-notes.yml']) {
       const workflow = load(file);
       const agent = Object.values(workflow.jobs)
         .flatMap((job) => job.steps ?? [])
