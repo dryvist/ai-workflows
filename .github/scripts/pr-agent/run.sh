@@ -94,8 +94,9 @@ for tool in $tools; do
     # hit the same refusal, so they are not run.
     reason="$(bash "$(dirname "$0")/../shared/gateway-failure.sh" classify "$log")"
     if [ -n "$reason" ]; then
-      CONCLUSION=failure GITHUB_TOKEN="${JOB_TOKEN:-}" \
-        bash "$(dirname "$0")/../shared/gateway-failure.sh" report pr-agent "$reason"
+      # Fail closed. The following steps mint the check-run token and report the reason.
+      echo "$reason" > gateway-reason.txt
+      echo "::error::pr-agent $tool: router gateway failure ($reason); failing closed."
       exit 1
     fi
     echo "::error::pr-agent $tool failed; nothing was posted."

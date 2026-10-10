@@ -9,15 +9,17 @@
 #
 # report reads:
 #   CONCLUSION        neutral (default, advisory) or failure (blocking or required)
-#   GITHUB_TOKEN      token with checks: write, for the check run (required)
+#   GITHUB_TOKEN      Claude bot App installation token with checks: write, minted by
+#                     the caller. The callee's own GITHUB_TOKEN is never used for this.
+#   CHECK_TOKEN_CAUSE why no token exists (key not set, mint failed); named in the error
 #   CHECK_HEAD_SHA    commit the check run attaches to (required)
 #   GITHUB_REPOSITORY owner/repo, set by the runner
 #   NTFY_BASE_URL     optional: the alert is skipped when unset
 #   RUN_URL           optional: appended to the alert body
 #
-# Exit status: 1 when the check run cannot be created (a 403 names the missing
-# checks: write grant), and 1 whenever CONCLUSION is failure. A missing grant
-# never looks green.
+# Exit status: 1 when the check run cannot be created (no token, or a 403 from
+# the API), and 1 whenever CONCLUSION is failure. A missing token or grant never
+# looks green.
 set -euo pipefail
 
 classify() {
@@ -36,8 +38,12 @@ classify() {
 
 create_check() {
   local job="$1" reason="$2" conclusion="$3" body response
-  if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${CHECK_HEAD_SHA:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ]; then
-    echo "::error::$job: cannot create the check run; GITHUB_TOKEN, CHECK_HEAD_SHA and GITHUB_REPOSITORY must be set"
+  if [ -z "${GITHUB_TOKEN:-}" ]; then
+    echo "::error::$job: cannot post the check run: no Claude bot App token (${CHECK_TOKEN_CAUSE:-unknown cause})"
+    return 1
+  fi
+  if [ -z "${CHECK_HEAD_SHA:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ]; then
+    echo "::error::$job: cannot post the check run; CHECK_HEAD_SHA and GITHUB_REPOSITORY must be set"
     return 1
   fi
   body="$(printf '{"name":"%s: AI review not performed","head_sha":"%s","status":"completed","conclusion":"%s","output":{"title":"AI review not performed","summary":"gateway unavailable (%s)"}}' \
@@ -46,7 +52,7 @@ create_check() {
     return 0
   fi
   if grep -qiE 'HTTP 403|not accessible by integration' <<< "$response"; then
-    echo "::error::$job: the check run was refused with 403. Grant checks: write to this job and to the caller that runs it."
+    echo "::error::$job: the check run was refused with 403. The Claude bot App needs checks: write on this repository and must be installed on it."
   else
     echo "::error::$job: the check run could not be created: $(head -c 300 <<< "$response")"
   fi

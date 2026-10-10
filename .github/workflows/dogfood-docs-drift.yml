@@ -4,7 +4,6 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  checks: write
   contents: read
   pull-requests: write
 jobs:
@@ -14,3 +13,4 @@ jobs:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
       NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}

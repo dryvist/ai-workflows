@@ -45,6 +45,12 @@ on:
           Base URL of the ntfy hub that receives one ops alert (topic "ai") when
           the highlights agent is unavailable. Optional: skipped when absent.
         required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          neutral check run when the agent hits the deadline. Without it the
+          job fails, and names the missing key.
+        required: false
 
 permissions:
   contents: read
@@ -105,7 +111,6 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository) &&
       (inputs.runner_label || 'self-hosted') || 'ubuntu-latest' }}
     permissions:
-      checks: write
       contents: read
       pull-requests: read
     timeout-minutes: 8
@@ -172,9 +177,23 @@ jobs:
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,${{ needs.check-eligibility.outputs.release_bot_bare }}"
+          claude_bot_app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          claude_bot_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
       # A gateway, budget or 429 failure, or the 6-minute bound, ends this job
       # neutrally with the summary line and an ops alert. Any other failure fails it.
+      # Minted only when the agent did not succeed, for the deadline check run.
+      # A failed mint is named by the unavailable step, which then fails.
+      - name: Mint the check-run token
+        id: check-token
+        if: always() && steps.clock.outcome == 'success' && steps.agent.outcome != 'success'
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
       - name: Report an unavailable agent
         id: unavailable
         if: always() && steps.clock.outcome == 'success' && (steps.agent.outcome != 'success' || steps.agent.outputs.gateway_class != '')
@@ -186,9 +205,10 @@ jobs:
           JOB_NAME: ${{ github.workflow }}
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # Advisory: neutral. A missing checks: write grant fails this step.
+          # Advisory: neutral.
           CONCLUSION: neutral
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
           CHECK_HEAD_SHA: ${{ needs.check-eligibility.outputs.head_sha }}
         run: bash .ai-workflows/.github/scripts/release-notes/agent-unavailable.sh
 

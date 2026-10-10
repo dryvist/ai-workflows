@@ -101,17 +101,24 @@ describe('gateway failure report', () => {
     expect(r.stdout).toContain('failing closed on a gateway failure');
   });
 
-  it('names the missing checks: write grant when the check run is refused with 403', () => {
+  it('names the Claude bot App checks: write need when the check run is refused with 403', () => {
     const r = report({}, { mode: '403' });
     expect(r.exitCode).toBe(1);
     expect(r.stdout).toContain('::error::demo: the check run was refused with 403');
-    expect(r.stdout).toContain('checks: write');
+    expect(r.stdout).toContain('Claude bot App needs checks: write');
   });
 
-  it('fails loudly when no token or head SHA is available', () => {
-    const r = report({ GITHUB_TOKEN: '', CHECK_HEAD_SHA: '' });
+  it('stays red and names the cause when no App token exists', () => {
+    const r = report({ GITHUB_TOKEN: '', CHECK_TOKEN_CAUSE: 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' });
     expect(r.exitCode).toBe(1);
-    expect(r.stdout).toContain('cannot create the check run');
+    expect(r.stdout).toContain('cannot post the check run: no Claude bot App token (GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set)');
+    expect(r.request).toBeUndefined();
+  });
+
+  it('fails loudly when the head SHA is missing', () => {
+    const r = report({ CHECK_HEAD_SHA: '' });
+    expect(r.exitCode).toBe(1);
+    expect(r.stdout).toContain('CHECK_HEAD_SHA and GITHUB_REPOSITORY must be set');
     expect(r.request).toBeUndefined();
   });
 
@@ -137,25 +144,75 @@ describe('gateway wiring in the workflows', () => {
     expect(job.permissions).toBeUndefined();
   });
 
-  it('docs-drift is advisory: neutral, and its drift job requests checks: write', () => {
+  it('docs-drift is advisory: neutral, and the check run uses the App token, not a caller grant', () => {
     const job = load('docs-drift.yml').jobs.drift;
     expect(step(job, 'Report gateway unavailability').env.CONCLUSION).toBe('neutral');
-    expect(job.permissions.checks).toBe('write');
+    expect(step(job, 'Mint the check-run token').with['permission-checks']).toBe('write');
+    expect(job.permissions).toEqual({ contents: 'read' });
   });
 
-  it('pr-agent is required: its runner fails closed, and its job requests checks: write', () => {
+  it('pr-agent is required: the runner fails closed; the App-token report runs only after that failure', () => {
     const workflow = load('pr-agent.yml');
-    expect(workflow.jobs['pr-agent'].permissions.checks).toBe('write');
+    const job = workflow.jobs['pr-agent'];
+    expect(job.permissions.checks).toBeUndefined();
+    const report = step(job, 'Report gateway unavailability');
+    expect(report.if).toContain("hashFiles('gateway-reason.txt')");
+    expect(report.env.CONCLUSION).toBe('failure');
     const runner = readFileSync(join('.github', 'scripts', 'pr-agent', 'run.sh'), 'utf8');
-    expect(runner).toContain('CONCLUSION=failure');
-    expect(runner).toMatch(/report pr-agent "\$reason"\n\s+exit 1/);
+    expect(runner).toContain('gateway-reason.txt');
+    expect(runner).toMatch(/gateway-reason\.txt\n\s+echo "::error::.*\n\s+exit 1/);
   });
 
-  it('every job that posts the check run requests checks: write', () => {
-    expect(load('cc-ci-fix.yml').jobs.fix.permissions.checks).toBe('write');
-    expect(load('cc-code-simplifier.yml').jobs.simplify.permissions.checks).toBe('write');
-    expect(load('issue-backlog-sweep.yml').jobs.sweep.permissions.checks).toBe('write');
-    expect(load('cc-release-notes.yml').jobs.highlights.permissions.checks).toBe('write');
+  it('no callee grants checks: write; the callee GITHUB_TOKEN permissions stay as on main', () => {
+    for (const file of [
+      'cc-ci-fix.yml',
+      'cc-code-simplifier.yml',
+      'issue-backlog-sweep.yml',
+      'cc-release-notes.yml',
+      'docs-drift.yml',
+      'pr-agent.yml',
+      'policy-gate.yml',
+    ]) {
+      const workflow = load(file);
+      expect(workflow.permissions?.checks).toBeUndefined();
+      for (const job of Object.values(workflow.jobs)) {
+        expect(job.permissions?.checks).toBeUndefined();
+      }
+    }
+    expect(load('cc-ci-fix.yml').jobs.fix.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
+  });
+
+  it('every mint of the check-run token uses the pinned App-token action with checks: write', () => {
+    const pinned = 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1';
+    const action = Bun.YAML.parse(readFileSync(join('.github', 'actions', 'run-ai-agent', 'action.yml'), 'utf8'));
+    const mints = [
+      step(load('policy-gate.yml').jobs.gate, 'Mint the check-run token'),
+      step(load('docs-drift.yml').jobs.drift, 'Mint the check-run token'),
+      step(load('pr-agent.yml').jobs['pr-agent'], 'Mint the check-run token'),
+      step(load('cc-release-notes.yml').jobs.highlights, 'Mint the check-run token'),
+      action.runs.steps.find((s) => s.name === 'Mint the check-run token'),
+    ];
+    for (const mint of mints) {
+      expect(mint.uses).toBe(pinned);
+      expect(mint['continue-on-error']).toBe(true);
+      expect(mint.with['permission-checks']).toBe('write');
+    }
+  });
+
+  it('the App key is named as the cause when it is absent', () => {
+    const job = load('policy-gate.yml').jobs.gate;
+    expect(step(job, 'Report gateway unavailability').env.CHECK_TOKEN_CAUSE).toContain('GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set');
+  });
+
+  it('every run-ai-agent caller in the touched set passes the App ID and key', () => {
+    for (const file of ['issue-backlog-sweep.yml', 'cc-ci-fix.yml', 'cc-code-simplifier.yml', 'cc-release-notes.yml']) {
+      const workflow = load(file);
+      const agent = Object.values(workflow.jobs)
+        .flatMap((job) => job.steps ?? [])
+        .find((s) => s.uses === 'dryvist/ai-workflows/.github/actions/run-ai-agent@main');
+      expect(agent.with.claude_bot_app_id).toBe('${{ vars.GH_APP_CLAUDE_BOT_ID }}');
+      expect(agent.with.claude_bot_private_key).toBe('${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}');
+    }
   });
 
   it('release notes end neutral on an unavailable agent, and only the deadline is reported there', () => {

@@ -118,6 +118,12 @@ on:
           when the router is unavailable. Optional: the alert is skipped, not
           failed, when this is absent.
         required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          failure check run on a gateway failure. Without it the job still
+          fails, and names the missing key.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -145,7 +151,6 @@ jobs:
     # a finding is cheapest to act on.
     if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
-      checks: write
       contents: read
       pull-requests: write
     timeout-minutes: ${{ inputs.timeout_minutes }}
@@ -172,7 +177,28 @@ jobs:
           RUN_REVIEW: ${{ inputs.review }}
           RUN_IMPROVE: ${{ inputs.improve }}
           RUN_DESCRIBE: ${{ inputs.describe }}
+        run: bash .ai-workflows/.github/scripts/pr-agent/run.sh
+
+      # Runs only after a gateway failure: run.sh wrote gateway-reason.txt and
+      # failed the job. The check run uses the Claude bot App token, minted here.
+      - name: Mint the check-run token
+        id: check-token
+        if: failure() && hashFiles('gateway-reason.txt') != ''
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
+      - name: Report gateway unavailability
+        if: failure() && hashFiles('gateway-reason.txt') != ''
+        env:
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Required check: failure, so the job stays red.
+          CONCLUSION: failure
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
           CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: bash .ai-workflows/.github/scripts/pr-agent/run.sh
+        run: bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report pr-agent "$(cat gateway-reason.txt)"

@@ -101,7 +101,6 @@ jobs:
     if: needs.check-pr-ceiling.outputs.allowed == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
-      checks: write
       contents: read
       issues: read
     timeout-minutes: 10
@@ -146,6 +145,8 @@ jobs:
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,jacobpevans-claude"
+          claude_bot_app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          claude_bot_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
           prompt: ${{ steps.prompt.outputs.content }}
           claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL_CHEAP || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}

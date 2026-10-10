@@ -86,6 +86,12 @@ on:
           audit line to (topic "ai"). Optional: the publish step is skipped,
           not failed, when this is absent.
         required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          neutral or failure check run on a gateway failure. Without it the
+          gateway path fails the job.
+        required: false
 
 concurrency:
   group: policy-gate-${{ github.repository }}
@@ -157,6 +163,18 @@ jobs:
             diff: diff.txt
           custom-headers: "x-langfuse-trace-name: policy-gate"
 
+      # The check run is posted with the Claude bot App token, minted only on
+      # this path. A failed mint is named by the report step, which then fails.
+      - name: Mint the check-run token
+        id: check-token
+        if: steps.override.outputs.has_override != 'true' && steps.verdict.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
       # actions/ai-inference does not expose the HTTP status or error text, so a
       # failed request is reported as router-request-failed.
       - name: Report gateway unavailability
@@ -167,7 +185,8 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           # Advisory: neutral. Blocking: failure, so the report exits 1 and the gate fails closed.
           CONCLUSION: ${{ inputs.blocking && 'failure' || 'neutral' }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
           CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           printf '## Policy gate\n\nAI review not performed: gateway unavailable (router-request-failed).\n' > policy-gate.md
