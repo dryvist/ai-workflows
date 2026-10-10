@@ -13,11 +13,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       project-url:
         description: >-
           URL of the GitHub Projects v2 board to add matching items to.
@@ -44,7 +44,7 @@ jobs:
     if: >-
       contains(join(github.event.issue.labels.*.name, ','), 'type:') ||
       contains(join(github.event.pull_request.labels.*.name, ','), 'type:')
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 5
     steps:
       - name: Mint app installation token

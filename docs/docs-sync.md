@@ -94,7 +94,7 @@ permissions:
 jobs:
   find-pr:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Find merged PR and re-dispatch
         env:

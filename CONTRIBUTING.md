@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write
@@ -60,7 +60,10 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: dryvist/ai-workflows
-          sparse-checkout: .github/scripts
+          ref: ${{ job.workflow_sha }}
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
 
       - name: Checkout prompt catalog
@@ -77,7 +80,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-my-workflow.md
 
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}

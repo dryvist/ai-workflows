@@ -24,11 +24,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       caller_event:
         description: "Event that triggered the caller (pass github.event_name)"
         type: string
@@ -54,6 +54,6 @@ jobs:
     if: inputs.caller_event == 'workflow_dispatch'
     uses: ./.github/workflows/suite-post-merge.yml
     with:
-      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-24.04' }}
       commit_sha: ${{ inputs.commit_sha }}
     secrets: inherit

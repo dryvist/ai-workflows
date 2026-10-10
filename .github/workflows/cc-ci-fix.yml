@@ -14,11 +14,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       daily_run_limit:
         description: "Maximum workflow runs per day"
         type: string
@@ -107,7 +107,7 @@ jobs:
       (inputs.failure_actor || github.actor) != 'renovate[bot]' &&
       (inputs.failure_actor || github.actor) != 'dependabot[bot]' &&
       (inputs.failure_actor || github.actor) != 'copilot[bot]'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       pull-requests: read
@@ -148,7 +148,7 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       actions: read
@@ -181,7 +181,7 @@ jobs:
       (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       pull-requests: write
@@ -213,7 +213,7 @@ jobs:
       (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       actions: read
@@ -248,7 +248,7 @@ jobs:
       (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository &&
       needs.should-fix.outputs.should_run == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     # No id-token grant: callers grant only the standard set, and a reusable job
     # that requests more fails at startup for every caller. local_only's OpenBao
     # OIDC step therefore cannot mint a token from this job and fails closed.
@@ -269,7 +269,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -325,7 +327,7 @@ jobs:
       # PR context in the event payload), so the edits stay in the working tree
       # and the "Commit fix" step below commits them to the known PR branch.
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ inputs.local_only && 'claude' || vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
@@ -340,7 +342,9 @@ jobs:
           otel_resource_attributes: ${{ inputs.local_only && 'langfuse.environment=production,service.name=ci-failure-fixer,agent.flow=ci-failure-fixer,agent.trigger=workflow_run' || '' }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
-          allowed_bots: "github-actions,claude"
+          allowed_bots: "github-actions,claude,jacobpevans-claude"
+          claude_bot_app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          claude_bot_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
 
       - name: Collect agent patch
         run: |
@@ -360,7 +364,7 @@ jobs:
     name: Publish CI fix
     needs: [should-fix, fix]
     if: ${{ !inputs.dry_run }}
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: write
@@ -417,7 +421,7 @@ jobs:
     name: Report CI fix failure
     needs: [should-fix, fix, publish]
     if: failure() && !inputs.dry_run
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       pull-requests: write

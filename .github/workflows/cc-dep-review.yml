@@ -34,10 +34,10 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest.
+          ubuntu-24.04.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       model:
         description: "Selected provider model override"
         type: string
@@ -80,7 +80,7 @@ concurrency:
 jobs:
   check-eligibility:
     name: Check eligibility
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -117,7 +117,7 @@ jobs:
     name: Native gate (dependency review)
     needs: check-eligibility
     if: needs.check-eligibility.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -135,7 +135,7 @@ jobs:
     name: Review dependency update
     needs: check-eligibility
     if: needs.check-eligibility.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: read
@@ -151,7 +151,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -174,7 +176,7 @@ jobs:
       # The reviewer writes only local handoff files. A fresh publisher job owns
       # all GitHub mutations.
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
@@ -202,7 +204,7 @@ jobs:
   publish:
     name: Publish dependency review
     needs: [check-eligibility, review]
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read

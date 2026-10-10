@@ -1,8 +1,10 @@
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const { isIP } = require('node:net');
 const path = require('node:path');
 
 const MAX_MESSAGE_LENGTH = 400;
+const GATEWAY_CLASSIFIER = path.join(__dirname, '..', '..', 'scripts', 'shared', 'gateway-failure.sh');
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -67,7 +69,12 @@ function reportError() {
     [process.env.ROUTER_API_KEY, process.env.CLAUDE_GITHUB_TOKEN],
     [process.env.HOSTNAME, process.env.RUNNER_NAME],
   );
-  if (line) console.log(line);
+  if (!line) return;
+  console.log(line);
+
+  // The classifier is the shared shell script; it reads the sanitized line.
+  const reason = execFileSync('bash', [GATEWAY_CLASSIFIER, 'classify', '-'], { input: line, encoding: 'utf8' }).trim();
+  if (reason && process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `gateway_class=${reason}\n`);
 }
 
 if (require.main === module) reportError();

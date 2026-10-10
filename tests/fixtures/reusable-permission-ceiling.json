@@ -1,0 +1,151 @@
+{
+  "_ai-merge-gate.yml": {
+    "checks": "read",
+    "contents": "read"
+  },
+  "_copilot-setup-steps.yml": {
+    "contents": "read"
+  },
+  "best-practices.yml": {
+    "actions": "read",
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "read"
+  },
+  "cc-ci-fix.yml": {
+    "actions": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull-requests": "write"
+  },
+  "cc-code-simplifier.yml": {
+    "actions": "read",
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "cc-dep-review.yml": {
+    "contents": "read",
+    "pull-requests": "write"
+  },
+  "cc-issue-resolver.yml": {
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "read"
+  },
+  "cc-next-steps.yml": {
+    "actions": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull-requests": "write"
+  },
+  "cc-post-merge-docs-review.yml": {
+    "actions": "write",
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "cc-post-merge-tests.yml": {
+    "actions": "write",
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "cc-pr-review-responder.yml": {
+    "actions": "read",
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "cc-release-notes.yml": {
+    "contents": "read",
+    "pull-requests": "write"
+  },
+  "ci-fail-issue.yml": {
+    "actions": "read",
+    "contents": "read",
+    "issues": "write"
+  },
+  "copilot-setup-steps.yml": {},
+  "docs-drift.yml": {
+    "contents": "read",
+    "pull-requests": "write"
+  },
+  "docs-publisher.yml": {
+    "contents": "read"
+  },
+  "docs-sync.yml": {
+    "actions": "read",
+    "contents": "read"
+  },
+  "issue-backlog-sweep.yml": {
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "read"
+  },
+  "issue-hygiene.yml": {
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "read"
+  },
+  "issue-linker.yml": {
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "write"
+  },
+  "issue-sweeper.yml": {
+    "contents": "read",
+    "issues": "write",
+    "pull-requests": "read"
+  },
+  "issue-triage.yml": {
+    "contents": "read",
+    "issues": "read"
+  },
+  "policy-gate.yml": {},
+  "post-merge-docs-review.yml": {
+    "actions": "read",
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "pr-agent.yml": {
+    "contents": "read",
+    "pull-requests": "write"
+  },
+  "pricing-discovery.yml": {
+    "contents": "read"
+  },
+  "project-router.yml": {
+    "contents": "read"
+  },
+  "repo-hygiene-digest.yml": {
+    "actions": "read",
+    "contents": "read",
+    "pull-requests": "read"
+  },
+  "review-thread-resolver.yml": {
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "scope-classify.yml": {
+    "contents": "read",
+    "pull-requests": "read"
+  },
+  "suite-all.yml": {
+    "actions": "read",
+    "checks": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull-requests": "write"
+  },
+  "suite-ci.yml": {
+    "actions": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull-requests": "write"
+  },
+  "suite-post-merge.yml": {
+    "contents": "write",
+    "pull-requests": "write"
+  },
+  "thread-triage.yml": {
+    "contents": "read",
+    "pull-requests": "write"
+  }
+}

@@ -6,11 +6,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
 
 jobs:
   copilot-setup-steps:
