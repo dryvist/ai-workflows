@@ -100,7 +100,7 @@
   },
   "policy-gate.yml": {},
   "post-merge-docs-review.yml": {
-    "actions": "read",
+    "actions": "write",
     "contents": "write",
     "pull-requests": "write"
   },
@@ -128,7 +128,7 @@
     "pull-requests": "read"
   },
   "suite-all.yml": {
-    "actions": "read",
+    "actions": "write",
     "checks": "read",
     "contents": "write",
     "issues": "write",
@@ -141,6 +141,7 @@
     "pull-requests": "write"
   },
   "suite-post-merge.yml": {
+    "actions": "write",
     "contents": "write",
     "pull-requests": "write"
   },

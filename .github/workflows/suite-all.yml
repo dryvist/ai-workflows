@@ -42,7 +42,7 @@ on:
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
 permissions:
-  actions: read
+  actions: write
   checks: read
   contents: write
   issues: write
