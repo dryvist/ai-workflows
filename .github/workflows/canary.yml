@@ -7,13 +7,9 @@
 # files at main or at the floating major tag, so this run is what checks the
 # published contract before a tag moves.
 #
-# Jobs that need the LLM router or the GitHub App run only when those secrets
-# are present. Otherwise the `preflight` job prints a notice and the fixture is
-# skipped. The Canary summary accepts a skip only for that reason. A failure, a
-# cancellation or a 429 from a reusable fails the canary.
-#
-# The job named `Canary` is the required check. It fails when any fixture fails
-# or is cancelled.
+# The job named `Canary` is the required check. Its `needs` lists the
+# deterministic fixtures only. A caller contract that is broken fails the whole
+# run at startup, so no Canary check appears and promote-major-tag does not run.
 #
 # The `promote` job at the end runs on push to main after the Canary summary
 # succeeds. It moves the floating major tag when a release tag already names
@@ -86,8 +82,10 @@ jobs:
       issues: write
     uses: ./.github/workflows/ci-fail-issue.yml
 
-  # Fixtures that need the LLM router and GitHub App secrets. `dry_run` is set
-  # where the reusable offers it, so the fixture reads and decides without
+  # LLM router, Claude bot App token or external API fixtures. Their runtime
+  # outcome depends on external budget and App permission, so they are visible
+  # here and excluded from the Canary gate (canary-summary needs). `dry_run` is
+  # set where the reusable offers it, so the fixture reads and decides without
   # pushing or replying.
   best-practices:
     needs: preflight
@@ -295,93 +293,31 @@ jobs:
       - ai-merge-gate
       - copilot-setup-steps
       - ci-fail-issue
-      - best-practices
-      - cc-ci-fix
-      - cc-code-simplifier
-      - cc-dep-review
-      - cc-issue-resolver
-      - cc-next-steps
-      - cc-post-merge-docs-review
-      - cc-post-merge-tests
-      - cc-pr-review-responder
-      - cc-release-notes
-      - issue-backlog-sweep
-      - issue-hygiene
-      - issue-sweeper
-      - issue-triage
-      - policy-gate
-      - pr-agent
-      - review-thread-resolver
-      - suite-ci
-      - scope-classify
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
     steps:
-      - name: Require every fixture to pass; skip only without its secrets
+      - name: Require every gated fixture to succeed
         env:
           R_PREFLIGHT: ${{ needs.preflight.result }}
-          AI: ${{ needs.preflight.outputs.ai }}
-          TYPESAFE: ${{ needs.preflight.outputs.typesafe }}
           R_AI_MERGE_GATE: ${{ needs.ai-merge-gate.result }}
           R_COPILOT_SETUP_STEPS: ${{ needs.copilot-setup-steps.result }}
           R_CI_FAIL_ISSUE: ${{ needs.ci-fail-issue.result }}
-          R_BEST_PRACTICES: ${{ needs.best-practices.result }}
-          R_CC_CI_FIX: ${{ needs.cc-ci-fix.result }}
-          R_CC_CODE_SIMPLIFIER: ${{ needs.cc-code-simplifier.result }}
-          R_CC_DEP_REVIEW: ${{ needs.cc-dep-review.result }}
-          R_CC_ISSUE_RESOLVER: ${{ needs.cc-issue-resolver.result }}
-          R_CC_NEXT_STEPS: ${{ needs.cc-next-steps.result }}
-          R_CC_POST_MERGE_DOCS_REVIEW: ${{ needs.cc-post-merge-docs-review.result }}
-          R_CC_POST_MERGE_TESTS: ${{ needs.cc-post-merge-tests.result }}
-          R_CC_PR_REVIEW_RESPONDER: ${{ needs.cc-pr-review-responder.result }}
-          R_CC_RELEASE_NOTES: ${{ needs.cc-release-notes.result }}
-          R_ISSUE_BACKLOG_SWEEP: ${{ needs.issue-backlog-sweep.result }}
-          R_ISSUE_HYGIENE: ${{ needs.issue-hygiene.result }}
-          R_ISSUE_SWEEPER: ${{ needs.issue-sweeper.result }}
-          R_ISSUE_TRIAGE: ${{ needs.issue-triage.result }}
-          R_POLICY_GATE: ${{ needs.policy-gate.result }}
-          R_PR_AGENT: ${{ needs.pr-agent.result }}
-          R_REVIEW_THREAD_RESOLVER: ${{ needs.review-thread-resolver.result }}
-          R_SUITE_CI: ${{ needs.suite-ci.result }}
-          R_SCOPE_CLASSIFY: ${{ needs.scope-classify.result }}
         run: |
           fail=0
           check() {
-            local name="$1" result="$2" enabled="$3"
-            if [[ "$result" == success ]]; then
-              echo "$name: success"
-            elif [[ "$result" == skipped && "$enabled" == false ]]; then
-              echo "::notice::$name: skipped because its secrets are not available to this run"
+            if [[ "$2" == success ]]; then
+              echo "$1: success"
             else
-              echo "::error::$name result is '$result' (secrets available: $enabled)"
+              echo "::error::$1 result is '$2'"
               fail=1
             fi
           }
-          check preflight "$R_PREFLIGHT" true
-          check ai-merge-gate "$R_AI_MERGE_GATE" true
-          check copilot-setup-steps "$R_COPILOT_SETUP_STEPS" true
-          check ci-fail-issue "$R_CI_FAIL_ISSUE" true
-          check best-practices "$R_BEST_PRACTICES" "$AI"
-          check cc-ci-fix "$R_CC_CI_FIX" "$AI"
-          check cc-code-simplifier "$R_CC_CODE_SIMPLIFIER" "$AI"
-          check cc-dep-review "$R_CC_DEP_REVIEW" "$AI"
-          check cc-issue-resolver "$R_CC_ISSUE_RESOLVER" "$AI"
-          check cc-next-steps "$R_CC_NEXT_STEPS" "$AI"
-          check cc-post-merge-docs-review "$R_CC_POST_MERGE_DOCS_REVIEW" "$AI"
-          check cc-post-merge-tests "$R_CC_POST_MERGE_TESTS" "$AI"
-          check cc-pr-review-responder "$R_CC_PR_REVIEW_RESPONDER" "$AI"
-          check cc-release-notes "$R_CC_RELEASE_NOTES" "$AI"
-          check issue-backlog-sweep "$R_ISSUE_BACKLOG_SWEEP" "$AI"
-          check issue-hygiene "$R_ISSUE_HYGIENE" "$AI"
-          check issue-sweeper "$R_ISSUE_SWEEPER" "$AI"
-          check issue-triage "$R_ISSUE_TRIAGE" "$AI"
-          check policy-gate "$R_POLICY_GATE" "$AI"
-          check pr-agent "$R_PR_AGENT" "$AI"
-          check review-thread-resolver "$R_REVIEW_THREAD_RESOLVER" "$AI"
-          check suite-ci "$R_SUITE_CI" "$AI"
-          check scope-classify "$R_SCOPE_CLASSIFY" "$TYPESAFE"
+          check preflight "$R_PREFLIGHT"
+          check ai-merge-gate "$R_AI_MERGE_GATE"
+          check copilot-setup-steps "$R_COPILOT_SETUP_STEPS"
+          check ci-fail-issue "$R_CI_FAIL_ISSUE"
           exit "$fail"
 
   # Second arrival for a release: this push-to-main run finished after the release
