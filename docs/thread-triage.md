@@ -32,7 +32,7 @@ this a required check — a failure should be visible without blocking a merge.
 | `outdated` | The code the comment points at no longer exists in the current diff |
 | `addressed` | The current hunk already does what the comment asked |
 | `needs-code` | A code change is still required, and is mechanical enough to specify |
-| `needs-human` | A question, a judgement call, or a disagreement a person must settle |
+| `escalate` | A question, a judgement call, or a disagreement a person must settle |
 | `unclassified` | The model returned no verdict for that thread |
 
 A thread the model skips is still listed, as `unclassified`, rather than

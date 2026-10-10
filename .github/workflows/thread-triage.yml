@@ -2,7 +2,7 @@
 #
 # Triage of the unresolved review threads on a pull request, by a cheap model
 # served through the org's OpenAI-compatible model router. Each thread is
-# classified outdated | addressed | needs-code | needs-human and the verdicts
+# classified outdated | addressed | needs-code | escalate and the verdicts
 # are rendered as one sticky comment.
 #
 # Why: the premium-model responder and the resolve-pr-threads skill both begin
