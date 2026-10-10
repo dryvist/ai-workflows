@@ -102,8 +102,32 @@ inputs:
       providers' user-level instruction locations.
     required: false
     default: "true"
+  ntfy_base_url:
+    description: >-
+      Optional ntfy hub base URL for the ops alert sent when the Claude run
+      hits a gateway, budget or 429 failure. Empty skips the alert.
+    required: false
+    default: ""
+  claude_bot_app_id:
+    description: >-
+      Claude bot App ID (vars.GH_APP_CLAUDE_BOT_ID). Mints the token that posts
+      the neutral check run on a gateway failure. Empty fails the job on that path.
+    required: false
+    default: ""
+  claude_bot_private_key:
+    description: >-
+      Claude bot App private key (secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY). Used
+      only on a gateway failure. Empty fails the job on that path.
+    required: false
+    default: ""
 
 outputs:
+  gateway_class:
+    description: >-
+      Reason class when the Claude run failed on a gateway, budget or 429
+      error. The job does not fail in that case and the result is empty. Empty
+      otherwise.
+    value: ${{ steps.report.outputs.gateway_class }}
   agent:
     description: >-
       Agent that ran. Reflects a runtime fallback (codex ran but failed,
@@ -221,6 +245,9 @@ runs:
       if: >-
         steps.prepare.outputs.effective-agent == 'claude' ||
         steps.codex.outcome == 'failure'
+      # Failure is judged by the report step below: a gateway, budget or 429
+      # error ends the job without failing it, any other error still fails it.
+      continue-on-error: true
       uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
       env:
         # The CLI's own variable name; it points at the router.
@@ -252,6 +279,7 @@ runs:
         claude_args: ${{ steps.prepare.outputs.claude-args }}
 
     - name: Report sanitized Claude error
+      id: report
       if: always() && steps.claude.outcome != 'skipped'
       shell: bash
       env:
@@ -260,3 +288,37 @@ runs:
         ROUTER_API_KEY: ${{ inputs.api_key }}
         CLAUDE_GITHUB_TOKEN: ${{ steps.claude.outputs.github_token }}
       run: node "$GITHUB_ACTION_PATH/report-error.js"
+
+    # The check run is posted with the Claude bot App token, minted only on a
+    # gateway failure. A failed mint is named by the report step, which then fails.
+    - name: Mint the check-run token
+      id: check-token
+      if: always() && steps.claude.outcome == 'failure' && steps.report.outputs.gateway_class != ''
+      continue-on-error: true
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+      with:
+        app-id: ${{ inputs.claude_bot_app_id }}
+        private-key: ${{ inputs.claude_bot_private_key }}
+        permission-checks: write
+
+    - name: Report gateway unavailability
+      if: always() && steps.claude.outcome == 'failure' && steps.report.outputs.gateway_class != ''
+      shell: bash
+      env:
+        GATEWAY_CLASS: ${{ steps.report.outputs.gateway_class }}
+        NTFY_BASE_URL: ${{ inputs.ntfy_base_url }}
+        JOB_NAME: ${{ github.workflow }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Advisory: a gateway failure ends neutral.
+        CONCLUSION: neutral
+        GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+        CHECK_TOKEN_CAUSE: ${{ inputs.claude_bot_private_key == '' && 'claude_bot_private_key input is not set (the caller must pass GH_APP_CLAUDE_BOT_PRIVATE_KEY)' || 'the mint step failed' }}
+        CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: bash "$GITHUB_ACTION_PATH/../../scripts/shared/gateway-failure.sh" report "$JOB_NAME" "$GATEWAY_CLASS"
+
+    - name: Fail on Claude errors that are not gateway errors
+      if: always() && steps.claude.outcome == 'failure' && steps.report.outputs.gateway_class == ''
+      shell: bash
+      run: |
+        echo "::error::Claude Code failed with an error that is not a gateway, budget or 429 failure."
+        exit 1

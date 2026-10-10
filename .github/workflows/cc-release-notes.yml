@@ -40,6 +40,17 @@ on:
         required: true
       LLM_ROUTER_API_KEY:
         required: true
+      NTFY_BASE_URL:
+        description: >-
+          Base URL of the ntfy hub that receives one ops alert (topic "ai") when
+          the highlights agent is unavailable. Optional: skipped when absent.
+        required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          neutral check run when the agent hits the deadline. Without it the
+          job fails, and names the missing key.
+        required: false
 
 permissions:
   contents: read
@@ -103,6 +114,8 @@ jobs:
       contents: read
       pull-requests: read
     timeout-minutes: 8
+    outputs:
+      neutral: ${{ steps.unavailable.outputs.neutral }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -134,11 +147,27 @@ jobs:
           PR_NUMBER: ${{ needs.check-eligibility.outputs.pr_number }}
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-release-notes.md PR_NUMBER
 
+      # Bounds what the agent is sent: commits and diff stat since the last tag,
+      # capped with a note on truncation. The bounded text is appended to the prompt.
+      - name: Bound the release input
+        id: bound
+        env:
+          PROMPT: ${{ steps.prompt.outputs.content }}
+        run: bash .ai-workflows/.github/scripts/release-notes/bound-input.sh
+
+      - name: Mark the agent start
+        id: clock
+        run: echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Run AI agent
+        id: agent
+        # Leaves room inside the job's 8-minute cap for the report and publish
+        # steps. A step that runs past this bound is a deadline, not a failure.
+        timeout-minutes: 6
         uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
-          prompt: ${{ steps.prompt.outputs.content }}
+          prompt: ${{ steps.bound.outputs.content }}
           claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ inputs.model || vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Read,Glob,Grep,LS,Write,Bash(git log:*),Bash(git diff:*),Bash(git tag:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
@@ -148,8 +177,43 @@ jobs:
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,${{ needs.check-eligibility.outputs.release_bot_bare }}"
+          claude_bot_app_id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          claude_bot_private_key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+
+      # A gateway, budget or 429 failure, or the 6-minute bound, ends this job
+      # neutrally with the summary line and an ops alert. Any other failure fails it.
+      # Minted only when the agent did not succeed, for the deadline check run.
+      # A failed mint is named by the unavailable step, which then fails.
+      - name: Mint the check-run token
+        id: check-token
+        if: always() && steps.clock.outcome == 'success' && steps.agent.outcome != 'success'
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
+      - name: Report an unavailable agent
+        id: unavailable
+        if: always() && steps.clock.outcome == 'success' && (steps.agent.outcome != 'success' || steps.agent.outputs.gateway_class != '')
+        env:
+          AGENT_OUTCOME: ${{ steps.agent.outcome }}
+          GATEWAY_CLASS: ${{ steps.agent.outputs.gateway_class }}
+          STARTED: ${{ steps.clock.outputs.started }}
+          DEADLINE_SECONDS: "360"
+          JOB_NAME: ${{ github.workflow }}
+          NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Advisory: neutral.
+          CONCLUSION: neutral
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
+          CHECK_HEAD_SHA: ${{ needs.check-eligibility.outputs.head_sha }}
+        run: bash .ai-workflows/.github/scripts/release-notes/agent-unavailable.sh
 
       - name: Upload release highlights
+        if: steps.unavailable.outputs.neutral != 'true' && steps.agent.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-highlights-${{ github.run_id }}
@@ -172,12 +236,13 @@ jobs:
     steps:
       - name: Report agent failure
         run: |
-          echo "::error::Release highlights agent did not complete within its 8-minute job deadline or returned an error. Check the Write release highlights job logs."
+          echo "::error::The release highlights job failed or was cancelled before it could publish. Check the Write release highlights job logs."
           exit 1
 
   publish:
     name: Publish release highlights
     needs: [check-eligibility, highlights]
+    if: needs.highlights.result == 'success' && needs.highlights.outputs.neutral != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

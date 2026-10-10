@@ -89,6 +89,16 @@ for tool in $tools; do
   # exactly this line. Fixed upstream in qodo-ai/pr-agent#3368 — drop this
   # check once the pinned image carries it.
   if grep -q "Failed to process the command\." "$log"; then
+    # A router, budget or 429 failure fails the job closed: this is a required
+    # check, so it must never pass without a review. The remaining tools would
+    # hit the same refusal, so they are not run.
+    reason="$(bash "$(dirname "$0")/../shared/gateway-failure.sh" classify "$log")"
+    if [ -n "$reason" ]; then
+      # Fail closed. The following steps mint the check-run token and report the reason.
+      echo "$reason" > gateway-reason.txt
+      echo "::error::pr-agent $tool: router gateway failure ($reason); failing closed."
+      exit 1
+    fi
     echo "::error::pr-agent $tool failed; nothing was posted."
     exit 1
   fi

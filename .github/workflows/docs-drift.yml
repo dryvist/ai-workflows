@@ -8,10 +8,12 @@
 # artifact, and — when the push came from a merged pull request — one sticky
 # comment on that pull request so the author sees it.
 #
-# A router outage FAILS the job, releasing the runner (the router admits or
-# refuses at once; the job is capped at ten minutes); it never reports
-# success having checked nothing. It needs a runner that can reach the router. Do not make
-# this a required check.
+# A failed router request does not fail the job: the job summary says the
+# review was not performed, a warning is emitted, and one ops alert is sent to
+# ntfy. actions/ai-inference exposes no HTTP status, so every request failure is
+# reported as an unavailable gateway; the run log holds the detail. The job is
+# capped at ten minutes. It never reports success having checked nothing. It
+# needs a runner that can reach the router. Do not make this a required check.
 #
 # This is a reusable workflow that can be called from other repositories.
 
@@ -67,6 +69,18 @@ on:
           Scoped router virtual key (never the router master key). When absent
           the workflow records "router credential not configured" and succeeds.
         required: false
+      NTFY_BASE_URL:
+        description: >-
+          Base URL of the ntfy hub that receives one ops alert (topic "ai")
+          when the router is unavailable. Optional: the alert is skipped, not
+          failed, when this is absent.
+        required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          neutral check run on a gateway failure. Without it the gateway path
+          fails the job.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -113,6 +127,8 @@ jobs:
       - name: Request drift report
         id: drift
         if: hashFiles('drift.skip') == ''
+        # A failed request is handled by the next step, not by failing the job.
+        continue-on-error: true
         uses: actions/ai-inference@a7805884c80886efc241e94a5351df715968a0ad # v2.1.1
         with:
           endpoint: ${{ secrets.LLM_ROUTER_BASE_URL }}
@@ -127,7 +143,36 @@ jobs:
             docs: docs.txt
           custom-headers: "x-langfuse-trace-name: docs-drift"
 
+      # The check run is posted with the Claude bot App token, minted only on
+      # this path. A failed mint is named by the report step, which then fails.
+      - name: Mint the check-run token
+        id: check-token
+        if: steps.drift.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
+      # actions/ai-inference does not expose the HTTP status or error text, so a
+      # failed request is reported as router-request-failed.
+      - name: Report gateway unavailability
+        if: steps.drift.outcome == 'failure'
+        env:
+          NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Advisory: neutral.
+          CONCLUSION: neutral
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
+          CHECK_HEAD_SHA: ${{ github.sha }}
+        run: |
+          printf '## Docs drift\n\nAI review not performed: gateway unavailable (router-request-failed).\n' > docs-drift.md
+          bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report docs-drift router-request-failed
+
       - name: Render report
+        if: steps.drift.outcome != 'failure'
         env:
           RESPONSE_FILE: ${{ steps.drift.outputs.response-file }}
           MODEL: ${{ inputs.model }}
