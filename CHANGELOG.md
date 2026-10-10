@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.6](https://github.com/dryvist/ai-workflows/compare/v0.47.5...v0.47.6) (2026-10-10)
+
+
+### Bug Fixes
+
+* **policy-gate:** default to the local review role ([#490](https://github.com/dryvist/ai-workflows/issues/490)) ([5551c5b](https://github.com/dryvist/ai-workflows/commit/5551c5b929bb0aaa6ac208d410ecf28e291defbe))
+* **release-notes:** default highlights model to the local review role ([#491](https://github.com/dryvist/ai-workflows/issues/491)) ([6273088](https://github.com/dryvist/ai-workflows/commit/62730884439086d3bfba5dbf31385d08208e404c))
+
 ## [0.47.5](https://github.com/dryvist/ai-workflows/compare/v0.47.4...v0.47.5) (2026-10-10)
 
 
