@@ -209,7 +209,7 @@ describe('gateway wiring in the workflows', () => {
       const workflow = load(file);
       const agent = Object.values(workflow.jobs)
         .flatMap((job) => job.steps ?? [])
-        .find((s) => s.uses === 'dryvist/ai-workflows/.github/actions/run-ai-agent@main');
+        .find((s) => s.uses === './.ai-workflows/.github/actions/run-ai-agent');
       expect(agent.with.claude_bot_app_id).toBe('${{ vars.GH_APP_CLAUDE_BOT_ID }}');
       expect(agent.with.claude_bot_private_key).toBe('${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}');
     }
