@@ -29,7 +29,7 @@ repositories are public. An explicit-secret caller forwards the pair:
 ```yaml
 jobs:
   run:
-    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<40-hex-sha> # vX.Y.Z
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

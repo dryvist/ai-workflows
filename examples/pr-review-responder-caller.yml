@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   respond:
-    uses: dryvist/ai-workflows/.github/workflows/cc-pr-review-responder.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/cc-pr-review-responder.yml@<40-hex-sha> # vX.Y.Z
     # Optional: a one-line repo description helps Claude judge feedback.
     # with:
     #   repo_context: "Terraform modules for the homelab Proxmox cluster."

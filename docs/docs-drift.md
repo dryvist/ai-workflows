@@ -83,7 +83,7 @@ permissions:
   pull-requests: write
 jobs:
   docs-drift:
-    uses: dryvist/ai-workflows/.github/workflows/docs-drift.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/docs-drift.yml@<40-hex-sha> # vX.Y.Z
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

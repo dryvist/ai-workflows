@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   ci-fix:
-    uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/cc-ci-fix.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
     with:
       repo_context: "Describe your repo: language, frameworks, how it builds."

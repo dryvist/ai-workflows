@@ -27,16 +27,15 @@ permissions:
   issues: write            # add what this workflow needs
 jobs:
   run:
-    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 
 **Important**: Consumer callers must declare `permissions:` explicitly. CodeQL and branch protection rules may block merges if permissions are missing.
 
-**Versioning**: Always pin `@main`, never a SemVer tag or SHA. `ai-workflows` is a first-party `dryvist/*` reusable workflow, so consumers ride
-`@main` and pick up fixes the moment they land — no per-repo Renovate PR. SemVer tags still exist (release-please keeps bumping them for the
-changelog and the per-run resolved-SHA audit trail), but callers do not pin them. The org scanners are configured to allow `@main`; see
-[CI/CD policy → scanner posture](https://docs.jacobpevans.com/infrastructure/cicd/policy#scanner-posture-for-self-references).
+**Versioning**: Pin the reusable workflow to a full 40-character commit SHA, with the release tag in a trailing comment. Do not pin
+`@main`, `@develop`, a branch, or a bare major tag such as `@vN`. Renovate moves the SHA and the comment together. A patch bump merges
+after the Merge Gate is green. A minor or major bump is merged by a person.
 
 ---
 
@@ -93,7 +92,7 @@ jobs:
       id-token: write # required by the OIDC credential step in the fix job
       issues: write
       pull-requests: write
-    uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/suite-ci.yml@<40-hex-sha> # vX.Y.Z
     with:
       workflow_name: CI
       repo_context: Brief description of this repository

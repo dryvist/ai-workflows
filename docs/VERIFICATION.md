@@ -6,7 +6,7 @@ Run via `.github/scripts/verification/e2e-test.sh` or manually using the steps b
 ## Prerequisites
 
 - `gh` CLI authenticated with sufficient scopes
-- All consumer repos updated to `@v0.5.0`
+- Every consumer repo pins `ai-workflows` to a full commit SHA, with the release tag in a trailing comment
 - Configured: `GH_ACTION_AI_AGENT` and the selected agent's secret
 
 ## Consumer Repos

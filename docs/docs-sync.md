@@ -104,7 +104,7 @@ jobs:
           [ -n "$number" ] && gh workflow run "${{ github.workflow }}" --repo "${{ github.repository }}" --ref main -f pr_number="$number"
   sync:
     if: github.event_name == 'workflow_dispatch' && inputs.pr_number != ''
-    uses: dryvist/ai-workflows/.github/workflows/docs-sync.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/docs-sync.yml@<40-hex-sha> # vX.Y.Z
     with:
       source_repo: ${{ github.repository }}
       pr_number: ${{ inputs.pr_number }}

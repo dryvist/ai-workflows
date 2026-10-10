@@ -15,7 +15,7 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `best-practices.yml` | `workflow_call` | Wed 3am UTC | Weekly audit creating actionable best-practices recommendations |
 | `suite-ci.yml` | `workflow_call` | After CI failure | Analyzes failed CI logs, repairs PR branches, and creates issues for default-branch failures |
 | `cc-ci-fix.yml` | `workflow_call` | On PR CI failure | Analyzes failed CI logs and pushes fixes (max 2 attempts per PR) |
-| `cc-dep-review.yml` | `pull_request: [opened]` | On Renovate PR | Native Dependency Review + advisory AI `risk:*` label + sticky comment; Renovate merges |
+| `cc-dep-review.yml` | `pull_request: [opened]` | On Renovate PR | Native Dependency Review + advisory AI `risk:*` label + sticky comment; never merges |
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies changed code and opens a PR |
 | `cc-release-notes.yml` | `pull_request` | On release PR | Posts sticky AI release-highlights comment on release-please PRs (refreshed per head SHA) |
 | `docs-drift.yml` | `workflow_call` | On push to default branch | Cheap model lists docs the merge contradicts; summary, artifact, sticky PR comment |
@@ -89,7 +89,7 @@ permissions:
   issues: write
 jobs:
   triage:
-    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/issue-triage.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 
@@ -108,7 +108,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 

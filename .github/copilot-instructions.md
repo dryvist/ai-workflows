@@ -70,10 +70,10 @@ All agent workflows reach the org's model router with secrets `LLM_ROUTER_BASE_U
 `GH_ACTION_AI_MODEL[_CODE|_ISSUES|_PLAN]` name router role aliases. Never reference a vendor credential or a vendor model id in a
 workflow.
 
-## Version Tags
+## Version Pins
 
-Use version tags (`@v7`, `@v4`, `@v1`) for first-party actions (`actions/*`, `anthropics/*`,
-`oven-sh/*`). SHA pinning is not required for these trusted actions.
+Pin every GitHub Action and every `dryvist/*` reusable workflow to a full 40-character commit SHA, with the release tag in a trailing
+comment. Do not pin `@main`, `@develop`, or a bare major tag such as `@vN`.
 
 ## Workflow Permissions
 
