@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.4](https://github.com/dryvist/ai-workflows/compare/v0.47.3...v0.47.4) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** run the agent action from the same commit as its workflow ([#503](https://github.com/dryvist/ai-workflows/issues/503)) ([a21fabb](https://github.com/dryvist/ai-workflows/commit/a21fabb709ee8fe8fa553272cf67d59e0d2e6f8f))
+
 ## [0.47.3](https://github.com/dryvist/ai-workflows/compare/v0.47.2...v0.47.3) (2026-10-10)
 
 
