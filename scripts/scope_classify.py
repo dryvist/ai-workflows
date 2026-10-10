@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Scope Classify: gates a pull request's CI scope via typesafe.ai's Jev
-`choice` primitive, with deterministic ALWAYS-FULL overrides that never
-depend on the model.
+`choice` primitive, with deterministic rules and ALWAYS-FULL overrides
+that decide before, and never depend on, the model.
 
 Invoked as a single step from scope-classify.yml with the PR/event
 context passed in as environment variables. Writes its decision to
@@ -46,19 +46,55 @@ VALID_CHOICES = {
 CLASSIFY_TIMEOUT_SECONDS = 10.0
 RUBRIC_PATH = ".github/scope-rubric.md"
 
+LOCKFILE_NAMES = {
+    "flake.lock", "uv.lock", "poetry.lock", "Pipfile.lock", "package-lock.json",
+    "bun.lock", "bun.lockb", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock", "go.sum",
+    ".terraform.lock.hcl", "Gemfile.lock", "composer.lock",
+}
+DOC_NAMES = {"LICENSE", "LICENSE.md", "NOTICE", "CODEOWNERS"}
+# Code or config is never documentation, even when it sits under docs/:
+# a sample or a config shipped there still changes what a reader runs.
+NON_DOC_SUFFIXES = (".py", ".sh", ".js", ".ts", ".mjs", ".yml", ".yaml", ".json", ".nix", ".tf", ".j2")
+
 
 def check_overrides(event_name: str) -> tuple[bool, str]:
     """Pure decision function -> (matched, reason). reason is "" when
     matched is False, never None.
 
     The only override is the absence of a pull request: without one there
-    is nothing to classify, so the answer is full. Every scope decision -
-    which paths mean full, what a promotion means - belongs to the rubric
-    Jev reads (.github/scope-rubric.md), never to this script.
+    is nothing to classify, so the answer is full. Path rules that need no
+    judgement are in rule_decision(); everything else belongs to the rubric
+    Jev reads (.github/scope-rubric.md).
     """
     if event_name != "pull_request":
         return True, f"always-full override: event is {event_name}"
     return False, ""
+
+
+def rule_decision(files: list[dict]) -> tuple[dict, str] | None:
+    """Pure decision function -> (decision, reason) when a rule decides, or
+    None to defer to the model. Checks a rename's previous path as well as
+    its new one, so a rename away from a lockfile, or from code into
+    documentation, is judged on both sides."""
+    paths = [path for item in files for path in (item["path"], item.get("previous_path")) if path]
+    for path in paths:
+        if path.rsplit("/", 1)[-1] in LOCKFILE_NAMES or _is_requirements(path):
+            return dict(FULL_DECISION), f"rules: lockfile changed ({path}), full build"
+    if files and all(_is_documentation(path) for path in paths):
+        return dict(FULL_DECISION, ci="lint-only", molecule="none"), f"rules: documentation only ({len(files)} files)"
+    return None
+
+
+def _is_requirements(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    return name.startswith("requirements") and name.endswith(".txt")
+
+
+def _is_documentation(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    if path.lower().endswith(NON_DOC_SUFFIXES):
+        return False
+    return name.lower().endswith((".md", ".mdx")) or name in DOC_NAMES or path.startswith("docs/")
 
 
 def _github_api(path: str, token: str, accept: str = "application/vnd.github+json") -> bytes:
@@ -261,6 +297,11 @@ def run(env: dict[str, str]) -> tuple[dict, str, str]:
 
         files = fetch_changed_files(repo, pr_number, token)
         default_branch = fetch_default_branch(repo, token)
+        if head_ref == "develop" and base_ref == default_branch:
+            return dict(FULL_DECISION), "rules: release promotion, full build", "rules"
+        ruled = rule_decision(files)
+        if ruled is not None:
+            return ruled[0], ruled[1], "rules"
         diff = "" if repo_private else fetch_diff(repo, pr_number, token)
 
         rubric = read_rubric()

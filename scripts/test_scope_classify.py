@@ -19,6 +19,10 @@ def _answer(choice: str, confidence: float = 0.9):
     return types.SimpleNamespace(choice=choice, confidence=confidence)
 
 
+def _file(path: str, previous_path: str | None = None):
+    return {"path": path, "previous_path": previous_path, "status": "modified", "additions": 1, "deletions": 1}
+
+
 class CheckOverridesTests(unittest.TestCase):
     def test_pull_request_is_not_overridden(self):
         matched, reason = sc.check_overrides("pull_request")
@@ -61,7 +65,7 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="diff --git a b")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_success_returns_jev_source(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         mock_client = mock.MagicMock()
@@ -83,7 +87,7 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_api_error_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         mock_client = mock.MagicMock()
@@ -96,7 +100,7 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_timeout_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         # The SDK's own exception type for a deadline isn't documented
@@ -113,7 +117,7 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_trunk_repo_feature_pr_into_main_reaches_the_classifier(
         self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch
@@ -140,19 +144,35 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[_file("docs/guide.md")])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
-    def test_promotion_refs_reach_the_classifier(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
-        # The promotion rule is the rubric's to judge, so the classifier
-        # must be handed the refs it needs to judge it.
+    def test_promotion_is_full_by_rule_even_when_documentation_only(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         env = self._base_env(BASE_REF="main", HEAD_REF="develop")
-        with mock.patch.object(
-            sc, "classify", return_value=(dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90")
-        ) as classify_call:
-            _decision, _reason, source = sc.run(env)
-        self.assertEqual(source, "jev")
-        _rubric, state, _api_key = classify_call.call_args[0]
-        self.assertEqual((state["base_ref"], state["head_ref"], state["default_branch"]), ("main", "develop", "main"))
+        with mock.patch.object(sc, "classify", side_effect=AssertionError("model must not be called")):
+            decision, reason, source = sc.run(env)
+        self.assertEqual((decision, source), (sc.FULL_DECISION, "rules"))
+        self.assertIn("promotion", reason)
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_diff", return_value="")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[_file("docs/guide.md")])
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_rule_decision_never_calls_the_model(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
+        with mock.patch.object(sc, "classify", side_effect=AssertionError("model must not be called")) as classify_call:
+            decision, _reason, source = sc.run(self._base_env())
+        classify_call.assert_not_called()
+        self.assertEqual(source, "rules")
+        self.assertEqual((decision["ci"], decision["molecule"]), ("lint-only", "none"))
+
+    @mock.patch.object(sc, "fetch_default_branch", return_value="main")
+    @mock.patch.object(sc, "fetch_diff", return_value="")
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[_file("uv.lock")])
+    @mock.patch.object(sc, "read_rubric", return_value="# rubric")
+    def test_lockfile_decision_is_full_with_rules_source(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
+        with mock.patch.object(sc, "classify", side_effect=AssertionError("model must not be called")):
+            decision, _reason, source = sc.run(self._base_env())
+        self.assertEqual(source, "rules")
+        self.assertEqual(decision, sc.FULL_DECISION)
 
     def test_override_skips_the_api_call_entirely(self):
         env = self._base_env(EVENT_NAME="push", BASE_REF="")
@@ -186,7 +206,7 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(state["files"][1]["status"], "removed")
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_private_repo_sends_no_diff_body_or_labels(self, _read_rubric, _fetch_files, _fetch_default_branch):
         env = self._base_env(REPO_PRIVATE="true", PR_BODY="secret internal detail", PR_LABELS_JSON='["internal"]')
@@ -203,7 +223,7 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "README.md", "additions": 1, "deletions": 1}])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[{"path": "roles/app/tasks/main.yml", "additions": 1, "deletions": 1}])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
     def test_out_of_enum_answer_falls_back_to_full(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         mock_client = mock.MagicMock()
@@ -221,6 +241,41 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(source, "fallback")
         self.assertEqual(decision, sc.FULL_DECISION)
         self.assertIn("out-of-enum", reason)
+
+
+class RuleDecisionTests(unittest.TestCase):
+    def test_lockfile_alone_is_full(self):
+        decision, reason = sc.rule_decision([_file("uv.lock")])
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertEqual(reason, "rules: lockfile changed (uv.lock), full build")
+
+    def test_requirements_file_is_full(self):
+        decision, _reason = sc.rule_decision([_file("scripts/requirements-scope-classify.txt")])
+        self.assertEqual(decision, sc.FULL_DECISION)
+
+    def test_lockfile_with_markdown_is_full(self):
+        decision, reason = sc.rule_decision([_file("README.md"), _file("package-lock.json")])
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertIn("package-lock.json", reason)
+
+    def test_rename_from_lockfile_is_full(self):
+        decision, reason = sc.rule_decision([_file("docs/deps.md", previous_path="poetry.lock")])
+        self.assertEqual(decision, sc.FULL_DECISION)
+        self.assertIn("poetry.lock", reason)
+
+    def test_markdown_only_is_lint_only(self):
+        decision, reason = sc.rule_decision([_file("README.md"), _file("docs/guide.mdx"), _file("LICENSE")])
+        self.assertEqual(decision, dict(sc.FULL_DECISION, ci="lint-only", molecule="none"))
+        self.assertEqual(reason, "rules: documentation only (3 files)")
+
+    def test_code_under_docs_defers_to_model(self):
+        self.assertIsNone(sc.rule_decision([_file("docs/x.py")]))
+
+    def test_mixed_markdown_and_code_defers_to_model(self):
+        self.assertIsNone(sc.rule_decision([_file("README.md"), _file("scripts/tool.py")]))
+
+    def test_empty_file_list_defers_to_model(self):
+        self.assertIsNone(sc.rule_decision([]))
 
 
 class SanitizeTests(unittest.TestCase):
