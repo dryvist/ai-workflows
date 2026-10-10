@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.2](https://github.com/dryvist/ai-workflows/compare/v0.48.1...v0.48.2) (2026-10-10)
+
+
+### CI
+
+* pin first-party workflow refs by commit SHA ([#513](https://github.com/dryvist/ai-workflows/issues/513)) ([11a1a55](https://github.com/dryvist/ai-workflows/commit/11a1a55bff10a4c4111e1002658021c2df126ce8))
+
 ## [0.48.1](https://github.com/dryvist/ai-workflows/compare/v0.48.0...v0.48.1) (2026-10-10)
 
 
