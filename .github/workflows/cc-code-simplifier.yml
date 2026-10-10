@@ -46,10 +46,7 @@ on:
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
-# actions: read is the ceiling for check-daily-limit's run listing; a job-level
-# grant above this block is cut back to it and the listing returns 403.
 permissions:
-  actions: read
   contents: write
   pull-requests: write
 
