@@ -136,8 +136,6 @@ jobs:
           echo "has_override=$HAS_OVERRIDE" >> "$GITHUB_OUTPUT"
           if [ "$HAS_OVERRIDE" = "true" ]; then
             touch override.flag
-          else
-            true
           fi
 
       - name: Collect the diff and file sizes
