@@ -94,7 +94,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -119,7 +121,7 @@ jobs:
           github.event.pull_request.user.type != 'Bot' ||
           contains(inputs.allowed_bots, github.event.pull_request.user.login) ||
           contains(inputs.allowed_bots, '*')
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
