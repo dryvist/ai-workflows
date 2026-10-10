@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
-# Router, gateway and budget failures are not review findings. An advisory AI
-# job that hits one does not fail: it writes one job-summary line, emits a
-# warning, and sends one ops alert through the ntfy hub. Every other failure
-# still fails the job.
+# Router, gateway and budget failures are not review findings. A job that hits
+# one says so four ways: a job-summary line, an annotation, a check run on the
+# head commit with the reason in its output, and an optional ntfy ops alert.
+# Advisory callers end neutral. Blocking and required callers end failed.
 #
 #   gateway-failure.sh classify <file|->      print the reason class, or nothing
-#   gateway-failure.sh report <job> <class>   summary line, ::warning::, ntfy alert
+#   gateway-failure.sh report <job> <class>   write the four signals; exit 1 when failed
 #
-# report reads NTFY_BASE_URL (optional: the alert is skipped when unset) and
-# RUN_URL (optional: appended to the alert body).
+# report reads:
+#   CONCLUSION        neutral (default, advisory) or failure (blocking or required)
+#   GITHUB_TOKEN      token with checks: write, for the check run (required)
+#   CHECK_HEAD_SHA    commit the check run attaches to (required)
+#   GITHUB_REPOSITORY owner/repo, set by the runner
+#   NTFY_BASE_URL     optional: the alert is skipped when unset
+#   RUN_URL           optional: appended to the alert body
+#
+# Exit status: 1 when the check run cannot be created (a 403 names the missing
+# checks: write grant), and 1 whenever CONCLUSION is failure. A missing grant
+# never looks green.
 set -euo pipefail
 
 classify() {
@@ -25,12 +34,27 @@ classify() {
   fi
 }
 
-report() {
-  local job="$1" reason="$2" line host
-  line="AI review not performed: gateway unavailable ($reason)"
-  printf '%s\n' "$line" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
-  echo "::warning::$job: $line"
+create_check() {
+  local job="$1" reason="$2" conclusion="$3" body response
+  if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${CHECK_HEAD_SHA:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ]; then
+    echo "::error::$job: cannot create the check run; GITHUB_TOKEN, CHECK_HEAD_SHA and GITHUB_REPOSITORY must be set"
+    return 1
+  fi
+  body="$(printf '{"name":"%s: AI review not performed","head_sha":"%s","status":"completed","conclusion":"%s","output":{"title":"AI review not performed","summary":"gateway unavailable (%s)"}}' \
+    "$job" "$CHECK_HEAD_SHA" "$conclusion" "$reason")"
+  if response="$(GH_TOKEN="$GITHUB_TOKEN" gh api --method POST "repos/$GITHUB_REPOSITORY/check-runs" --input - <<< "$body" 2>&1)"; then
+    return 0
+  fi
+  if grep -qiE 'HTTP 403|not accessible by integration' <<< "$response"; then
+    echo "::error::$job: the check run was refused with 403. Grant checks: write to this job and to the caller that runs it."
+  else
+    echo "::error::$job: the check run could not be created: $(head -c 300 <<< "$response")"
+  fi
+  return 1
+}
 
+send_alert() {
+  local job="$1" line="$2" host
   if [ -z "${NTFY_BASE_URL:-}" ]; then
     echo "NTFY_BASE_URL not configured; skipping the ops alert."
     return 0
@@ -46,6 +70,29 @@ report() {
     -H "Title: $job: AI review not performed" \
     --data "$line${RUN_URL:+ $RUN_URL}" \
     || echo "::warning::ops alert not delivered"
+  return 0
+}
+
+report() {
+  local job="$1" reason="$2" line conclusion="${CONCLUSION:-neutral}" check_status=0
+  line="AI review not performed: gateway unavailable ($reason)"
+  printf '%s\n' "$line" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  if [ "$conclusion" = failure ]; then
+    echo "::error::$job: $line"
+  else
+    echo "::warning::$job: $line"
+  fi
+
+  create_check "$job" "$reason" "$conclusion" || check_status=$?
+  send_alert "$job" "$line"
+  if [ "$check_status" -ne 0 ]; then
+    return "$check_status"
+  fi
+  if [ "$conclusion" = failure ]; then
+    echo "::error::$job is blocking or required; failing closed on a gateway failure."
+    return 1
+  fi
+  return 0
 }
 
 case "${1:-}" in

@@ -285,6 +285,10 @@ runs:
         NTFY_BASE_URL: ${{ inputs.ntfy_base_url }}
         JOB_NAME: ${{ github.workflow }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # Advisory: a gateway failure ends neutral. A missing checks: write grant fails this step.
+        CONCLUSION: neutral
+        GITHUB_TOKEN: ${{ github.token }}
+        CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       run: bash "$GITHUB_ACTION_PATH/../../scripts/shared/gateway-failure.sh" report "$JOB_NAME" "$GATEWAY_CLASS"
 
     - name: Fail on Claude errors that are not gateway errors

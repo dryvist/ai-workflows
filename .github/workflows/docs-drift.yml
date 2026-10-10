@@ -91,6 +91,7 @@ jobs:
     name: Docs drift
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
     permissions:
+      checks: write
       contents: read
     timeout-minutes: 10
     outputs:
@@ -144,6 +145,10 @@ jobs:
         env:
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Advisory: neutral. A missing checks: write grant fails this step.
+          CONCLUSION: neutral
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_HEAD_SHA: ${{ github.sha }}
         run: |
           printf '## Docs drift\n\nAI review not performed: gateway unavailable (router-request-failed).\n' > docs-drift.md
           bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report docs-drift router-request-failed

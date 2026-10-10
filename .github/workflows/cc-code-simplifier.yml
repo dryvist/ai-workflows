@@ -121,6 +121,7 @@ jobs:
       needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
+      checks: write
       contents: read
       pull-requests: read
     timeout-minutes: 10

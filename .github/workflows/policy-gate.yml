@@ -9,9 +9,11 @@
 # entirely, posts a neutral comment, and publishes one audit line to the
 # ntfy hub instead - an escape hatch that is visible, not silent.
 #
-# Same router contract as docs-drift.yml: a failed router request ends the job
-# without failing it. The job summary says the review was not performed, a
-# warning is emitted, and one ops alert is sent to ntfy.
+# Same router contract as docs-drift.yml. A failed router request is not a
+# review finding: the job summary says the review was not performed, a check
+# run is posted with conclusion neutral, and one ops alert is sent to ntfy.
+# Advisory (blocking: false) ends with a neutral check run, which is not a pass.
+# Blocking (true) fails closed: the same signals are written, then the job exits 1.
 # It needs a runner that can reach the router. Never make it a required
 # check while `blocking` is false - an advisory check has nothing to
 # require.
@@ -163,6 +165,10 @@ jobs:
         env:
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Advisory: neutral. Blocking: failure, so the report exits 1 and the gate fails closed.
+          CONCLUSION: ${{ inputs.blocking && 'failure' || 'neutral' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           printf '## Policy gate\n\nAI review not performed: gateway unavailable (router-request-failed).\n' > policy-gate.md
           echo 0 > policy-gate.exit
@@ -177,6 +183,8 @@ jobs:
         run: bash .ai-workflows/.github/scripts/policy-gate/render.sh
 
       - name: Post sticky comment
+        # Runs after a failed gateway report too, so a blocking failure still shows its notice.
+        if: ${{ !cancelled() && (success() || steps.gateway.outcome == 'failure') }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           BODY_FILE: policy-gate.md

@@ -101,6 +101,7 @@ jobs:
     if: needs.check-pr-ceiling.outputs.allowed == 'true'
     runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
     permissions:
+      checks: write
       contents: read
       issues: read
     timeout-minutes: 10

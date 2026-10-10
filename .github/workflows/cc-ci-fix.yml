@@ -252,7 +252,9 @@ jobs:
     # No id-token grant: callers grant only the standard set, and a reusable job
     # that requests more fails at startup for every caller. local_only's OpenBao
     # OIDC step therefore cannot mint a token from this job and fails closed.
+    # checks: write posts the neutral check run when the agent hits a gateway failure.
     permissions:
+      checks: write
       contents: read
       pull-requests: read
     timeout-minutes: 10

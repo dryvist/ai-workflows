@@ -14,11 +14,12 @@
 # Two contracts worth knowing before you call it:
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
-# 2. A router refusal that is a gateway, budget or 429 error ends the job
-#    without failing it: the job summary says the review was not performed,
-#    a warning is emitted, and one ops alert is sent to ntfy. Any other tool
-#    failure fails the job. The job is capped (`timeout_minutes`, ten by
-#    default). It never reports success having reviewed nothing.
+# 2. A router refusal that is a gateway, budget or 429 error fails the job
+#    closed, because this is a required check: the job summary says the review
+#    was not performed, a check run is posted with conclusion failure, and one
+#    ops alert is sent to ntfy. Any other tool failure also fails the job. The
+#    job is capped (`timeout_minutes`, ten by default). It never reports success
+#    having reviewed nothing.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -144,6 +145,7 @@ jobs:
     # a finding is cheapest to act on.
     if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
+      checks: write
       contents: read
       pull-requests: write
     timeout-minutes: ${{ inputs.timeout_minutes }}
@@ -172,4 +174,5 @@ jobs:
           RUN_DESCRIBE: ${{ inputs.describe }}
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: bash .ai-workflows/.github/scripts/pr-agent/run.sh

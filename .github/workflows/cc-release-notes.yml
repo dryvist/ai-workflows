@@ -105,6 +105,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository) &&
       (inputs.runner_label || 'self-hosted') || 'ubuntu-latest' }}
     permissions:
+      checks: write
       contents: read
       pull-requests: read
     timeout-minutes: 8
@@ -185,6 +186,10 @@ jobs:
           JOB_NAME: ${{ github.workflow }}
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Advisory: neutral. A missing checks: write grant fails this step.
+          CONCLUSION: neutral
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_HEAD_SHA: ${{ needs.check-eligibility.outputs.head_sha }}
         run: bash .ai-workflows/.github/scripts/release-notes/agent-unavailable.sh
 
       - name: Upload release highlights
