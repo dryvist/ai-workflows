@@ -27,12 +27,14 @@ classify() {
   text="$(cat -- "$1")"
   if grep -Eqi 'Budget has been exceeded' <<< "$text"; then
     echo budget-exceeded
-  elif grep -Eqi 'No fallback model group found' <<< "$text"; then
+  elif grep -Eqi 'No fallback model group (was )?found' <<< "$text"; then
     echo no-fallback-model
   elif grep -Eqi '(^|[^0-9])429([^0-9]|$)|too many requests|rate.?limit' <<< "$text"; then
     echo rate-limited
   elif grep -Eqi 'ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|connection (error|refused|reset)|socket hang up|fetch failed' <<< "$text"; then
     echo connection
+  elif grep -Eqi 'APITimeoutError|Request timed out|litellm\.Timeout' <<< "$text"; then
+    echo timeout
   fi
 }
 

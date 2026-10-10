@@ -69,6 +69,13 @@ describe('gateway failure classification', () => {
     expect(classify('No fallback model group found for role review-private')).toBe('no-fallback-model');
     expect(classify('API Error: 429 Too Many Requests')).toBe('rate-limited');
     expect(classify('connect ECONNREFUSED 10.0.0.1:4000')).toBe('connection');
+    expect(classify('litellm.Timeout: APITimeoutError - Request timed out. timeout value=90.0')).toBe('timeout');
+  });
+
+  it('matches the router wording for a model group with no fallback', () => {
+    expect(
+      classify("model group 'review-oss' failed with the error above and no fallback model group was found for it"),
+    ).toBe('no-fallback-model');
   });
 
   it('leaves a real request error unclassified so the job still fails', () => {
