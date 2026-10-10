@@ -151,12 +151,7 @@ jobs:
         continue-on-error: true
         env:
           RESPONSE_FILE: ${{ steps.drift.outputs.response-file }}
-        run: |
-          if ! python3 .ai-workflows/.github/scripts/docs-drift/parse-response.py < "$RESPONSE_FILE" > /dev/null; then
-            head -c 300 "$RESPONSE_FILE" >&2
-            echo >&2
-            exit 1
-          fi
+        run: python3 .ai-workflows/.github/scripts/docs-drift/parse-response.py < "$RESPONSE_FILE" > /dev/null
 
       # The check run is posted with the Claude bot App token, minted only on
       # this path. A failed mint is named by the report step, which then fails.
