@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.1](https://github.com/dryvist/ai-workflows/compare/v0.47.0...v0.47.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **release:** cut a release for ci commits ([#497](https://github.com/dryvist/ai-workflows/issues/497)) ([014f51b](https://github.com/dryvist/ai-workflows/commit/014f51b169f712620de32f245f27477147cb3b18))
+
+
+### CI
+
+* pin reusable permission ceilings and gate increases behind a breaking title ([#494](https://github.com/dryvist/ai-workflows/issues/494)) ([15c8a69](https://github.com/dryvist/ai-workflows/commit/15c8a694ba937ebfcfa0af6658ab16db33b86bb7))
+* run repo tests through one script in the Tests workflow and the Merge Gate ([#495](https://github.com/dryvist/ai-workflows/issues/495)) ([25e0a32](https://github.com/dryvist/ai-workflows/commit/25e0a32868b6aff2bbd86889ff66cc289e25dd11))
+
 ## [0.47.0](https://github.com/dryvist/ai-workflows/compare/v0.46.8...v0.47.0) (2026-10-10)
 
 
