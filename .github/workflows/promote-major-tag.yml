@@ -1,0 +1,61 @@
+---
+# Moves the floating major tag (v0 for v0.x.y) to a release commit once the
+# Canary check on that commit has succeeded. The decision and the move are in
+# scripts/promote-major-tag.sh.
+#
+# The canary is not re-run here. Release published and workflow_dispatch name
+# the commit. If the Canary check on it is still running or not yet visible,
+# this run exits with a notice, and the `promote` job in canary.yml promotes
+# when the Canary run on main finishes. Whichever arrives second promotes.
+# Nothing polls. A Canary failure fails this run and leaves the floating tag
+# where it was.
+#
+# Only one promotion runs at a time. The floating tag never moves backwards.
+
+name: Promote Major Tag
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to promote, for example v0.47.0
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: promote-major-tag
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Move floating major tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      checks: read
+    steps:
+      - name: Check out tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Promote the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag_re='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          tag="${RELEASE_TAG:-$INPUT_TAG}"
+          if [[ ! "$tag" =~ $tag_re ]]; then
+            echo "::error::'$tag' is not a release tag (vMAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          scripts/promote-major-tag.sh "$(git rev-parse "refs/tags/$tag^{commit}")"
