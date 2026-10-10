@@ -143,11 +143,26 @@ jobs:
             docs: docs.txt
           custom-headers: "x-langfuse-trace-name: docs-drift"
 
+      # A reply with no valid docs-drift JSON object is reported like a failed
+      # request (neutral plus alert), never rendered and never passed.
+      - name: Parse drift response
+        id: parse
+        if: steps.drift.outcome == 'success'
+        continue-on-error: true
+        env:
+          RESPONSE_FILE: ${{ steps.drift.outputs.response-file }}
+        run: |
+          if ! python3 .ai-workflows/.github/scripts/docs-drift/parse-response.py < "$RESPONSE_FILE" > /dev/null; then
+            head -c 300 "$RESPONSE_FILE" >&2
+            echo >&2
+            exit 1
+          fi
+
       # The check run is posted with the Claude bot App token, minted only on
       # this path. A failed mint is named by the report step, which then fails.
       - name: Mint the check-run token
         id: check-token
-        if: steps.drift.outcome == 'failure'
+        if: steps.drift.outcome == 'failure' || steps.parse.outcome == 'failure'
         continue-on-error: true
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
@@ -156,9 +171,10 @@ jobs:
           permission-checks: write
 
       # actions/ai-inference does not expose the HTTP status or error text, so a
-      # failed request is reported as router-request-failed.
+      # failed request is reported as router-request-failed; an unparseable
+      # reply as invalid-response.
       - name: Report gateway unavailability
-        if: steps.drift.outcome == 'failure'
+        if: steps.drift.outcome == 'failure' || steps.parse.outcome == 'failure'
         env:
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -167,12 +183,13 @@ jobs:
           GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
           CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
           CHECK_HEAD_SHA: ${{ github.sha }}
+          REASON: ${{ steps.drift.outcome == 'failure' && 'router-request-failed' || 'invalid-response' }}
         run: |
-          printf '## Docs drift\n\nAI review not performed: gateway unavailable (router-request-failed).\n' > docs-drift.md
-          bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report docs-drift router-request-failed
+          printf '## Docs drift\n\nAI review not performed: gateway unavailable (%s).\n' "$REASON" > docs-drift.md
+          bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report docs-drift "$REASON"
 
       - name: Render report
-        if: steps.drift.outcome != 'failure'
+        if: steps.drift.outcome != 'failure' && steps.parse.outcome != 'failure'
         env:
           RESPONSE_FILE: ${{ steps.drift.outputs.response-file }}
           MODEL: ${{ inputs.model }}
