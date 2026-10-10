@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.5](https://github.com/dryvist/ai-workflows/compare/v0.47.4...v0.47.5) (2026-10-10)
+
+
+### CI
+
+* set the gate profile ([#505](https://github.com/dryvist/ai-workflows/issues/505)) ([aeea364](https://github.com/dryvist/ai-workflows/commit/aeea36471baaa46a086c02fb7dee8b742f250c03))
+
 ## [0.47.4](https://github.com/dryvist/ai-workflows/compare/v0.47.3...v0.47.4) (2026-10-10)
 
 
