@@ -86,18 +86,6 @@ jobs:
       issues: write
     uses: ./.github/workflows/ci-fail-issue.yml
 
-  suite-all:
-    permissions:
-      actions: read
-      checks: read
-      contents: write
-      issues: write
-      pull-requests: write
-    uses: ./.github/workflows/suite-all.yml
-    with:
-      caller_event: ${{ github.event_name }}
-      commit_sha: ${{ github.sha }}
-
   # Fixtures that need the LLM router and GitHub App secrets. `dry_run` is set
   # where the reusable offers it, so the fixture reads and decides without
   # pushing or replying.
@@ -257,18 +245,6 @@ jobs:
     uses: ./.github/workflows/policy-gate.yml
     secrets: inherit
 
-  post-merge-docs-review:
-    needs: preflight
-    if: ${{ needs.preflight.outputs.ai == 'true' }}
-    permissions:
-      actions: read
-      contents: write
-      pull-requests: write
-    uses: ./.github/workflows/post-merge-docs-review.yml
-    with:
-      commit_sha: ${{ github.sha }}
-    secrets: inherit
-
   pr-agent:
     needs: preflight
     if: ${{ needs.preflight.outputs.ai == 'true' }}
@@ -319,7 +295,6 @@ jobs:
       - ai-merge-gate
       - copilot-setup-steps
       - ci-fail-issue
-      - suite-all
       - best-practices
       - cc-ci-fix
       - cc-code-simplifier
@@ -335,7 +310,6 @@ jobs:
       - issue-sweeper
       - issue-triage
       - policy-gate
-      - post-merge-docs-review
       - pr-agent
       - review-thread-resolver
       - suite-ci
@@ -353,7 +327,6 @@ jobs:
           R_AI_MERGE_GATE: ${{ needs.ai-merge-gate.result }}
           R_COPILOT_SETUP_STEPS: ${{ needs.copilot-setup-steps.result }}
           R_CI_FAIL_ISSUE: ${{ needs.ci-fail-issue.result }}
-          R_SUITE_ALL: ${{ needs.suite-all.result }}
           R_BEST_PRACTICES: ${{ needs.best-practices.result }}
           R_CC_CI_FIX: ${{ needs.cc-ci-fix.result }}
           R_CC_CODE_SIMPLIFIER: ${{ needs.cc-code-simplifier.result }}
@@ -369,7 +342,6 @@ jobs:
           R_ISSUE_SWEEPER: ${{ needs.issue-sweeper.result }}
           R_ISSUE_TRIAGE: ${{ needs.issue-triage.result }}
           R_POLICY_GATE: ${{ needs.policy-gate.result }}
-          R_POST_MERGE_DOCS_REVIEW: ${{ needs.post-merge-docs-review.result }}
           R_PR_AGENT: ${{ needs.pr-agent.result }}
           R_REVIEW_THREAD_RESOLVER: ${{ needs.review-thread-resolver.result }}
           R_SUITE_CI: ${{ needs.suite-ci.result }}
@@ -391,7 +363,6 @@ jobs:
           check ai-merge-gate "$R_AI_MERGE_GATE" true
           check copilot-setup-steps "$R_COPILOT_SETUP_STEPS" true
           check ci-fail-issue "$R_CI_FAIL_ISSUE" true
-          check suite-all "$R_SUITE_ALL" true
           check best-practices "$R_BEST_PRACTICES" "$AI"
           check cc-ci-fix "$R_CC_CI_FIX" "$AI"
           check cc-code-simplifier "$R_CC_CODE_SIMPLIFIER" "$AI"
@@ -407,7 +378,6 @@ jobs:
           check issue-sweeper "$R_ISSUE_SWEEPER" "$AI"
           check issue-triage "$R_ISSUE_TRIAGE" "$AI"
           check policy-gate "$R_POLICY_GATE" "$AI"
-          check post-merge-docs-review "$R_POST_MERGE_DOCS_REVIEW" "$AI"
           check pr-agent "$R_PR_AGENT" "$AI"
           check review-thread-resolver "$R_REVIEW_THREAD_RESOLVER" "$AI"
           check suite-ci "$R_SUITE_CI" "$AI"
