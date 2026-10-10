@@ -13,11 +13,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   hygiene:
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       issues: read
@@ -50,7 +50,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -68,7 +70,7 @@ jobs:
         run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-issue-hygiene.md
 
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
@@ -96,7 +98,8 @@ jobs:
   publish:
     name: Publish issue hygiene
     needs: hygiene
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write

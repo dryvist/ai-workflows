@@ -37,7 +37,7 @@ on:
           model id.
         type: string
         required: false
-        default: cheap
+        default: review-private
       slack:
         description: "Post the digest to Slack when a webhook secret is present"
         type: boolean

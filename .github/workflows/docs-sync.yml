@@ -94,6 +94,7 @@ jobs:
   check-daily-limit:
     name: Check daily run limit
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -159,7 +160,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
 
@@ -187,7 +190,7 @@ jobs:
       # The agent itself never holds a write-capable token — only the
       # read-only checkout above and no GitHub credentials at all otherwise.
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
@@ -216,6 +219,7 @@ jobs:
     name: Publish docs PR
     needs: docs-sync
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
+    timeout-minutes: 10
     permissions: {}
     steps:
       - name: Mint write docs_repo token

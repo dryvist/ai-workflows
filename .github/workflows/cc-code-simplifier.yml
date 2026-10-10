@@ -19,11 +19,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       daily_run_limit:
         description: "Max workflow runs per day (0 to disable)"
         type: string
@@ -57,7 +57,8 @@ concurrency:
 jobs:
   check-pr-ceiling:
     name: Check bot PR ceiling
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
     permissions:
       pull-requests: read
     outputs:
@@ -82,10 +83,11 @@ jobs:
 
   check-daily-limit:
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
-    # No actions:read requirement — the check fails open if it cannot list runs,
-    # so callers need not grant actions:read (which they omit and startup-fail on).
-    permissions: {}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
+    # Listing runs needs actions: read. Callers must grant it, or the run fails at startup.
+    permissions:
+      actions: read
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
@@ -114,7 +116,7 @@ jobs:
     if: >-
       needs.check-pr-ceiling.outputs.allowed == 'true' &&
       needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: read
@@ -130,7 +132,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -150,7 +154,7 @@ jobs:
       # Verified Commit & PR Pattern (docs/PATTERNS.md): Claude only edits + writes its
       # PR description to .claude-pr.md; the steps below open a VERIFIED PR from it.
       - name: Run AI agent
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
@@ -182,7 +186,8 @@ jobs:
   publish:
     name: Publish simplification PR
     needs: simplify
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

@@ -6,6 +6,7 @@ on:
   #   - cron: "0 3 * * 2,5"
   # --- END DISABLED ---
 permissions:
+  actions: read
   contents: read
   issues: write
   pull-requests: read

@@ -5,6 +5,96 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.5](https://github.com/dryvist/ai-workflows/compare/v0.47.4...v0.47.5) (2026-10-10)
+
+
+### CI
+
+* set the gate profile ([#505](https://github.com/dryvist/ai-workflows/issues/505)) ([aeea364](https://github.com/dryvist/ai-workflows/commit/aeea36471baaa46a086c02fb7dee8b742f250c03))
+
+## [0.47.4](https://github.com/dryvist/ai-workflows/compare/v0.47.3...v0.47.4) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** run the agent action from the same commit as its workflow ([#503](https://github.com/dryvist/ai-workflows/issues/503)) ([a21fabb](https://github.com/dryvist/ai-workflows/commit/a21fabb709ee8fe8fa553272cf67d59e0d2e6f8f))
+
+## [0.47.3](https://github.com/dryvist/ai-workflows/compare/v0.47.2...v0.47.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** pin the workflows to ubuntu-24.04 ([#501](https://github.com/dryvist/ai-workflows/issues/501)) ([31f8836](https://github.com/dryvist/ai-workflows/commit/31f883658003c3dd3f48bf1a7524cc58986d5b45))
+
+## [0.47.2](https://github.com/dryvist/ai-workflows/compare/v0.47.1...v0.47.2) (2026-10-10)
+
+
+### CI
+
+* consume shared workflows from v1 ([#499](https://github.com/dryvist/ai-workflows/issues/499)) ([7f0367e](https://github.com/dryvist/ai-workflows/commit/7f0367e7cc52ae09bd5fa926dd0a0c9f45bcb5aa))
+
+## [0.47.1](https://github.com/dryvist/ai-workflows/compare/v0.47.0...v0.47.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **release:** cut a release for ci commits ([#497](https://github.com/dryvist/ai-workflows/issues/497)) ([014f51b](https://github.com/dryvist/ai-workflows/commit/014f51b169f712620de32f245f27477147cb3b18))
+
+
+### CI
+
+* pin reusable permission ceilings and gate increases behind a breaking title ([#494](https://github.com/dryvist/ai-workflows/issues/494)) ([15c8a69](https://github.com/dryvist/ai-workflows/commit/15c8a694ba937ebfcfa0af6658ab16db33b86bb7))
+* run repo tests through one script in the Tests workflow and the Merge Gate ([#495](https://github.com/dryvist/ai-workflows/issues/495)) ([25e0a32](https://github.com/dryvist/ai-workflows/commit/25e0a32868b6aff2bbd86889ff66cc289e25dd11))
+
+## [0.47.0](https://github.com/dryvist/ai-workflows/compare/v0.46.8...v0.47.0) (2026-10-10)
+
+
+### Features
+
+* **ci:** resilient advisory AI jobs and bounded release highlights ([#492](https://github.com/dryvist/ai-workflows/issues/492)) ([e3a6ccc](https://github.com/dryvist/ai-workflows/commit/e3a6ccc62207fa74614e2ede6b9c309f4714f5a2))
+
+## [0.46.8](https://github.com/dryvist/ai-workflows/compare/v0.46.7...v0.46.8) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** grant actions: read to daily run limit callers ([#487](https://github.com/dryvist/ai-workflows/issues/487)) ([a080970](https://github.com/dryvist/ai-workflows/commit/a080970b5038987fa7ba0a11669a848bdd462367))
+
+## [0.46.7](https://github.com/dryvist/ai-workflows/compare/v0.46.6...v0.46.7) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** request actions: read in daily run limit jobs ([#485](https://github.com/dryvist/ai-workflows/issues/485)) ([797584b](https://github.com/dryvist/ai-workflows/commit/797584b75268814a37cff1653d25b79cad13767d))
+
+## [0.46.6](https://github.com/dryvist/ai-workflows/compare/v0.46.5...v0.46.6) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** default docs drift and hygiene digest to a role the router key reaches ([#483](https://github.com/dryvist/ai-workflows/issues/483)) ([1d6c10a](https://github.com/dryvist/ai-workflows/commit/1d6c10aa0a83fce124ce6f1117d0c7e7b57f2eca))
+
+## [0.46.5](https://github.com/dryvist/ai-workflows/compare/v0.46.4...v0.46.5) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** run Codex as a non-root user on root self-hosted runners ([#481](https://github.com/dryvist/ai-workflows/issues/481)) ([09621ea](https://github.com/dryvist/ai-workflows/commit/09621ea75e723e1e047afe7c1840b019b9b660a3))
+
+## [0.46.4](https://github.com/dryvist/ai-workflows/compare/v0.46.3...v0.46.4) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** drop id-token grant from reusable CI fix and review jobs ([#478](https://github.com/dryvist/ai-workflows/issues/478)) ([1cbf859](https://github.com/dryvist/ai-workflows/commit/1cbf85960bd2ea4f512d3684305feaca887b7a72))
+
+## [0.46.3](https://github.com/dryvist/ai-workflows/compare/v0.46.2...v0.46.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **ci:** quote router header expression in run-ai-agent action ([#476](https://github.com/dryvist/ai-workflows/issues/476)) ([92cea2f](https://github.com/dryvist/ai-workflows/commit/92cea2f9f0f4f33ab0acef9b0e0d62095a7b7e4e))
+
 ## [0.46.2](https://github.com/dryvist/ai-workflows/compare/v0.46.1...v0.46.2) (2026-10-08)
 
 

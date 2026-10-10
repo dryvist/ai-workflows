@@ -13,11 +13,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       model:
         description: "Selected provider model override"
         type: string
@@ -46,7 +46,8 @@ jobs:
       github.actor != 'renovate[bot]' &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'claude[bot]'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: read
@@ -76,7 +77,7 @@ jobs:
     name: Link or close issues
     needs: check-eligibility
     if: needs.check-eligibility.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       issues: read
@@ -93,7 +94,9 @@ jobs:
         with:
           repository: dryvist/ai-workflows
           ref: ${{ job.workflow_sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/run-ai-agent
           path: .ai-workflows
           persist-credentials: false
       - name: Checkout prompt catalog
@@ -118,7 +121,7 @@ jobs:
           github.event.pull_request.user.type != 'Bot' ||
           contains(inputs.allowed_bots, github.event.pull_request.user.login) ||
           contains(inputs.allowed_bots, '*')
-        uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+        uses: ./.ai-workflows/.github/actions/run-ai-agent
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
@@ -152,7 +155,8 @@ jobs:
       (github.event.pull_request.user.type != 'Bot' ||
       contains(inputs.allowed_bots, github.event.pull_request.user.login) ||
       contains(inputs.allowed_bots, '*'))
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write

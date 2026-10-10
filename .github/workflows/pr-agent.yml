@@ -14,12 +14,12 @@
 # Two contracts worth knowing before you call it:
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
-# 2. A router that is down or at capacity FAILS the job, releasing the
-#    runner: the router admits or refuses at once, and the job is capped
-#    (`timeout_minutes`, ten by default). It never reports success having
-#    reviewed nothing. The org ruleset injects this workflow into every pull
-#    request as a required check, so an outage blocks merges
-#    until it clears and the review is re-fired by a push or a close/reopen.
+# 2. A router refusal that is a gateway, budget or 429 error fails the job
+#    closed, because this is a required check: the job summary says the review
+#    was not performed, a check run is posted with conclusion failure, and one
+#    ops alert is sent to ntfy. Any other tool failure also fails the job. The
+#    job is capped (`timeout_minutes`, ten by default). It never reports success
+#    having reviewed nothing.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -112,6 +112,18 @@ on:
           Deprecated and ignored, removed next release: pass
           LLM_ROUTER_OSS_API_KEY. Still accepted so existing callers validate.
         required: false
+      NTFY_BASE_URL:
+        description: >-
+          Base URL of the ntfy hub that receives one ops alert (topic "ai")
+          when the router is unavailable. Optional: the alert is skipped, not
+          failed, when this is absent.
+        required: false
+      GH_APP_CLAUDE_BOT_PRIVATE_KEY:
+        description: >-
+          Private key of the Claude bot App. Mints the token that posts the
+          failure check run on a gateway failure. Without it the job still
+          fails, and names the missing key.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -166,3 +178,27 @@ jobs:
           RUN_IMPROVE: ${{ inputs.improve }}
           RUN_DESCRIBE: ${{ inputs.describe }}
         run: bash .ai-workflows/.github/scripts/pr-agent/run.sh
+
+      # Runs only after a gateway failure: run.sh wrote gateway-reason.txt and
+      # failed the job. The check run uses the Claude bot App token, minted here.
+      - name: Mint the check-run token
+        id: check-token
+        if: failure() && hashFiles('gateway-reason.txt') != ''
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.GH_APP_CLAUDE_BOT_ID }}
+          private-key: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          permission-checks: write
+
+      - name: Report gateway unavailability
+        if: failure() && hashFiles('gateway-reason.txt') != ''
+        env:
+          NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Required check: failure, so the job stays red.
+          CONCLUSION: failure
+          GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
+          CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
+          CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .ai-workflows/.github/scripts/shared/gateway-failure.sh report pr-agent "$(cat gateway-reason.txt)"
