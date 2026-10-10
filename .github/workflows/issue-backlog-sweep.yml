@@ -144,7 +144,7 @@ jobs:
           api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
-          allowed_bots: "github-actions"
+          allowed_bots: "github-actions,jacobpevans-claude"
           prompt: ${{ steps.prompt.outputs.content }}
           claude_model: ${{ vars.GH_ACTION_AI_MODEL_ISSUES || vars.GH_ACTION_AI_MODEL_CHEAP || vars.GH_ACTION_AI_MODEL }}
           codex_model: ${{ vars.GH_ACTION_AI_CODEX_MODEL }}

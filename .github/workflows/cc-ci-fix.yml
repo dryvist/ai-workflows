@@ -340,7 +340,7 @@ jobs:
           otel_resource_attributes: ${{ inputs.local_only && 'langfuse.environment=production,service.name=ci-failure-fixer,agent.flow=ci-failure-fixer,agent.trigger=workflow_run' || '' }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
-          allowed_bots: "github-actions,claude"
+          allowed_bots: "github-actions,claude,jacobpevans-claude"
 
       - name: Collect agent patch
         run: |
