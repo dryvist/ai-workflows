@@ -7,8 +7,9 @@ const { join } = require('path');
 // reusable workflow may request id-token.
 //
 // The daily-run-limit check lists workflow runs through the Actions API, which
-// needs `actions: read`. That grant is not in the standard set: every caller of
-// these reusables must grant `actions: read` itself, or the run fails at startup.
+// needs `actions: read`. That grant is not in the standard set. A job either
+// requests it, so its callers must grant it, or lists with a Claude bot App token
+// minted with permission-actions: read, which needs no grant from the caller.
 const dir = join('.github', 'workflows');
 const ACTIONS_API_CHECK = 'check-daily-limit.js';
 
@@ -26,6 +27,13 @@ function callsActionsApi(job) {
   return (job.steps ?? []).some((step) => String(step.with?.script ?? '').includes(ACTIONS_API_CHECK));
 }
 
+function mintsActionsReadToken(step) {
+  return (
+    String(step.uses ?? '').startsWith('actions/create-github-app-token@') &&
+    step.with?.['permission-actions'] === 'read'
+  );
+}
+
 const reusables = readdirSync(dir)
   .filter((name) => name.endsWith('.yml'))
   .map((name) => [name, Bun.YAML.parse(readFileSync(join(dir, name), 'utf8'))])
@@ -35,7 +43,7 @@ test('finds the reusable workflows that consumers call', () => {
   expect(reusables.map(([name]) => name)).toContain('cc-ci-fix.yml');
 });
 
-test('finds the reusable workflows whose daily-limit check needs actions: read', () => {
+test('finds the reusable workflows whose daily-limit check lists workflow runs', () => {
   const names = reusables
     .filter(([, workflow]) => Object.values(workflow.jobs ?? {}).some(callsActionsApi))
     .map(([name]) => name);
@@ -52,10 +60,22 @@ for (const [name, workflow] of reusables) {
     }
   });
 
-  test(`${name} jobs that list workflow runs request actions: read`, () => {
+  test(`${name} jobs that list workflow runs request actions: read or list with a minted read token`, () => {
     for (const [job, definition] of Object.entries(workflow.jobs ?? {})) {
       if (!callsActionsApi(definition)) continue;
-      expect(effectivePermissions(workflow, definition)?.actions, `job ${job}`).toBe('read');
+      const mint = (definition.steps ?? []).find(mintsActionsReadToken);
+      if (!mint) {
+        expect(effectivePermissions(workflow, definition)?.actions, `job ${job}`).toBe('read');
+        continue;
+      }
+      const listing = definition.steps.find((step) => String(step.with?.script ?? '').includes(ACTIONS_API_CHECK));
+      expect(listing.with?.['github-token'], `job ${job}`).toContain(`steps.${mint.id}.outputs.token`);
     }
   });
 }
+
+test('cc-code-simplifier.yml requests no actions grant, so callers need none', () => {
+  const [, workflow] = reusables.find(([name]) => name === 'cc-code-simplifier.yml');
+  expect(workflow.permissions?.actions).toBeUndefined();
+  expect(workflow.jobs['check-daily-limit'].permissions).toBeUndefined();
+});

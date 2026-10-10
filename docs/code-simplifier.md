@@ -33,7 +33,6 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 permissions:
-  actions: read
   contents: write
   pull-requests: write
 jobs:
