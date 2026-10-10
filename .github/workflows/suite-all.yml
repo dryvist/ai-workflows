@@ -11,7 +11,7 @@
 # suite when called by a child repo (e.g., @main rides the whole chain).
 #
 # Usage:
-#   uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@main
+#   uses: dryvist/ai-workflows/.github/workflows/suite-all.yml@<40-hex commit SHA> # vX.Y.Z
 #   with:
 #     caller_event: ${{ github.event_name }}
 #     commit_sha: ${{ inputs.commit_sha || github.sha }}

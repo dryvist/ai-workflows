@@ -7,4 +7,4 @@ jobs:
   cancel-on-close:
     permissions:
       actions: write
-    uses: dryvist/.github/.github/workflows/_cancel-on-close.yml@v1
+    uses: dryvist/.github/.github/workflows/_cancel-on-close.yml@c4501ea67ce4469a5cc95216c9a989516da2adb8 # v1.10.0
