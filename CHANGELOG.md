@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.0](https://github.com/dryvist/ai-workflows/compare/v0.46.8...v0.47.0) (2026-10-10)
+
+
+### Features
+
+* **ci:** resilient advisory AI jobs and bounded release highlights ([#492](https://github.com/dryvist/ai-workflows/issues/492)) ([e3a6ccc](https://github.com/dryvist/ai-workflows/commit/e3a6ccc62207fa74614e2ede6b9c309f4714f5a2))
+
 ## [0.46.8](https://github.com/dryvist/ai-workflows/compare/v0.46.7...v0.46.8) (2026-10-08)
 
 
