@@ -13,11 +13,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
   workflow_dispatch:
 
 # Workflow-level permissions set the maximum for all jobs.
@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   hygiene:
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       issues: read
@@ -96,7 +96,7 @@ jobs:
   publish:
     name: Publish issue hygiene
     needs: hygiene
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read

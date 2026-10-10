@@ -18,11 +18,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       workflow_name:
         description: >-
           Name of the CI workflow that failed. Optional — defaults to the
@@ -62,7 +62,7 @@ concurrency:
 jobs:
   should-create:
     name: Check eligibility
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       actions: read
@@ -99,7 +99,7 @@ jobs:
     name: Create failure issue
     needs: should-create
     if: needs.should-create.outputs.eligible == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       actions: read

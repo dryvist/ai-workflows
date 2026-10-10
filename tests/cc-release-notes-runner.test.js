@@ -10,7 +10,7 @@ test('release highlights route trusted events to the self-hosted runner and skip
   expect(highlights['runs-on']).toContain("github.event_name != 'pull_request'");
   expect(highlights['runs-on']).toContain('github.event.pull_request.head.repo.full_name == github.repository');
   expect(highlights['runs-on']).toContain("inputs.runner_label || 'self-hosted'");
-  expect(highlights['runs-on']).toContain("'ubuntu-latest'");
+  expect(highlights['runs-on']).toContain("'ubuntu-24.04'");
 });
 
 test('fork PR skips emit a clear notice before the agent job is evaluated', () => {

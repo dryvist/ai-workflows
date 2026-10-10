@@ -34,11 +34,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       max_issues:
         description: "Max backlog issues to label per run"
         type: string
@@ -73,7 +73,7 @@ concurrency:
 jobs:
   check-pr-ceiling:
     name: Check bot PR ceiling
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       pull-requests: read
@@ -99,7 +99,7 @@ jobs:
   sweep:
     needs: [check-pr-ceiling]
     if: needs.check-pr-ceiling.outputs.allowed == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       issues: read
@@ -165,7 +165,7 @@ jobs:
   publish:
     name: Apply backlog triage
     needs: sweep
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read

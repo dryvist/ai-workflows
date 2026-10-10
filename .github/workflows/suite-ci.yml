@@ -23,11 +23,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       repo_context:
         description: >-
           Brief description of the repository. Optional — defaults to the repo's
@@ -107,7 +107,7 @@ jobs:
       (github.event.workflow_run.head_repository.full_name || inputs.failure_head_repository) == github.repository
     uses: ./.github/workflows/cc-ci-fix.yml
     with:
-      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-24.04' }}
       repo_context: ${{ inputs.repo_context }}
       ci_structure: ${{ inputs.ci_structure }}
       extra_tools: ${{ inputs.extra_tools }}
@@ -125,7 +125,7 @@ jobs:
       (inputs.failure_head_branch || github.event.workflow_run.head_branch) == 'main'
     uses: ./.github/workflows/ci-fail-issue.yml
     with:
-      runner_label: ${{ inputs.runner_label || 'ubuntu-latest' }}
+      runner_label: ${{ inputs.runner_label || 'ubuntu-24.04' }}
       workflow_name: ${{ inputs.workflow_name }}
       failure_conclusion: ${{ inputs.failure_conclusion || github.event.workflow_run.conclusion }}
       failure_run_id: ${{ inputs.failure_run_id || github.event.workflow_run.id }}
