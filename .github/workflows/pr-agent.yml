@@ -14,12 +14,11 @@
 # Two contracts worth knowing before you call it:
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
-# 2. A router that is down or at capacity FAILS the job, releasing the
-#    runner: the router admits or refuses at once, and the job is capped
-#    (`timeout_minutes`, ten by default). It never reports success having
-#    reviewed nothing. The org ruleset injects this workflow into every pull
-#    request as a required check, so an outage blocks merges
-#    until it clears and the review is re-fired by a push or a close/reopen.
+# 2. A router refusal that is a gateway, budget or 429 error ends the job
+#    without failing it: the job summary says the review was not performed,
+#    a warning is emitted, and one ops alert is sent to ntfy. Any other tool
+#    failure fails the job. The job is capped (`timeout_minutes`, ten by
+#    default). It never reports success having reviewed nothing.
 #
 # PR-Agent is invoked as its published container through the CLI it documents,
 # not as a container action: this pool passes the Docker socket through without
@@ -112,6 +111,12 @@ on:
           Deprecated and ignored, removed next release: pass
           LLM_ROUTER_OSS_API_KEY. Still accepted so existing callers validate.
         required: false
+      NTFY_BASE_URL:
+        description: >-
+          Base URL of the ntfy hub that receives one ops alert (topic "ai")
+          when the router is unavailable. Optional: the alert is skipped, not
+          failed, when this is absent.
+        required: false
 
 # Workflow-level permissions set the maximum for all jobs.
 # permissions: {} silently skips all jobs in cross-repo calls.
@@ -165,4 +170,6 @@ jobs:
           RUN_REVIEW: ${{ inputs.review }}
           RUN_IMPROVE: ${{ inputs.improve }}
           RUN_DESCRIBE: ${{ inputs.describe }}
+          NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: bash .ai-workflows/.github/scripts/pr-agent/run.sh
