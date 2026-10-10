@@ -252,6 +252,18 @@ jobs:
     uses: ./.github/workflows/pr-agent.yml
     secrets: inherit
 
+  post-merge-docs-review:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/post-merge-docs-review.yml
+    with:
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
+
   review-thread-resolver:
     needs: preflight
     if: ${{ needs.preflight.outputs.ai == 'true' }}
@@ -259,6 +271,22 @@ jobs:
       contents: write
       pull-requests: write
     uses: ./.github/workflows/review-thread-resolver.yml
+    secrets: inherit
+
+  suite-all:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      checks: read
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/suite-all.yml
+    with:
+      caller_event: ${{ github.event_name }}
+      commit_sha: ${{ github.sha }}
     secrets: inherit
 
   suite-ci:
