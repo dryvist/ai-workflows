@@ -5,7 +5,7 @@
 // Run from the repository root with bun:
 //   bun .github/scripts/permission-ceiling/ceiling.js generate > tests/fixtures/reusable-permission-ceiling.json
 //   BASE_SHA=<sha> PR_TITLE=<title> bun .github/scripts/permission-ceiling/ceiling.js check
-const { execFileSync, spawnSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { readdirSync, readFileSync } = require('fs');
 const { join, resolve } = require('path');
 
