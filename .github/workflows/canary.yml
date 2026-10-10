@@ -1,0 +1,377 @@
+---
+# Caller-contract canary for the reusable workflows this repo publishes.
+#
+# Each fixture job calls one reusable at the commit under test through its local
+# path (./.github/workflows/<file>.yml). A pull request runs the PR's own
+# reusables; a push to main runs the pushed commit. Public callers pin these
+# files at main or at the floating major tag, so this run is what checks the
+# published contract before a tag moves.
+#
+# The job named `Canary` is the required check. Its `needs` lists the
+# deterministic fixtures only. A caller contract that is broken fails the whole
+# run at startup, so no Canary check appears and promote-major-tag does not run.
+#
+# The `promote` job at the end runs on push to main after the Canary summary
+# succeeds. It moves the floating major tag when a release tag already names
+# this commit. When the release comes later, promote-major-tag.yml does it. Both
+# paths call scripts/promote-major-tag.sh.
+
+name: Canary
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: canary-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  preflight:
+    name: Check secrets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    outputs:
+      ai: ${{ steps.check.outputs.ai }}
+      typesafe: ${{ steps.check.outputs.typesafe }}
+    steps:
+      - id: check
+        env:
+          ROUTER_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}
+          ROUTER_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+          APP_KEY: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY }}
+          TYPESAFE_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          ai=false
+          if [[ -n "$ROUTER_KEY" && -n "$ROUTER_URL" && -n "$APP_KEY" ]]; then
+            ai=true
+          fi
+          typesafe=false
+          if [[ -n "$TYPESAFE_KEY" ]]; then
+            typesafe=true
+          fi
+          echo "ai=$ai" >> "$GITHUB_OUTPUT"
+          echo "typesafe=$typesafe" >> "$GITHUB_OUTPUT"
+          if [[ "$ai" != true ]]; then
+            echo "::notice::LLM router or GitHub App secrets are not available to this run; AI fixtures are skipped."
+          fi
+          if [[ "$typesafe" != true ]]; then
+            echo "::notice::TYPESAFE_API_KEY is not available to this run; the scope-classify fixture is skipped."
+          fi
+
+  # Fixtures without secrets. Each runs on every PR and every push to main.
+  ai-merge-gate:
+    permissions:
+      checks: read
+      contents: read
+    uses: ./.github/workflows/_ai-merge-gate.yml
+
+  copilot-setup-steps:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_copilot-setup-steps.yml
+
+  ci-fail-issue:
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    uses: ./.github/workflows/ci-fail-issue.yml
+
+  # LLM router, Claude bot App token or external API fixtures. Their runtime
+  # outcome depends on external budget and App permission, so they are visible
+  # here and excluded from the Canary gate (canary-summary needs). `dry_run` is
+  # set where the reusable offers it, so the fixture reads and decides without
+  # pushing or replying.
+  best-practices:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/best-practices.yml
+    secrets: inherit
+
+  cc-ci-fix:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-ci-fix.yml
+    with:
+      ci_structure: "test.yml (bun test for JavaScript scripts)"
+      dry_run: true
+    secrets: inherit
+
+  cc-code-simplifier:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-code-simplifier.yml
+    secrets: inherit
+
+  cc-dep-review:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/cc-dep-review.yml
+    secrets: inherit
+
+  cc-issue-resolver:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/cc-issue-resolver.yml
+    secrets: inherit
+
+  cc-next-steps:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-next-steps.yml
+    secrets: inherit
+
+  cc-post-merge-docs-review:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-post-merge-docs-review.yml
+    with:
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
+
+  cc-post-merge-tests:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-post-merge-tests.yml
+    with:
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
+
+  cc-pr-review-responder:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/cc-pr-review-responder.yml
+    with:
+      dry_run: true
+    secrets: inherit
+
+  cc-release-notes:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/cc-release-notes.yml
+    secrets: inherit
+
+  issue-backlog-sweep:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/issue-backlog-sweep.yml
+    secrets: inherit
+
+  issue-hygiene:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/issue-hygiene.yml
+    secrets: inherit
+
+  issue-sweeper:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/issue-sweeper.yml
+    secrets: inherit
+
+  issue-triage:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/issue-triage.yml
+    secrets: inherit
+
+  policy-gate:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions: {}
+    uses: ./.github/workflows/policy-gate.yml
+    secrets: inherit
+
+  pr-agent:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.github/workflows/pr-agent.yml
+    secrets: inherit
+
+  post-merge-docs-review:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/post-merge-docs-review.yml
+    with:
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
+
+  review-thread-resolver:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/review-thread-resolver.yml
+    secrets: inherit
+
+  suite-all:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: write
+      checks: read
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/suite-all.yml
+    with:
+      caller_event: ${{ github.event_name }}
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
+
+  suite-ci:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.ai == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/suite-ci.yml
+    with:
+      repo_context: "Reusable GitHub Actions workflows for AI-powered CI/CD automation (prompts, scripts, YAML workflows)"
+      ci_structure: "test.yml (bun test for JavaScript scripts)"
+      workflow_name: "Tests"
+    secrets: inherit
+
+  scope-classify:
+    needs: preflight
+    if: ${{ needs.preflight.outputs.typesafe == 'true' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/scope-classify.yml
+    secrets:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+
+  canary-summary:
+    name: Canary
+    needs:
+      - preflight
+      - ai-merge-gate
+      - copilot-setup-steps
+      - ci-fail-issue
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every gated fixture to succeed
+        env:
+          R_PREFLIGHT: ${{ needs.preflight.result }}
+          R_AI_MERGE_GATE: ${{ needs.ai-merge-gate.result }}
+          R_COPILOT_SETUP_STEPS: ${{ needs.copilot-setup-steps.result }}
+          R_CI_FAIL_ISSUE: ${{ needs.ci-fail-issue.result }}
+        run: |
+          fail=0
+          check() {
+            if [[ "$2" == success ]]; then
+              echo "$1: success"
+            else
+              echo "::error::$1 result is '$2'"
+              fail=1
+            fi
+          }
+          check preflight "$R_PREFLIGHT"
+          check ai-merge-gate "$R_AI_MERGE_GATE"
+          check copilot-setup-steps "$R_COPILOT_SETUP_STEPS"
+          check ci-fail-issue "$R_CI_FAIL_ISSUE"
+          exit "$fail"
+
+  # Second arrival for a release: this push-to-main run finished after the release
+  # tag named this commit. `needs` with `success()` means the summary above already
+  # concluded success, so the script skips the check-run lookup.
+  promote:
+    name: Move floating major tag
+    needs: [canary-summary]
+    if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      checks: read
+    concurrency:
+      group: promote-major-tag
+      cancel-in-progress: false
+    steps:
+      - name: Check out tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Promote if a release tag names this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: scripts/promote-major-tag.sh "$SHA" --gate-verified
