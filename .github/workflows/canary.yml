@@ -252,18 +252,6 @@ jobs:
     uses: ./.github/workflows/pr-agent.yml
     secrets: inherit
 
-  post-merge-docs-review:
-    needs: preflight
-    if: ${{ needs.preflight.outputs.ai == 'true' }}
-    permissions:
-      actions: write
-      contents: write
-      pull-requests: write
-    uses: ./.github/workflows/post-merge-docs-review.yml
-    with:
-      commit_sha: ${{ github.sha }}
-    secrets: inherit
-
   review-thread-resolver:
     needs: preflight
     if: ${{ needs.preflight.outputs.ai == 'true' }}
