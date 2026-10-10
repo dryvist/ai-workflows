@@ -38,7 +38,7 @@ permissions:
   pull-requests: write
 jobs:
   simplify:
-    uses: dryvist/ai-workflows/.github/workflows/cc-code-simplifier.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/cc-code-simplifier.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 

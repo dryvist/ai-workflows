@@ -82,7 +82,7 @@ permissions:
   actions: read
 jobs:
   digest:
-    uses: dryvist/ai-workflows/.github/workflows/repo-hygiene-digest.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/repo-hygiene-digest.yml@<40-hex-sha> # vX.Y.Z
     with:
       repos: owner/one,owner/two
       slack: true

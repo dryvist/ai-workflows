@@ -6,7 +6,7 @@ Reusable AI agent workflows for GitHub Actions. Consumer repos call these with t
 
 This repo is the single source of truth for CI/CD automation workflows.
 Each workflow is a GitHub reusable workflow (`on: workflow_call`) that consumer
-repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@main`.
+repos invoke via `uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<40-hex-sha> # vX.Y.Z`.
 
 ### Directory Structure
 
@@ -106,7 +106,7 @@ permissions:
   pull-requests: read
 jobs:
   sweep:
-    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/issue-sweeper.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 
@@ -208,9 +208,10 @@ Agent jobs must not receive a write-capable GitHub token or App token. Publish
 comments, labels, commits, and PRs deterministically from a fresh job with the
 minimum required permissions.
 
-### Version Tags for Actions
+### Version Pins for Actions
 
-Use version tags (`@v7`, `@v4`, `@v1`) for trusted first-party GitHub actions (`actions/*`, `anthropics/*`). SHA pinning is not required for these.
+Pin every GitHub Action and every `dryvist/*` reusable workflow to a full 40-character commit SHA, with the release tag in a
+trailing comment. Do not pin `@main`, `@develop`, or a bare major tag such as `@vN`.
 
 ### Testing
 

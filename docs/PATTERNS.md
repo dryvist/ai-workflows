@@ -302,7 +302,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   review:
     if: github.event_name == 'workflow_dispatch'
-    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/cc-post-merge-tests.yml@<40-hex-sha> # vX.Y.Z
     with:
       commit_sha: ${{ inputs.commit_sha || github.sha }}
     secrets: inherit
@@ -360,7 +360,7 @@ When a bot creates the PR and isn't in `allowed_bots`, the step shows as **skipp
 ```yaml
 jobs:
   link-issues:
-    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@<40-hex-sha> # vX.Y.Z
     with:
       allowed_bots: "claude"  # Allow Claude App PRs to be linked
     secrets: inherit
@@ -393,9 +393,9 @@ Loop prevention is handled by the attempt counter (`check-attempts.js`, max 2 at
 `cc-dep-review.yml` is the deliberate **inverse** of Layer 3 — it runs ONLY on
 dependency-bot PRs and skips everything else. It is two layers, reported under the
 separate AI Merge Gate (dryvist/.github → SECURITY.md → Dependency Trust): a
-deterministic native gate and an advisory AI review. Renovate owns all merging under
-its publisher-agnostic freshness model; this workflow has no internal auto-merge — it
-only labels and comments.
+deterministic native gate and an advisory AI review. Renovate opens the bump PRs. A
+patch bump merges after the Merge Gate is green. A minor or major bump is merged by a
+person. This workflow has no internal auto-merge — it only labels and comments.
 
 A `check-eligibility` job is the inverse gate: it runs the paid Claude review ONLY when the
 PR author is a dependency bot (`bot_authors`), the highest bump type is in scope
@@ -564,7 +564,7 @@ jobs:
         (github.event.action == 'opened' && !github.event.pull_request.draft) ||
         (github.event.action == 'closed' && github.event.pull_request.merged == true)
       )
-    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/issue-linker.yml@<40-hex-sha> # vX.Y.Z
     secrets: inherit
 ```
 

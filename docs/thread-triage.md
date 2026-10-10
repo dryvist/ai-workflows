@@ -71,7 +71,7 @@ permissions:
   pull-requests: write
 jobs:
   thread-triage:
-    uses: dryvist/ai-workflows/.github/workflows/thread-triage.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/thread-triage.yml@<40-hex-sha> # vX.Y.Z
     secrets:
       LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
       LLM_ROUTER_API_KEY: ${{ secrets.LLM_ROUTER_API_KEY }}

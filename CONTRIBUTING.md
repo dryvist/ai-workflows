@@ -152,9 +152,16 @@ Pass `${{ }}` expression values via `env:` on the step, then read via `process.e
 Workflow-level `permissions:` must be the union of all job-level permissions. Job-level permissions cannot escalate beyond the workflow-level
 maximum. Consumer repo callers must also declare sufficient permissions.
 
-## Version Tags
+## Version Pins
 
-Use version tags (`@v1`, `@v6`, `@v8`) for trusted first-party GitHub actions (`actions/*`, `anthropics/*`). SHA pinning is not required for these.
+Pin every GitHub Action and every `dryvist/*` reusable workflow to a full 40-character commit SHA, with the release tag in a trailing comment:
+
+```yaml
+- uses: actions/checkout@<40-hex-sha> # vX.Y.Z
+- uses: dryvist/ai-workflows/.github/workflows/<name>.yml@<40-hex-sha> # vX.Y.Z
+```
+
+Do not pin `@main`, `@develop`, or a bare major tag such as `@vN`.
 
 ## Commit Messages
 

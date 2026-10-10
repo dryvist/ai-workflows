@@ -119,7 +119,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: dryvist/ai-workflows/.github/workflows/pr-agent.yml@main
+    uses: dryvist/ai-workflows/.github/workflows/pr-agent.yml@<40-hex-sha> # vX.Y.Z
     with:
       improve: true
     secrets:
