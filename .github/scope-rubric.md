@@ -85,8 +85,9 @@ otherwise looks like:
   `.terraform.lock.hcl`, `Gemfile.lock` and `composer.lock`. A dependency
   bump that changes one is never lint-only, whatever else the diff holds.
 
-`scripts/scope_classify.py` decides two cases by rule, before the model
-is asked (`source: rules`). A changed lockfile or requirements file is
+`scripts/scope_classify.py` decides three cases by rule, before the model
+is asked (`source: rules`). A release promotion (`head_ref` `develop`
+into the default branch) is `full`/`yes` on every output. A changed lockfile or requirements file is
 `full`/`yes` on every output. A change where every path, including a
 rename's previous path, is documentation (`.md`, `.mdx`, `LICENSE`,
 `LICENSE.md`, `NOTICE`, `CODEOWNERS`, or anything under `docs/` that is

@@ -144,19 +144,14 @@ class ClassifyTests(unittest.TestCase):
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")
-    @mock.patch.object(sc, "fetch_changed_files", return_value=[])
+    @mock.patch.object(sc, "fetch_changed_files", return_value=[_file("docs/guide.md")])
     @mock.patch.object(sc, "read_rubric", return_value="# rubric")
-    def test_promotion_refs_reach_the_classifier(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
-        # The promotion rule is the rubric's to judge, so the classifier
-        # must be handed the refs it needs to judge it.
+    def test_promotion_is_full_by_rule_even_when_documentation_only(self, _read_rubric, _fetch_files, _fetch_diff, _fetch_default_branch):
         env = self._base_env(BASE_REF="main", HEAD_REF="develop")
-        with mock.patch.object(
-            sc, "classify", return_value=(dict(sc.FULL_DECISION), "jev choice, avg confidence 0.90")
-        ) as classify_call:
-            _decision, _reason, source = sc.run(env)
-        self.assertEqual(source, "jev")
-        _rubric, state, _api_key = classify_call.call_args[0]
-        self.assertEqual((state["base_ref"], state["head_ref"], state["default_branch"]), ("main", "develop", "main"))
+        with mock.patch.object(sc, "classify", side_effect=AssertionError("model must not be called")):
+            decision, reason, source = sc.run(env)
+        self.assertEqual((decision, source), (sc.FULL_DECISION, "rules"))
+        self.assertIn("promotion", reason)
 
     @mock.patch.object(sc, "fetch_default_branch", return_value="main")
     @mock.patch.object(sc, "fetch_diff", return_value="")

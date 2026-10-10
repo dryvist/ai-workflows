@@ -12,8 +12,8 @@
 # All decision logic lives in scripts/scope_classify.py (unit tested:
 # scripts/test_scope_classify.py), not in this YAML. This step is a
 # single invocation. The script fetches the pull request context and
-# decides two cases by rule (lockfile changes, documentation-only
-# changes). Everything else goes, with the rubric
+# decides three cases by rule (release promotions, lockfile changes,
+# documentation-only changes). Everything else goes, with the rubric
 # (.github/scope-rubric.md), to typesafe.ai's official `typesafe-sdk`
 # (never a hand-rolled HTTP request), and the script writes the answer.
 # Judgement-based scope rules, always-full paths included, live in the

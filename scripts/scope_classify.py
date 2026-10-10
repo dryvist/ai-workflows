@@ -296,10 +296,12 @@ def run(env: dict[str, str]) -> tuple[dict, str, str]:
             return dict(FULL_DECISION), override_reason or "always-full override: no pull request number", "fallback"
 
         files = fetch_changed_files(repo, pr_number, token)
+        default_branch = fetch_default_branch(repo, token)
+        if head_ref == "develop" and base_ref == default_branch:
+            return dict(FULL_DECISION), "rules: release promotion, full build", "rules"
         ruled = rule_decision(files)
         if ruled is not None:
             return ruled[0], ruled[1], "rules"
-        default_branch = fetch_default_branch(repo, token)
         diff = "" if repo_private else fetch_diff(repo, pr_number, token)
 
         rubric = read_rubric()
