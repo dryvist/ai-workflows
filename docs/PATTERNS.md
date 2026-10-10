@@ -763,14 +763,18 @@ the per-output decision rules — is read by the script and rendered into
 the classifier prompt, so the text a caller is gated on is reviewable and
 diffable.
 
-**One override, not a second classifier**: the script decides nothing
-about the change itself. Its only rule (`check_overrides()`, unit tested)
-is that an event with no pull request has nothing to classify and
-resolves to `full`/`yes`. Which paths always mean full — workflow files
-that survive the change, `roles/openbao/**`, secret/auth-like names,
-a develop→default promotion — is written in the rubric and judged by
-the classifier, which is handed each file's `status` and a rename's
-`previous_path` for exactly that purpose.
+**Rules first, then the classifier**: the script decides two cases by
+rule before the classifier is called (`rule_decision()`, unit tested,
+`source: rules`). A changed lockfile or `requirements*.txt` is always
+`full`/`yes`. A change where every path, including a rename's
+`previous_path`, is documentation is `ci: lint-only` and `molecule: none`.
+Its override (`check_overrides()`) is that an event with no pull request
+has nothing to classify and resolves to `full`/`yes`. Every other
+path-based decision — workflow files that survive the change,
+`roles/openbao/**`, secret/auth-like names, a develop→default promotion —
+is written in the rubric and judged by the classifier, which is handed
+each file's `status` and a rename's `previous_path` for exactly that
+purpose.
 
 **Input by repository visibility**: public repos send title, body head,
 labels, changed-file paths with line stats, and the unified diff (capped

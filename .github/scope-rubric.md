@@ -28,8 +28,8 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
 - **`ci: full`** — the change touches application/infra behavior: source
   code, roles, playbooks, workflow logic, or anything the deterministic
   overrides below already force to full.
-- **`ci: lint-only`** — the change is docs-only or a dependency/lockfile
-  bump with no source/role/workflow changes.
+- **`ci: lint-only`** — the change is docs-only, with no source, role, or
+  workflow change. A lockfile change is never lint-only (see below).
 - **`ci: none`** — the change touches nothing that any check depends on
   (e.g. a comment-only README typo across files no other filter watches).
 
@@ -47,7 +47,7 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
   Molecule-executed test path touched.
 
 - **`ai_review: yes`** — any non-trivial source, workflow, or role change.
-- **`ai_review: no`** — docs-only or lockfile/renovate-only changes.
+- **`ai_review: no`** — docs-only or renovate-config-only changes.
 
 - **`release_notes: yes`** — any user-visible behavior change or
   dependency bump worth surfacing in a changelog.
@@ -57,7 +57,7 @@ Costs are p50 / p95 execution minutes from the 7-day org CI duration audit
   contract (API shape, ingress, auth).
 - **`e2e: no`** — everything else.
 
-## Changes that are always full (judged from the rubric, not a script)
+## Changes that are always full
 
 Answer `full`/`yes` on every output for any of these, whatever the diff
 otherwise looks like:
@@ -78,12 +78,24 @@ otherwise looks like:
   `default_branch`) — git-flow's release promotion. A feature PR that
   merely *targets* the default branch, which on a trunk repo is every
   PR, is not a promotion.
+- Any changed lockfile, or a `requirements*.txt` file, including a
+  rename's previous path. Lockfiles are `flake.lock`, `uv.lock`,
+  `poetry.lock`, `Pipfile.lock`, `package-lock.json`, `bun.lock`,
+  `bun.lockb`, `yarn.lock`, `pnpm-lock.yaml`, `Cargo.lock`, `go.sum`,
+  `.terraform.lock.hcl`, `Gemfile.lock` and `composer.lock`. A dependency
+  bump that changes one is never lint-only, whatever else the diff holds.
 
-`scripts/scope_classify.py` keeps exactly one rule of its own: with no
-pull request to classify (any event but `pull_request`), every output is
-`full`/`yes` with `source: fallback`. A request failure, timeout, or
-unparsable answer produces the same result; `source: jev` means the
-classifier itself answered.
+`scripts/scope_classify.py` decides two cases by rule, before the model
+is asked (`source: rules`). A changed lockfile or requirements file is
+`full`/`yes` on every output. A change where every path, including a
+rename's previous path, is documentation (`.md`, `.mdx`, `LICENSE`,
+`LICENSE.md`, `NOTICE`, `CODEOWNERS`, or anything under `docs/` that is
+not a code or config file) is `ci: lint-only` and `molecule: none`, with
+the other outputs left `full`/`yes`. Everything else goes to the model.
+With no pull request to classify (any event but `pull_request`), every
+output is `full`/`yes` with `source: fallback`. A request failure,
+timeout, or unparsable answer produces the same result; `source: jev`
+means the classifier itself answered.
 
 ## When in doubt
 

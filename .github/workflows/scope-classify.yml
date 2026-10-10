@@ -11,12 +11,13 @@
 #
 # All decision logic lives in scripts/scope_classify.py (unit tested:
 # scripts/test_scope_classify.py), not in this YAML. This step is a
-# single invocation; the script fetches the pull request context, hands
-# it with the rubric (.github/scope-rubric.md) to typesafe.ai's official
-# `typesafe-sdk` (never a hand-rolled HTTP request), and writes the
-# answer. Every scope rule, always-full paths included, lives in the
-# rubric the classifier reads; the script decides nothing but "no pull
-# request, nothing to classify".
+# single invocation. The script fetches the pull request context and
+# decides two cases by rule (lockfile changes, documentation-only
+# changes). Everything else goes, with the rubric
+# (.github/scope-rubric.md), to typesafe.ai's official `typesafe-sdk`
+# (never a hand-rolled HTTP request), and the script writes the answer.
+# Judgement-based scope rules, always-full paths included, live in the
+# rubric the classifier reads.
 #
 # Fail-safe: `timeout-minutes: 2` on the job, a 10s client-side timeout
 # on the SDK call. Any request failure, non-2xx response, timeout, or
@@ -49,7 +50,7 @@ on:
         description: One-line explanation of the decision
         value: ${{ jobs.scope.outputs.reason }}
       source:
-        description: jev | fallback
+        description: jev | rules | fallback
         value: ${{ jobs.scope.outputs.source }}
     secrets:
       TYPESAFE_API_KEY:
