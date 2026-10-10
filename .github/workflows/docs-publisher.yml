@@ -234,7 +234,7 @@ jobs:
           PR_BRANCH: docs-publisher/public-${{ github.run_id }}
           PR_TITLE: "docs: publish generated documentation"
           PR_BODY: >-
-            Docs-Publisher-Source: ${{ github.repository }}@${{ github.sha }}
+            Docs-Publisher-Source: ${{ github.sha }}
 
             Publishes the generated Mintlify documentation projection.
           PR_DRAFT: ${{ inputs.draft_public_pr }}
