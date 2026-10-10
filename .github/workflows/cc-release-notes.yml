@@ -170,7 +170,7 @@ jobs:
         with:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.bound.outputs.content }}
-          claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL }}
+          claude_model: ${{ inputs.model || 'review-local' }}
           codex_model: ${{ inputs.model || vars.GH_ACTION_AI_CODEX_MODEL }}
           allowed_tools: "Read,Glob,Grep,LS,Write,Bash(git log:*),Bash(git diff:*),Bash(git tag:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
           permission_profile: workspace
