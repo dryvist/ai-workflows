@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.1](https://github.com/dryvist/ai-workflows/compare/v0.48.0...v0.48.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **gateway:** classify router timeouts and the current no-fallback wording ([#510](https://github.com/dryvist/ai-workflows/issues/510)) ([3618883](https://github.com/dryvist/ai-workflows/commit/3618883e3e7175ec700617c1f632b200e1cca683))
+
 ## [0.48.0](https://github.com/dryvist/ai-workflows/compare/v0.47.6...v0.48.0) (2026-10-10)
 
 
