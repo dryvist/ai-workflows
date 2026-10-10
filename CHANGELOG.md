@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.3](https://github.com/dryvist/ai-workflows/compare/v0.47.2...v0.47.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** pin the workflows to ubuntu-24.04 ([#501](https://github.com/dryvist/ai-workflows/issues/501)) ([31f8836](https://github.com/dryvist/ai-workflows/commit/31f883658003c3dd3f48bf1a7524cc58986d5b45))
+
 ## [0.47.2](https://github.com/dryvist/ai-workflows/compare/v0.47.1...v0.47.2) (2026-10-10)
 
 
