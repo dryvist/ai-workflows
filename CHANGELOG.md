@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.3](https://github.com/dryvist/ai-workflows/compare/v0.48.2...v0.48.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **ci:** resolve actionlint findings in workflow scripts ([#515](https://github.com/dryvist/ai-workflows/issues/515)) ([f498e01](https://github.com/dryvist/ai-workflows/commit/f498e01c807be7d2e4e314b3abc3930622ea1272))
+* **thread-triage:** rename the needs-human verdict to escalate ([#516](https://github.com/dryvist/ai-workflows/issues/516)) ([3869eaa](https://github.com/dryvist/ai-workflows/commit/3869eaa2d84a2233a5e3d5eb7ddb0ed785eaab75))
+
 ## [0.48.2](https://github.com/dryvist/ai-workflows/compare/v0.48.1...v0.48.2) (2026-10-10)
 
 
