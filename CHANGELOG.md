@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.47.2](https://github.com/dryvist/ai-workflows/compare/v0.47.1...v0.47.2) (2026-10-10)
+
+
+### CI
+
+* consume shared workflows from v1 ([#499](https://github.com/dryvist/ai-workflows/issues/499)) ([7f0367e](https://github.com/dryvist/ai-workflows/commit/7f0367e7cc52ae09bd5fa926dd0a0c9f45bcb5aa))
+
 ## [0.47.1](https://github.com/dryvist/ai-workflows/compare/v0.47.0...v0.47.1) (2026-10-10)
 
 
