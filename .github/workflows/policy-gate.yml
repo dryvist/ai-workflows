@@ -165,8 +165,6 @@ jobs:
             diff: diff.txt
           custom-headers: "x-langfuse-trace-name: policy-gate"
 
-      # The check run is posted with the Claude bot App token, minted only on
-      # this path. A failed mint is named by the report step, which then fails.
       # A reply that is not a JSON object is reported like a failed request:
       # neutral when advisory, failed when blocking. Never rendered or passed.
       - name: Validate the verdict
@@ -177,6 +175,8 @@ jobs:
           RESPONSE_FILE: ${{ steps.verdict.outputs.response-file }}
         run: jq -e 'type == "object"' "$RESPONSE_FILE" > /dev/null
 
+      # The check run is posted with the Claude bot App token, minted only on
+      # this path. A failed mint is named by the report step, which then fails.
       - name: Mint the check-run token
         id: check-token
         if: steps.override.outputs.has_override != 'true' && (steps.verdict.outcome == 'failure' || steps.valid.outcome == 'failure')
