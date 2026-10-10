@@ -34,3 +34,5 @@ jobs:
       file_size: false
       # Staged until the remaining reusable workflows pass the shared security policy.
       zizmor: false
+      # The same script the Tests workflow runs; it owns the prompt catalog pin.
+      test_command: bash .github/scripts/ci/repo-tests.sh
