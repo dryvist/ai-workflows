@@ -14,11 +14,11 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest. Pass a RunsOn label (see runs-on.com job labels
+          ubuntu-24.04. Pass a RunsOn label (see runs-on.com job labels
           docs) to opt the calling repo into self-hosted runners.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       daily_run_limit:
         description: "Max workflow runs per day (0 to disable)"
         type: string
@@ -43,7 +43,7 @@ jobs:
   dispatch-push:
     if: github.event_name == 'push'
     name: Re-trigger as workflow dispatch
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: write
@@ -62,7 +62,7 @@ jobs:
   check-pr-ceiling:
     if: github.event_name != 'push'
     name: Check bot PR ceiling
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       pull-requests: read
@@ -88,7 +88,7 @@ jobs:
   check-test-infra:
     if: github.event_name != 'push'
     name: Check test infrastructure
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -116,7 +116,7 @@ jobs:
   check-daily-limit:
     if: github.event_name != 'push'
     name: Check daily run limit
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       actions: read
@@ -146,7 +146,7 @@ jobs:
     name: Analyze and create tests
     needs: [check-pr-ceiling, check-test-infra, check-daily-limit]
     if: github.event_name != 'push' && needs.check-pr-ceiling.outputs.allowed == 'true' && needs.check-test-infra.outputs.has_tests == 'true' && needs.check-daily-limit.outputs.should_run == 'true'
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: read
@@ -220,7 +220,7 @@ jobs:
   publish:
     name: Publish test PR
     needs: post-merge-tests
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     permissions:
       contents: write

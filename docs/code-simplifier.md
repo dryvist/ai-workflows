@@ -14,7 +14,7 @@ provider.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
-| `runner_label` | `ubuntu-latest` | Runner label for the job(s) |
+| `runner_label` | `ubuntu-24.04` | Runner label for the job(s) |
 | `daily_run_limit` | `5` | Max runs per day (`0` disables the cap) |
 
 ## Configuration

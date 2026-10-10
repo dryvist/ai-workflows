@@ -69,7 +69,7 @@ permissions:
 jobs:
   scope:
     name: Classify CI scope
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       ci: ${{ steps.classify.outputs.ci }}

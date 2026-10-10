@@ -290,7 +290,7 @@ permissions:
 jobs:
   dispatch:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Re-trigger as workflow_dispatch
         run: |
@@ -471,7 +471,7 @@ permissions:
 jobs:
   dispatch:
     if: github.event_name == 'issues'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: write
       issues: write

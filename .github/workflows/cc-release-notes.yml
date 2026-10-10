@@ -63,7 +63,7 @@ concurrency:
 jobs:
   check-eligibility:
     name: Check eligibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -109,7 +109,7 @@ jobs:
     runs-on: >-
       ${{ (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository) &&
-      (inputs.runner_label || 'self-hosted') || 'ubuntu-latest' }}
+      (inputs.runner_label || 'self-hosted') || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: read
@@ -229,7 +229,7 @@ jobs:
       always() &&
       needs.check-eligibility.outputs.should_run == 'true' &&
       (needs.highlights.result == 'failure' || needs.highlights.result == 'cancelled')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -243,7 +243,7 @@ jobs:
     name: Publish release highlights
     needs: [check-eligibility, highlights]
     if: needs.highlights.result == 'success' && needs.highlights.outputs.neutral != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read

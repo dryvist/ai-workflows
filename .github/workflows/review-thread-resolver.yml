@@ -28,10 +28,10 @@ on:
       runner_label:
         description: >-
           GitHub Actions runner label to run the job(s) on. Defaults to
-          ubuntu-latest.
+          ubuntu-24.04.
         type: string
         required: false
-        default: ubuntu-latest
+        default: ubuntu-24.04
       bot_reviewers:
         description: "Comma-separated bot logins whose threads may be auto-resolved"
         type: string
@@ -87,7 +87,7 @@ concurrency:
 jobs:
   resolve:
     name: Resolve bot review threads
-    runs-on: ${{ inputs.runner_label || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner_label || 'ubuntu-24.04' }}
     timeout-minutes: 10
     # Map the secret to env so the mint steps can skip (and fall back to
     # GITHUB_TOKEN) when a caller passes no App key, instead of hard-failing.
