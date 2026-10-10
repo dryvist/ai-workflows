@@ -1,6 +1,7 @@
 const { expect, test } = require('bun:test');
 const { readdirSync, readFileSync } = require('fs');
 const { join } = require('path');
+const { effectivePermissions, isReusable } = require('../.github/scripts/permission-ceiling/ceiling.js');
 
 // A reusable workflow cannot request a permission its caller does not grant, and
 // the run then fails at startup. Consumer callers grant the standard set, so no
@@ -11,16 +12,6 @@ const { join } = require('path');
 // these reusables must grant `actions: read` itself, or the run fails at startup.
 const dir = join('.github', 'workflows');
 const ACTIONS_API_CHECK = 'check-daily-limit.js';
-
-function isReusable(workflow) {
-  const on = workflow.on ?? workflow[true];
-  return on === 'workflow_call' || (on !== null && typeof on === 'object' && 'workflow_call' in on);
-}
-
-// A job-level `permissions` block replaces the workflow-level one; it does not merge.
-function effectivePermissions(workflow, job) {
-  return job.permissions ?? workflow.permissions;
-}
 
 function callsActionsApi(job) {
   return (job.steps ?? []).some((step) => String(step.with?.script ?? '').includes(ACTIONS_API_CHECK));
