@@ -13,7 +13,7 @@ Used by most workflows. Static prompt, least-privilege agent access.
 
 **Key elements**:
 
-- Immutable checkout of the prompt asset from `dryvist/ai-llm-prompts` plus this repository's scripts
+- Immutable checkout of the prompt asset from `dryvist/ai-llm-prompts` plus this repository's scripts and `run-ai-agent` action at the workflow's commit
 - `render-prompt.sh` to render the static prompt into a step output
 - `run-ai-agent` with the org selector, both provider credentials, and the
   narrowest permission profile that can complete the task
@@ -24,7 +24,7 @@ Used by most workflows. Static prompt, least-privilege agent access.
   run: bash .ai-workflows/.github/scripts/render-prompt.sh .ai-llm-prompts/automation/ai-workflows-<name>.md
 
 - name: Run AI agent
-  uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+  uses: ./.ai-workflows/.github/actions/run-ai-agent
   with:
     agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
     base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
@@ -121,7 +121,7 @@ steps:
   # 1. The agent EDITS ONLY — no git-write, no gh pr/gh api writes. For non-issue
   #    workflows it also writes its PR title (first line) + body to `.claude-pr.md`.
   - name: Run AI agent
-    uses: dryvist/ai-workflows/.github/actions/run-ai-agent@main
+    uses: ./.ai-workflows/.github/actions/run-ai-agent
     with:
       agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
       prompt: ${{ steps.prompt.outputs.content }}
