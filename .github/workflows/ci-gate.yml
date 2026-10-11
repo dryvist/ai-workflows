@@ -29,7 +29,7 @@ jobs:
       # `actions: write` must be granted here or the run fails at graph
       # validation (startup_failure).
       actions: write
-    uses: dryvist/.github/.github/workflows/_ci-gate.yml@0aab1ddaecacea5dc9752b075e2ac10491af33bf # v1.11.3
+    uses: dryvist/.github/.github/workflows/_ci-gate.yml@1f09b25303a04bf276087348059671728ffea50a # v1.13.2
     with:
       profile: docs
       file_size: false
