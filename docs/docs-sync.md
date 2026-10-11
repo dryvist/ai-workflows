@@ -2,7 +2,7 @@
 
 `docs-sync.yml` runs once per merged pull request in a calling ("source")
 repository. A coding agent checks whether that ONE merge changed something
-the private docs site (`docs_repo`, `dryvist/docs-starlight` by default)
+the private docs site (`docs_repo`, `dryvist/docs-private` by default)
 states, and — only when it did — drafts a correction there.
 
 It replaces the per-repo agent rule proposed in
@@ -21,7 +21,7 @@ stale to fix, opens no PR — that is the expected, common outcome.
 | `source_repo` | *(required)* | `owner/repo` of the merged pull request — the repo calling this workflow |
 | `pr_number` | *(required)* | Number of the merged pull request in `source_repo` |
 | `merge_sha` | *(required)* | Merge commit SHA in `source_repo` |
-| `docs_repo` | `dryvist/docs-starlight` | `owner/repo` of the private docs site this workflow may open a PR against |
+| `docs_repo` | `dryvist/docs-private` | `owner/repo` of the private docs site this workflow may open a PR against |
 | `docs_repo_app_id` | *(required)* | App ID of the GitHub App installed on `docs_repo`, used to mint both the read-only checkout token and the write PR token |
 | `model` | `cheap` | Router **role alias** to call — never a vendor model id |
 | `runner_label` | `self-hosted` | Runner label for the job(s) — must be a runner that can reach the model router |
@@ -46,12 +46,12 @@ one by the `docs_repo_app_id`/`DOCS_REPO_APP_PRIVATE_KEY` it passes in:
 
 - The App behind `docs-publisher.yml`'s `private_app_id` /
   `DOCS_PRIVATE_APP_PRIVATE_KEY` — already proven installed on
-  `dryvist/docs-starlight`, since that workflow uses it today to open PRs on
+  `dryvist/docs-private`, since that workflow uses it today to open PRs on
   that exact repo (its own "curate" job, self-referencing).
 - The App behind `cc-post-merge-docs-review.yml`'s `GH_APP_CLAUDE_BOT_ID` /
   `GH_APP_CLAUDE_BOT_PRIVATE_KEY` (`dryvist-claude`) — proven to write PRs
   only into the SAME repo that calls it (no `owner`/`repositories` override
-  in that workflow). Whether it is *also* installed on `docs-starlight` is
+  in that workflow). Whether it is *also* installed on `docs-private` is
   unconfirmed from this repo; that has to be checked against the App's
   installation list before it can be passed as `docs_repo_app_id` here.
 

@@ -2,7 +2,7 @@
 #
 # Reusable workflow: runs once per merged pull request in a calling ("source")
 # repository and asks a coding agent whether that merge changed something the
-# private docs site (dryvist/docs-starlight by default) states. When it did,
+# private docs site (dryvist/docs-private by default) states. When it did,
 # the agent edits docs_repo's tree directly and a fresh publisher job opens a
 # pull request there from a GitHub-VERIFIED, App-signed commit.
 #
@@ -16,7 +16,7 @@
 # fix in docs_repo, opens no PR at all — that is the expected, common
 # outcome, not a failure.
 #
-# docs_repo is PRIVATE by default (docs-starlight), so every checkout of it
+# docs_repo is PRIVATE by default (docs-private), so every checkout of it
 # needs an App token, not the ambient GITHUB_TOKEN (which only covers the
 # calling repo). The agent job mints a READ-ONLY token for that checkout —
 # per this repo's "Agent jobs must not receive a write-capable token" rule —
@@ -44,7 +44,7 @@ on:
         description: "owner/repo of the private docs site this workflow may open a PR against"
         type: string
         required: false
-        default: dryvist/docs-starlight
+        default: dryvist/docs-private
       model:
         description: "Router ROLE alias to call (e.g. cheap, judge, subagent) — never a vendor model id"
         type: string
