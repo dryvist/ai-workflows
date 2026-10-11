@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.4](https://github.com/dryvist/ai-workflows/compare/v0.48.3...v0.48.4) (2026-10-11)
+
+
+### Bug Fixes
+
+* **docs-drift:** report an unparseable model reply as neutral invalid-response ([#521](https://github.com/dryvist/ai-workflows/issues/521)) ([3393d56](https://github.com/dryvist/ai-workflows/commit/3393d56a6ff503c4d0244858d53932e31c121aba))
+* **docs:** carry only the source commit in the publisher trailer ([#524](https://github.com/dryvist/ai-workflows/issues/524)) ([169c7f1](https://github.com/dryvist/ai-workflows/commit/169c7f1360cb2e06bb8546ad4b33bfa6d8e0f94c))
+* **policy-gate:** report a non-JSON verdict as invalid-response ([#523](https://github.com/dryvist/ai-workflows/issues/523)) ([298ade7](https://github.com/dryvist/ai-workflows/commit/298ade7e1e7ca302c947e3d92b0f62bdf4be0d76))
+
 ## [0.48.3](https://github.com/dryvist/ai-workflows/compare/v0.48.2...v0.48.3) (2026-10-10)
 
 
