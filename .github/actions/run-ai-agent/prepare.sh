@@ -26,6 +26,12 @@ validate() {
       ;;
   esac
 
+  local effective_agent="$AGENT"
+  if [[ "$AGENT" == codex ]] && [[ "$(id -u)" -ne 0 ]] && ! sudo -n true 2>/dev/null; then
+    echo "::warning::Codex needs passwordless sudo on this runner; Claude will run instead"
+    effective_agent=claude
+  fi
+
   # One router, two wire formats. Claude Code appends /v1/messages to its
   # base URL, so it gets the parent of the /v1 base; Codex takes the full
   # Responses endpoint.
@@ -34,7 +40,7 @@ validate() {
     echo "claude-base-url=${base%/v1}"
     echo "responses-endpoint=$base/responses"
     echo "permission-profile=$permission_profile"
-    echo "effective-agent=$AGENT"
+    echo "effective-agent=$effective_agent"
   } >> "$GITHUB_OUTPUT"
 
   local args="$CLAUDE_ARGS"
