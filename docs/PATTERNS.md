@@ -49,8 +49,9 @@ edits.
 
 **How it works** (`.github/actions/run-ai-agent/action.yml`):
 
-1. Sparse-checkout `dryvist/ai-assistant-instructions@main` (floating, stays
-   current) into `.ai-instructions`, `continue-on-error: true` (fail-open).
+1. Sparse-checkout `dryvist/ai-assistant-instructions` at a pinned release
+   commit (Renovate-managed) into `.ai-instructions`, `continue-on-error: true`
+   (fail-open).
 2. Deliver the canonical guidance to the native user-instruction location for
    the selected agent.
 3. `claude-code-action` loads `~/.claude/CLAUDE.md`; Codex loads the delivered
