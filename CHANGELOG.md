@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.6](https://github.com/dryvist/ai-workflows/compare/v0.48.5...v0.48.6) (2026-10-11)
+
+
+### CI
+
+* **workflows:** hold the prompt catalog pin in one composite action ([#530](https://github.com/dryvist/ai-workflows/issues/530)) ([43d7f8b](https://github.com/dryvist/ai-workflows/commit/43d7f8b705b14ebcf2934cb184046f2cf9635f2a))
+
 ## [0.48.5](https://github.com/dryvist/ai-workflows/compare/v0.48.4...v0.48.5) (2026-10-11)
 
 
