@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.8](https://github.com/dryvist/ai-workflows/compare/v0.48.7...v0.48.8) (2026-10-11)
+
+
+### Bug Fixes
+
+* **dep-review:** pick the router key and role by repository visibility ([#542](https://github.com/dryvist/ai-workflows/issues/542)) ([a8bbc30](https://github.com/dryvist/ai-workflows/commit/a8bbc3092de519aaed459e019e8678c958e83cca))
+
 ## [0.48.7](https://github.com/dryvist/ai-workflows/compare/v0.48.6...v0.48.7) (2026-10-11)
 
 
