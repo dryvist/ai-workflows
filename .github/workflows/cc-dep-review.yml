@@ -66,6 +66,11 @@ on:
         required: true
       LLM_ROUTER_API_KEY:
         required: true
+      LLM_ROUTER_OSS_API_KEY:
+        description: >-
+          Router virtual key scoped to the open-source review role. Read only
+          on a public repository, where it replaces LLM_ROUTER_API_KEY.
+        required: false
 
 # Reusable-workflow ceiling. This workflow never merges or pushes commits, so
 # no job needs contents: write; every job narrows further below.
@@ -176,11 +181,13 @@ jobs:
           agent: ${{ vars.GH_ACTION_AI_AGENT || 'claude' }}
           prompt: ${{ steps.prompt.outputs.content }}
           claude_model: ${{ inputs.model || vars.GH_ACTION_AI_MODEL_REVIEW || vars.GH_ACTION_AI_MODEL_CODE || vars.GH_ACTION_AI_MODEL }}
-          codex_model: ${{ inputs.model || vars.GH_ACTION_AI_CODEX_MODEL }}
+          # Visibility picks the router key and role, as in pr-agent.yml: a
+          # public repo calls review-oss with LLM_ROUTER_OSS_API_KEY.
+          codex_model: ${{ inputs.model || (github.event.repository.private && (vars.GH_ACTION_AI_CODEX_MODEL || 'review-private') || 'review-oss') }}
           allowed_tools: "Read,Glob,Grep,LS,Write,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh api repos/*),WebFetch(domain:github.com)"
           permission_profile: workspace
           base_url: ${{ secrets.LLM_ROUTER_BASE_URL }}
-          api_key: ${{ secrets.LLM_ROUTER_API_KEY }}
+          api_key: ${{ !github.event.repository.private && secrets.LLM_ROUTER_OSS_API_KEY || secrets.LLM_ROUTER_API_KEY }}
           openai_effort: ${{ vars.GH_ACTION_AI_CODEX_EFFORT }}
           codex_version: ${{ vars.GH_ACTION_AI_CODEX_VERSION }}
           allowed_bots: "github-actions,renovate,dependabot"
