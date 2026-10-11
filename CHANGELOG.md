@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.7](https://github.com/dryvist/ai-workflows/compare/v0.48.6...v0.48.7) (2026-10-11)
+
+
+### Bug Fixes
+
+* **docs-sync:** update the default private docs repository name ([#535](https://github.com/dryvist/ai-workflows/issues/535)) ([9b60cb7](https://github.com/dryvist/ai-workflows/commit/9b60cb7b899701044f63096c9d8fa5f3ec930c86))
+* **run-ai-agent:** run Claude when the runner cannot give Codex sudo ([#539](https://github.com/dryvist/ai-workflows/issues/539)) ([2ee202e](https://github.com/dryvist/ai-workflows/commit/2ee202e3fa8cdc622ce034942fe04cc5753374a7))
+
 ## [0.48.6](https://github.com/dryvist/ai-workflows/compare/v0.48.5...v0.48.6) (2026-10-11)
 
 
