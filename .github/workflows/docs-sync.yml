@@ -163,19 +163,14 @@ jobs:
           sparse-checkout: |
             .github/scripts
             .github/actions/run-ai-agent
+            .github/actions/checkout-prompts
           path: .ai-workflows
           persist-credentials: false
 
       - name: Checkout prompt catalog
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: ./.ai-workflows/.github/actions/checkout-prompts
         with:
-          repository: dryvist/ai-llm-prompts
-          ref: ad9697cb92c54e4a41eb778df251cd0b76152eca # bump to the merged commit once dryvist/ai-llm-prompts#62 lands
           sparse-checkout: automation/ai-workflows-docs-sync.md
-          sparse-checkout-cone-mode: false
-          path: .ai-llm-prompts
-          persist-credentials: false
-
       - name: Render prompt
         id: prompt
         env:

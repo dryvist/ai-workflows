@@ -126,15 +126,13 @@ enforces both.
   with:
     repository: dryvist/ai-workflows
     ref: ${{ job.workflow_sha }}
-    sparse-checkout: .github/scripts
+    sparse-checkout: |
+      .github/scripts
+      .github/actions/checkout-prompts
     path: .ai-workflows
-- uses: actions/checkout@v7
+- uses: ./.ai-workflows/.github/actions/checkout-prompts
   with:
-    repository: dryvist/ai-llm-prompts
-    ref: 0431be6994d51169b9f705ddeba958eb8a4d0fc4
     sparse-checkout: automation/ai-workflows-<name>.md
-    sparse-checkout-cone-mode: false
-    path: .ai-llm-prompts
 ```
 
 ## Workflow Authoring Rules

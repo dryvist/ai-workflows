@@ -4,12 +4,14 @@
 # installed.
 set -euo pipefail
 
-# The catalog is public and read anonymously. CATALOG_SHA is the only copy of this pin.
+# The catalog is public and read anonymously. The pin lives once, in the checkout-prompts composite action.
 CATALOG_REPO="https://github.com/dryvist/ai-llm-prompts.git"
-CATALOG_SHA="0431be6994d51169b9f705ddeba958eb8a4d0fc4"
 CATALOG_DIR=".ai-llm-prompts"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
+
+CATALOG_SHA="$(sed -n 's/^ *ref: \([0-9a-f]\{40\}\) .*/\1/p' .github/actions/checkout-prompts/action.yml)"
+[[ $CATALOG_SHA =~ ^[0-9a-f]{40}$ ]] || { echo "no catalog pin in checkout-prompts" >&2; exit 1; }
 
 rm -rf -- "$CATALOG_DIR"
 git clone --quiet --filter=blob:none --no-checkout "$CATALOG_REPO" "$CATALOG_DIR"

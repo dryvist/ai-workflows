@@ -1,0 +1,23 @@
+name: Checkout prompt catalog
+description: Checkout prompt files from the pinned prompt catalog release.
+inputs:
+  sparse-checkout:
+    description: Sparse-checkout path or paths for the prompt files needed by the caller.
+    required: true
+  path:
+    description: Workspace path for the prompt catalog checkout.
+    required: false
+    default: .ai-llm-prompts
+runs:
+  using: composite
+  steps:
+    - name: Checkout prompt catalog
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      with:
+        repository: dryvist/ai-llm-prompts
+        # renovate: datasource=github-tags depName=dryvist/ai-llm-prompts
+        ref: 72f8d547145396331b6d1cc69fef47754d2fe5be  # v1.12.1
+        sparse-checkout: ${{ inputs.sparse-checkout }}
+        sparse-checkout-cone-mode: false
+        path: ${{ inputs.path }}
+        persist-credentials: false

@@ -175,7 +175,8 @@ runs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         repository: dryvist/ai-assistant-instructions
-        ref: main
+        # renovate: datasource=github-tags depName=dryvist/ai-assistant-instructions
+        ref: f652b04d5a3edffdee975764b56970cc23c033be  # v1.33.1
         sparse-checkout: |
           AGENTS.md
           agentsmd/rules
