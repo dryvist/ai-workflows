@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.5](https://github.com/dryvist/ai-workflows/compare/v0.48.4...v0.48.5) (2026-10-11)
+
+
+### CI
+
+* promote the floating major tag after each release ([#528](https://github.com/dryvist/ai-workflows/issues/528)) ([49ea1ef](https://github.com/dryvist/ai-workflows/commit/49ea1ef17e1cd88697de7aeb5830a7ddecf1b3e3))
+
 ## [0.48.4](https://github.com/dryvist/ai-workflows/compare/v0.48.3...v0.48.4) (2026-10-11)
 
 
