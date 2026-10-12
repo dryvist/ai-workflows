@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.48.9](https://github.com/dryvist/ai-workflows/compare/v0.48.8...v0.48.9) (2026-10-12)
+
+
+### Bug Fixes
+
+* **ai-workflows:** use capability model names ([a62453f](https://github.com/dryvist/ai-workflows/commit/a62453f75f0332fc658c618012154f1615f71719))
+* **ai-workflows:** use capability model names ([#544](https://github.com/dryvist/ai-workflows/issues/544)) ([956f7b3](https://github.com/dryvist/ai-workflows/commit/956f7b36041dd26163fd2734aaeceb7e9e9541b1))
+
 ## [0.48.8](https://github.com/dryvist/ai-workflows/compare/v0.48.7...v0.48.8) (2026-10-11)
 
 
