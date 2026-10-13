@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.49.1](https://github.com/dryvist/ai-workflows/compare/v0.49.0...v0.49.1) (2026-10-13)
+
+
+### CI
+
+* **release-notes:** run the dogfood job only on release-please PRs ([#553](https://github.com/dryvist/ai-workflows/issues/553)) ([546eaa4](https://github.com/dryvist/ai-workflows/commit/546eaa400d0c52c622bdbc258115b59a53b2fc01))
+* **release:** pin the release-please workflow to v1.17.0 ([#554](https://github.com/dryvist/ai-workflows/issues/554)) ([19206be](https://github.com/dryvist/ai-workflows/commit/19206be63cdfe25edc47856232c4d8806f418819))
+
 ## [0.49.0](https://github.com/dryvist/ai-workflows/compare/v0.48.9...v0.49.0) (2026-10-12)
 
 
