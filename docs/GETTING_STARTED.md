@@ -58,7 +58,7 @@ permissions:
 
 #### `cc-issue-resolver.yml`
 
-Triggered by `issues: [opened]`. Creates draft PRs for simple, well-scoped issues.
+Triggered by `issues: [opened]`. Creates ready PRs for simple, well-scoped issues.
 
 ```yaml
 on:

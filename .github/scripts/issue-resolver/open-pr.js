@@ -44,6 +44,7 @@ module.exports = async ({ github, context, core }) => {
     title,
     body,
     baseBranch: process.env.BASE_BRANCH,
+    labels: ['human:review'],
   });
 
   await comment(

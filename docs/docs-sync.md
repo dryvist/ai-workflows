@@ -25,7 +25,6 @@ stale to fix, opens no PR — that is the expected, common outcome.
 | `docs_repo_app_id` | *(required)* | App ID of the GitHub App installed on `docs_repo`, used to mint both the read-only checkout token and the write PR token |
 | `model` | `small` | Router **role alias** to call — never a vendor model id |
 | `runner_label` | `self-hosted` | Runner label for the job(s) — must be a runner that can reach the model router |
-| `draft_prs` | `"true"` | Open the resulting PR as a draft instead of ready-for-review |
 | `daily_run_limit` | `"10"` | Max workflow runs per calling repo per day (`0` to disable) |
 
 ## Configuration

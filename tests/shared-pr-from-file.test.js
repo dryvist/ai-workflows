@@ -76,15 +76,25 @@ describe('pr-from-file', () => {
     expect(core.getOutput('opened')).toBe('false');
   });
 
-  it('opens a draft PR when PR_DRAFT=true, ready otherwise', async () => {
+  it('opens a ready PR without a draft option', async () => {
     fs.writeFileSync(path.join(dir, 'a.txt'), 'one\ntwo\n');
     fs.writeFileSync(path.join(dir, '.claude-pr.md'), 'docs: fix stale reference\n\nBody.');
-    process.env.PR_DRAFT = 'true';
 
     await runIn(dir, { github, context, core });
 
-    expect(github.rest.pulls.create.mock.calls[0][0].draft).toBe(true);
-    delete process.env.PR_DRAFT;
+    expect(Object.hasOwn(github.rest.pulls.create.mock.calls[0][0], 'draft')).toBe(false);
+  });
+
+  it('labels the PR from PR_LABELS and adds no label without it', async () => {
+    github.rest.issues = { addLabels: mock(async () => ({})) };
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'one\ntwo\n');
+    fs.writeFileSync(path.join(dir, '.claude-pr.md'), 'test: cover x\n\nBody.');
+    process.env.PR_LABELS = 'human:review';
+
+    await runIn(dir, { github, context, core });
+
+    expect(github.rest.issues.addLabels.mock.calls[0][0]).toMatchObject({ issue_number: 55, labels: ['human:review'] });
+    delete process.env.PR_LABELS;
   });
 
   it('opens the PR against PR_REPO when set, instead of context.repo', async () => {

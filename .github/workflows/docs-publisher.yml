@@ -52,9 +52,6 @@ on:
       public_base_branch:
         type: string
         default: main
-      draft_public_pr:
-        type: boolean
-        default: false
     secrets:
       DOCS_LOCAL_AI_API_KEY:
         required: false
@@ -237,7 +234,6 @@ jobs:
             Docs-Publisher-Source: ${{ github.sha }}
 
             Publishes the generated Mintlify documentation projection.
-          PR_DRAFT: ${{ inputs.draft_public_pr }}
         with:
           github-token: ${{ steps.public-token.outputs.token }}
           script: |

@@ -19,15 +19,15 @@ Reusable AI agent workflows for GitHub Actions. Each workflow is a
 | `cc-code-simplifier.yml` | `workflow_call` | Daily 4am UTC | Simplifies changed code and opens a PR |
 | `cc-release-notes.yml` | `pull_request` | On release PR | Posts sticky AI release-highlights comment on release-please PRs (refreshed per head SHA) |
 | `docs-drift.yml` | `workflow_call` | On push to default branch | Medium model lists docs the merge contradicts; summary, artifact, sticky PR comment |
-| `docs-sync.yml` | `workflow_call` (dispatch pattern) | On merge (consumer) | Per-merged-PR check; drafts a docs-private correction when needed |
+| `docs-sync.yml` | `workflow_call` (dispatch pattern) | On merge (consumer) | Per-merged-PR check; proposes a docs-private correction PR when needed |
 | `issue-hygiene.yml` | `workflow_call` | Mon 7am UTC | Detects duplicates, links merged PRs, flags stale issues |
-| `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates draft PRs for simple, well-scoped issues |
+| `cc-issue-resolver.yml` | `issues: [opened]` | On issue open | Creates ready PRs for simple, well-scoped issues |
 | `issue-backlog-sweep.yml` | `workflow_call` | Weekly (consumer) | Labels the oldest untriaged issues so `ai:ready` ones enter the resolver |
 | `issue-sweeper.yml` | `workflow_call` | Mon 6am UTC | Scans open issues, comments on progress, closes resolved |
 | `issue-triage.yml` | `issues: [opened]` | On issue open | Categorizes, deduplicates, and labels new issues |
 | `cc-next-steps.yml` | `workflow_call` | Daily 5am UTC | Analyzes merge momentum, suggests next logical action |
 | `cc-post-merge-docs-review.yml` | `workflow_call` (dispatch pattern) | On merge | Reviews documentation after merges, creates fix PRs |
-| `cc-post-merge-tests.yml` | `workflow_call` (dispatch pattern) | On merge | Analyzes merged code, creates draft PRs with targeted tests |
+| `cc-post-merge-tests.yml` | `workflow_call` (dispatch pattern) | On merge | Analyzes merged code, creates ready PRs with targeted tests |
 | `cc-pr-review-responder.yml` | `pull_request_review*` | On PR review (consumer) | Fixes valid review feedback, replies, resolves threads (never merges) |
 | `policy-gate.yml` | `workflow_call` | On PR (consumer) | `medium` role scores the diff against a fixed 5-check rubric; advisory sticky comment |
 | `pr-agent.yml` | `workflow_call` | On PR (consumer) | PR-Agent review, improve and describe on the router; prompts in the consumer's `.pr_agent.toml` |
