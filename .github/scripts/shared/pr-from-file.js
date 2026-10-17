@@ -41,10 +41,11 @@ module.exports = async ({ github, context, core }) => {
     title,
     body: `${body}\n\n${provenance}`,
     extraExcludes: [prFile],
-    draft: process.env.PR_DRAFT === 'true',
     // PR_REPO ("owner/repo") targets a repo other than the checked-out one —
     // e.g. docs-sync edits a docs_repo checkout while running in the source
     // repo's Actions context. Unset for every same-repo caller (default).
     repoWithOwner: process.env.PR_REPO || undefined,
+    // PR_LABELS (comma-separated) labels the PR, e.g. human:review for agent-written code.
+    labels: (process.env.PR_LABELS || '').split(',').map((l) => l.trim()).filter(Boolean),
   });
 };

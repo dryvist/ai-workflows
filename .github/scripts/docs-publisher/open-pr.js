@@ -16,7 +16,6 @@ module.exports = async ({ github, context, core }) => {
       body: process.env.PR_BODY || '',
       baseBranch: process.env.BASE_BRANCH || 'main',
       repoWithOwner: process.env.TARGET_REPOSITORY || undefined,
-      draft: process.env.PR_DRAFT === 'true',
     });
   } finally {
     process.chdir(previous);

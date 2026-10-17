@@ -55,10 +55,6 @@ on:
         type: string
         required: false
         default: self-hosted
-      draft_prs:
-        description: "Open the resulting PR as a draft instead of ready-for-review"
-        type: string
-        default: "true"
       daily_run_limit:
         description: "Max workflow runs per calling repo per day (0 to disable)"
         type: string
@@ -121,7 +117,7 @@ jobs:
             await run({ github, context, core });
 
   docs-sync:
-    name: Check merge and draft docs fix
+    name: Check merge and propose docs fix
     needs: check-daily-limit
     if: needs.check-daily-limit.outputs.should_run == 'true'
     runs-on: ${{ inputs.runner_label || 'self-hosted' }}
@@ -261,7 +257,6 @@ jobs:
         env:
           PR_REPO: ${{ inputs.docs_repo }}
           PR_BRANCH: claude/docs-sync-${{ github.run_id }}
-          PR_DRAFT: ${{ inputs.draft_prs }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: docs-sync

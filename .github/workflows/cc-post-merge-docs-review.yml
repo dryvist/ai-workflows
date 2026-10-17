@@ -27,10 +27,6 @@ on:
         description: 'Override commit SHA for workflow_dispatch callers'
         required: false
         type: string
-      draft_prs:
-        description: "Open the resulting PR as a draft instead of ready-for-review"
-        type: string
-        default: "false"
       extra_prompt_instructions:
         description: >-
           Extra instructions appended after the catalog prompt — e.g. telling
@@ -282,7 +278,6 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PR_BRANCH: claude/post-merge-docs-review-${{ github.run_id }}
-          PR_DRAFT: ${{ inputs.draft_prs }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EVENT_NAME: ${{ github.event_name }}

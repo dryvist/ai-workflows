@@ -26,7 +26,7 @@ function makeGithub() {
     rest: {
       git: { createRef: mock(async () => ({})) },
       pulls: { create: mock(async () => ({ data: { number: 42, html_url: 'https://x/pull/42' } })) },
-      issues: { createComment: mock(async () => ({})) },
+      issues: { createComment: mock(async () => ({})), addLabels: mock(async () => ({})) },
     },
   };
 }
@@ -78,6 +78,7 @@ describe('open-pr', () => {
     expect(pr.body).toContain('Closes #7');
     // issue comment links the PR
     expect(github.rest.issues.createComment.mock.calls[0][0].body).toContain('#42');
+    expect(github.rest.issues.addLabels.mock.calls[0][0].labels).toEqual(['human:review']);
     expect(core.getOutput('opened')).toBe('true');
     expect(core.getOutput('pr_number')).toBe('42');
   });
