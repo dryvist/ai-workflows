@@ -6,11 +6,10 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
-  # Local ref on purpose: the pull request's own version of the workflow is
-  # what should run. `describe` stays off — the pull request body carries a
-  # provenance footer this repository owns.
+  # `describe` stays off — the pull request body carries a provenance footer
+  # this repository owns.
   pr-agent:
-    uses: ./.github/workflows/pr-agent.yml
+    uses: JacobPEvans/.github-ai/.github/workflows/pr-agent.yml@v1
     with:
       review: true
       improve: true
