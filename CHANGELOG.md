@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.50.0](https://github.com/dryvist/ai-workflows/compare/v0.49.1...v0.50.0) (2026-10-17)
+
+
+### Features
+
+* **pr:** open ready PRs and label agent-code PRs for review ([#557](https://github.com/dryvist/ai-workflows/issues/557)) ([5dc5eb7](https://github.com/dryvist/ai-workflows/commit/5dc5eb7b628c8be74e2863187c3fc45041120471))
+
 ## [0.49.1](https://github.com/dryvist/ai-workflows/compare/v0.49.0...v0.49.1) (2026-10-13)
 
 
