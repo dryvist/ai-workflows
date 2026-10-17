@@ -14,10 +14,10 @@
 # Two contracts worth knowing before you call it:
 #
 # 1. The runner must reach the router: the shared self-hosted pool.
-# 2. A router refusal that is a gateway, budget or 429 error fails the job
-#    closed, because this is a required check: the job summary says the review
-#    was not performed, a check run is posted with conclusion failure, and one
-#    ops alert is sent to ntfy. Any other tool failure also fails the job. The
+# 2. A router refusal that is a gateway, budget or 429 error never blocks a
+#    merge: the job passes, the job summary says the review was not performed,
+#    a check run is posted with conclusion neutral, and one ops alert is sent
+#    to ntfy. Any other tool failure fails the job. The
 #    job is capped (`timeout_minutes`, ten by default). It never reports success
 #    having reviewed nothing.
 #
@@ -180,10 +180,10 @@ jobs:
         run: bash .ai-workflows/.github/scripts/pr-agent/run.sh
 
       # Runs only after a gateway failure: run.sh wrote gateway-reason.txt and
-      # failed the job. The check run uses the Claude bot App token, minted here.
+      # passed. The check run uses the Claude bot App token, minted here.
       - name: Mint the check-run token
         id: check-token
-        if: failure() && hashFiles('gateway-reason.txt') != ''
+        if: always() && hashFiles('gateway-reason.txt') != ''
         continue-on-error: true
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
@@ -192,12 +192,14 @@ jobs:
           permission-checks: write
 
       - name: Report gateway unavailability
-        if: failure() && hashFiles('gateway-reason.txt') != ''
+        if: always() && hashFiles('gateway-reason.txt') != ''
+        # A missing check run or alert is logged, never a merge blocker.
+        continue-on-error: true
         env:
           NTFY_BASE_URL: ${{ secrets.NTFY_BASE_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          # Required check: failure, so the job stays red.
-          CONCLUSION: failure
+          # Not a review finding: neutral, so the required workflow still passes.
+          CONCLUSION: neutral
           GITHUB_TOKEN: ${{ steps.check-token.outputs.token }}
           CHECK_TOKEN_CAUSE: ${{ secrets.GH_APP_CLAUDE_BOT_PRIVATE_KEY == '' && 'GH_APP_CLAUDE_BOT_PRIVATE_KEY is not set' || 'the mint step failed' }}
           CHECK_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

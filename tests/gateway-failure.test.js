@@ -158,16 +158,17 @@ describe('gateway wiring in the workflows', () => {
     expect(job.permissions).toEqual({ contents: 'read' });
   });
 
-  it('pr-agent is required: the runner fails closed; the App-token report runs only after that failure', () => {
+  it('pr-agent: a gateway failure passes the job and reports neutral; it never blocks a merge', () => {
     const workflow = load('pr-agent.yml');
     const job = workflow.jobs['pr-agent'];
     expect(job.permissions.checks).toBeUndefined();
     const report = step(job, 'Report gateway unavailability');
-    expect(report.if).toContain("hashFiles('gateway-reason.txt')");
-    expect(report.env.CONCLUSION).toBe('failure');
+    expect(report.if).toContain("always() && hashFiles('gateway-reason.txt')");
+    expect(report['continue-on-error']).toBe(true);
+    expect(report.env.CONCLUSION).toBe('neutral');
+    expect(step(job, 'Mint the check-run token').if).toContain("always() && hashFiles('gateway-reason.txt')");
     const runner = readFileSync(join('.github', 'scripts', 'pr-agent', 'run.sh'), 'utf8');
-    expect(runner).toContain('gateway-reason.txt');
-    expect(runner).toMatch(/gateway-reason\.txt\n\s+echo "::error::.*\n\s+exit 1/);
+    expect(runner).toMatch(/gateway-reason\.txt\n\s+echo "::warning::.*\n\s+exit 0/);
   });
 
   it('no callee grants checks: write; the callee GITHUB_TOKEN permissions stay as on main', () => {
