@@ -1,4 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>dryvist/.github"]
+  "extends": ["github>JacobPEvans/.github"]
 }
