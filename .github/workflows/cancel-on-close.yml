@@ -7,4 +7,4 @@ jobs:
   cancel-on-close:
     permissions:
       actions: write
-    uses: JacobPEvans/.github/.github/workflows/_cancel-on-close.yml@v1
+    uses: JacobPEvans/.github/.github/workflows/_cancel-on-close.yml@b6c7d9be8f93af36e215831b2d28a60e13ab2227 # v1.23.3
