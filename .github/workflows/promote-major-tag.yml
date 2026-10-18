@@ -14,6 +14,6 @@ jobs:
     permissions:
       contents: write
       checks: read
-    uses: JacobPEvans/.github/.github/workflows/promote-major-tag.yml@v1
+    uses: JacobPEvans/.github/.github/workflows/promote-major-tag.yml@b6c7d9be8f93af36e215831b2d28a60e13ab2227 # v1.23.3
     with:
       tag: ${{ github.event.release.tag_name }}

@@ -1,7 +1,7 @@
-# CI Gate — thin wrapper over the dryvist org reusable workflow
+# CI Gate — thin wrapper over the JacobPEvans/.github reusable workflow
 #
 # Delegates markdown lint (and the other standard checks) to the org
-# orchestrator `dryvist/.github/.github/workflows/_ci-gate.yml@<40-hex commit SHA> # vX.Y.Z`.
+# orchestrator `JacobPEvans/.github/.github/workflows/_ci-gate.yml`.
 
 name: CI Gate
 
@@ -29,7 +29,7 @@ jobs:
       # `actions: write` must be granted here or the run fails at graph
       # validation (startup_failure).
       actions: write
-    uses: dryvist/.github/.github/workflows/_ci-gate.yml@1f09b25303a04bf276087348059671728ffea50a # v1.13.2
+    uses: JacobPEvans/.github/.github/workflows/_ci-gate.yml@b6c7d9be8f93af36e215831b2d28a60e13ab2227 # v1.23.3
     with:
       profile: docs
       file_size: false
